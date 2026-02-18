@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
 # Format Site table for  Yukon Biophysical Inventory System plot data
-# Author: Amanda Droghini, Alaska Center for Conservation
-# Last Updated: 2025-09-30
-# Usage: Must be executed in an ArcGIS Pro Python 3.11+ distribution.
+# Author: Amanda Droghini, Alaska Center for Conservation Science
+# Last Updated: 2026-02-18
+# Usage: Must be executed in a Python 3.13+ distribution.
 # Description: "Format Site table for Yukon Biophysical Inventory System plot data" extracts relevant
 # information from an ESRI shapefile, re-projects to NAD83, drops sites with missing data, replaces values with the
 # correct constrained values, and performs QC checks. The
