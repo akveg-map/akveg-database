@@ -62,7 +62,7 @@ site = pl.from_pandas(site)
 
 ## Ensure Plot IDs are unique as this column will be used for
 # subsequent filtering
-print(site.select("Plot_ID").unique().height == site.height)
+print(site["Plot_ID"].n_unique() == site.height)
 
 # Drop sites that are not for public access (n=3102)
 ## Communication with data manager on 2025-09-25: Project IDs 206 and 208 can be made public
@@ -78,8 +78,12 @@ no_cover = (public_sites.group_by('Plot ID')
             .select('Plot ID'))
 site = site.join(no_cover, left_on='Plot_ID', right_on='Plot ID', how='anti')
 
-# Drop sites with unreliable or missing data
-
+# Drop sites with incomplete data
+## Plots seem to be missing vegetation data (or additional entries for non-vegetated classes). Sum of abiotic cover
+# percent is far less
+# than 100% and notes for 10425 indicate the plot should have vegetation data associated with it.
+site = site.filter(~pl.col("Plot_ID").is_in([10425, 10428, 10394, 10411, 10210])
+                              )
 ## Construct LazyFrame
 lazy_site = site.lazy()
 
