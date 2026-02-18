@@ -111,7 +111,7 @@ veg_taxa <- veg_data %>%
     .default = name_original
   )) %>%
   # Re-classify unknowns
-  ## Using stratum code to determine appropriate functional group
+  ## Using stratum code to determine appropriate functional group. Codes are defined on pages 4-8 and 4-9 of the "Field manual for describing Yukon ecosystems".
   mutate(name_original = case_when(name_original == "Unspecified" & Veg.stratum.cd == "AQ" ~ "unknown",
                                    name_original == "Unspecified" & Veg.stratum.cd == "BR" ~ "liverwort",
                                    name_original == "Unspecified" & Veg.stratum.cd == "FB" ~ "forb",
@@ -220,13 +220,13 @@ print(table(veg_final$dead_status))
 # Are the correct number of sites included?
 missing_sites = visit_original %>%
   filter(!(site_visit_code %in% veg_final$site_visit_code)) %>%
-  select(site_visit_code) # Plots with 100% abiotic cover
+  select(site_visit_code) 
 
 missing_data = veg_data %>% 
   filter(site_visit_code %in% missing_sites$site_visit_code) %>% 
   group_by(site_visit_code) %>% 
   summarise(total_percent = sum(Veg.cover.pct)) %>% 
-  arrange(total_percent)
+  arrange(total_percent) # Plots with 100% abiotic cover, OK to be missing
 
 # Are there any duplicates?
 veg_final %>%
