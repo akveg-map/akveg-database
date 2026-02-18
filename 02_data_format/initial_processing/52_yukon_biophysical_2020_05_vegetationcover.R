@@ -126,12 +126,8 @@ veg_taxa <- veg_data %>%
                                    name_original == "Unspecified" & Veg.stratum.cd == "S2" ~ "unknown",
                                    name_original == "Unspecified" & Veg.stratum.cd == "S6" ~ "unknown",
                                    name_original == "Unspecified" & Veg.stratum.cd == "SN" ~ "unknown",
-                                   .default = name_original))
-                                   ))
+                                   .default = name_original)) %>% 
   filter(Veg.stratum.cd != "NV") ##  Remove non-vegetated codes
-
-
-veg_taxa = veg_taxa
 
 # Join with AKVEG Checklist
 veg_taxa <- veg_taxa %>%
@@ -177,7 +173,7 @@ print(veg_taxa %>%
 print(which(!(veg_taxa$name_adjudicated %in% unique(taxonomy_original$taxon_name))))  # Should be empty
 
 # Format dead status ----
-# Use "veg stratum" column. Codes are defined on pages 4-8 and 4-9 of the "Field manual for describing Yukon ecosystems". Assume all other plants are live.
+# Use "veg stratum" column. Codes are defined on pages 4-8 and 4-9 of the "Field manual for describing Yukon ecosystems". All other plants are live.
 veg_taxa <- veg_taxa %>%
   mutate(dead_status = case_when(Veg.stratum.cd == "SN" ~ "TRUE",
                                  grepl("S\\d", Veg.stratum.cd) ~ "TRUE",
@@ -185,7 +181,9 @@ veg_taxa <- veg_taxa %>%
   ))
 
 ## Ensure classification worked as expected
-print(veg_taxa %>% distinct(Veg.stratum.cd, dead_status))
+print(veg_taxa %>% 
+        distinct(Veg.stratum.cd, dead_status) %>% 
+        arrange(Veg.stratum.cd))
 
 # Summarize percent cover ---
 veg_final <- veg_taxa %>%
@@ -213,8 +211,8 @@ cbind(
 # Is the range of summed percent cover reasonable?
 temp <- veg_final %>%
   group_by(site_visit_code) %>%
-  summarise(total_sum = sum(cover_percent)) %>%
-  arrange(-total_sum)
+  summarise(total_percent = sum(cover_percent)) %>%
+  arrange(-total_percent)
 
 # Are values for dead status Boolean?
 print(table(veg_final$dead_status))
@@ -224,7 +222,11 @@ missing_sites = visit_original %>%
   filter(!(site_visit_code %in% veg_final$site_visit_code)) %>%
   select(site_visit_code) # Plots with 100% abiotic cover
 
-missing_data = veg_data %>% filter(site_visit_code %in% missing_sites$site_visit_code)
+missing_data = veg_data %>% 
+  filter(site_visit_code %in% missing_sites$site_visit_code) %>% 
+  group_by(site_visit_code) %>% 
+  summarise(total_percent = sum(Veg.cover.pct)) %>% 
+  arrange(total_percent)
 
 # Are there any duplicates?
 veg_final %>%
