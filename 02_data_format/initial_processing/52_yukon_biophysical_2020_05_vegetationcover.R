@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # "Format Vegetation Cover for Yukon Biophysical Inventory System Plots"
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-02-11
+# Last Updated: 2026-02-18
 # Usage: Must be executed in R version 4.5.1+.
 # Description: "Format Vegetation Cover for Yukon Biophysical Inventory System Plots" formats vegetation cover data for ingestion into the AKVEG Database. The script appends unique site visit identifiers, corrects taxonomic names using the AKVEG comprehensive checklist, and enforces formatting to match the AKVEG template. The output is a CSV table that can be converted and included in a SQL INSERT statement.
 # ---------------------------------------------------------------------------
@@ -102,16 +102,36 @@ veg_taxa <- veg_data %>%
     grepl("^Alga", name_original) ~ "algae",
     name_original == "Picea x 3" ~ "Picea",
     name_original == "Cladonia arbuscula ssp mitis" ~ "Cladonia arbuscula ssp. mitis",
+    grepl("Elyhordeum", name_original) ~ str_replace(name_original, "x ", "×"),
     name_original == "Hierochloe hirta" ~ "Hierochloë hirta",
     name_original == "Galium brandegeei" ~ "Galium brandegei",
     name_original == "Carex amblyorhyncha" ~ "Carex amblyorrhyncha",
     name_original == "Deschampsia caespitosa" ~ "Deschampsia cespitosa",
+    name_original == "Temporarily unidentified" ~ "Unspecified",  ## Combine into single "Unspecified" class
     .default = name_original
   )) %>%
-  filter(name_original != "Unspecified" 
-         & name_original != "Fungus" 
-         & Veg.stratum.cd != "NV" 
-         & name_original != "Temporarily unidentified") ##  Remove non-plant codes
+  # Re-classify unknowns
+  ## Using stratum code to determine appropriate functional group
+  mutate(name_original = case_when(name_original == "Unspecified" & Veg.stratum.cd == "AQ" ~ "unknown",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "BR" ~ "liverwort",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "FB" ~ "forb",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "FG" ~ "fungus",
+                                   name_original == "Fungus" ~ "fungus",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "FN" ~ "fern",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "GR" ~ "graminoid",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "GS" ~ "shrub",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "LN" ~ "lichen",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "LS" ~ "shrub",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "MS" ~ "shrub",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "S2" ~ "unknown",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "S6" ~ "unknown",
+                                   name_original == "Unspecified" & Veg.stratum.cd == "SN" ~ "unknown",
+                                   .default = name_original))
+                                   ))
+  filter(Veg.stratum.cd != "NV") ##  Remove non-vegetated codes
+
+
+veg_taxa = veg_taxa
 
 # Join with AKVEG Checklist
 veg_taxa <- veg_taxa %>%
@@ -120,7 +140,7 @@ veg_taxa <- veg_taxa %>%
 # Address codes without a match
 veg_taxa <- veg_taxa %>%
   mutate(name_adjudicated = case_when(name_original == "Poaceae" ~ "grass (Poaceae)",
-    grepl("^Alopecurus", Scientific.name) & is.na(name_adjudicated) ~ "Alopecurus",
+    grepl("^Alopecurus", Scientific.name) & is.na(taxon_name) ~ "Alopecurus",
     name_original == "Astragalus eucosmus ssp. eucosmus" ~ "Astragalus eucosmus",
     name_original == "Bromus carinatus" ~ "grass (Poaceae)",
     name_original == "Cardamine oligosperma" ~ "Cardamine umbellata",
@@ -145,30 +165,27 @@ veg_taxa <- veg_taxa %>%
     name_original == "Vaccinium oxycoccos" ~ "Oxycoccus microcarpus",
     name_original == "Xanthoparmelia chlorochroa" ~ "Xanthoparmelia",
     name_original == "Xanthoria" ~ "lichen",
-    .default = name_adjudicated
+    .default = taxon_name
   ))
 
-# Ensure that all codes returned a match
+# Ensure that all name original have an adjudicated name
 print(veg_taxa %>%
   filter(is.na(name_adjudicated)) %>%
   distinct(name_original))
 
-# Correct remaining unmatched name (Potentilla uniflora)
-## Reconcile to Potentilla for now
-veg_taxa <- veg_taxa %>%
-  mutate(name_adjudicated = case_when(name_original == "Potentilla uniflora" ~ "Potentilla",
-                                      .default = name_adjudicated
-  ))
-
 # Ensure that all accepted names are in the AKVEG checklist
-print(which(!(veg_taxa$name_adjudicated %in% unique(taxonomy_all$taxon_accepted))))  # Should be empty
+print(which(!(veg_taxa$name_adjudicated %in% unique(taxonomy_original$taxon_name))))  # Should be empty
 
 # Format dead status ----
-# If veg stratum = Snag, set dead_status to TRUE. Assume all other plants are live.
+# Use "veg stratum" column. Codes are defined on pages 4-8 and 4-9 of the "Field manual for describing Yukon ecosystems". Assume all other plants are live.
 veg_taxa <- veg_taxa %>%
   mutate(dead_status = case_when(Veg.stratum.cd == "SN" ~ "TRUE",
+                                 grepl("S\\d", Veg.stratum.cd) ~ "TRUE",
     .default = "FALSE"
   ))
+
+## Ensure classification worked as expected
+print(veg_taxa %>% distinct(Veg.stratum.cd, dead_status))
 
 # Summarize percent cover ---
 veg_final <- veg_taxa %>%
@@ -178,9 +195,9 @@ veg_final <- veg_taxa %>%
 # Format remaining columns ----
 veg_final <- veg_final %>%
   mutate(
-    cover_type = "absolute foliar cover", # Review
+    cover_type = "absolute foliar cover",
     cover_percent = signif(cover_percent, digits = 3)
-  ) %>% # Round to 3 decimal places
+  ) %>%
   select(all_of(template))
 
 # QC -----
@@ -193,7 +210,7 @@ cbind(
   )
 )
 
-# Are the range of summed percent cover value reasonable?
+# Is the range of summed percent cover reasonable?
 temp <- veg_final %>%
   group_by(site_visit_code) %>%
   summarise(total_sum = sum(cover_percent)) %>%
@@ -203,9 +220,11 @@ temp <- veg_final %>%
 print(table(veg_final$dead_status))
 
 # Are the correct number of sites included?
-visit_original %>%
+missing_sites = visit_original %>%
   filter(!(site_visit_code %in% veg_final$site_visit_code)) %>%
   select(site_visit_code) # Plots with 100% abiotic cover
+
+missing_data = veg_data %>% filter(site_visit_code %in% missing_sites$site_visit_code)
 
 # Are there any duplicates?
 veg_final %>%
