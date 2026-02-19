@@ -61,7 +61,7 @@ print(vegetation_data.cover_percent.describe())
 ## Investigate sites that have cover values of -999
 negative_cover = vegetation_data[vegetation_data.cover_percent < 0]
 print(negative_cover.shape[0])  # Number of rows affected
-negative_cover["cover_percent"].unique()  # All values that are less than 0 are -999
+print(negative_cover["cover_percent"].unique())  # All values that are less than 0 are -999
 
 negative_cover = pd.merge(
     negative_cover,
