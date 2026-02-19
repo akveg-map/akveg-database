@@ -164,7 +164,7 @@ sites_inside = region_boundary.sindex.query(
 sites_outside = site_spatial.loc[~site_spatial.index.isin(sites_inside)]
 print(
     sites_outside.filter(items={"site_code", "latitude_dd", "longitude_dd"})
-)  # n = 2. All
+)  # n = 3,084. Two sites from breen_poplar_2006, the remaining are from the Govt. of Yukon dataset. All
 # points
 # are OK to
 # retain (sites in
@@ -178,7 +178,7 @@ del bbox, region_boundary, sites_inside, sites_outside
 print(visit_data.isna().sum())
 
 ## Explore dates
-print(visit_data.observe_date.describe())  # Dates range from 1993 to 2024
+print(visit_data.observe_date.describe())  # Dates range from 1975 to 2024
 
 ## Ensure that month range is reasonable i.e., between May and October
 errors_winter = visit_data.assign(month=visit_data["observe_date"].dt.month)
