@@ -25,7 +25,7 @@ CREATE TABLE site (
     plot_dimensions_id smallint NOT NULL REFERENCES plot_dimensions,
     h_datum_epsg integer NOT NULL REFERENCES h_datum,
     latitude_dd decimal(19,16) NOT NULL CONSTRAINT latitude_limit CHECK (latitude_dd >= 50.4 AND latitude_dd <= 71.6),
-    longitude_dd decimal(19,16) NOT NULL CONSTRAINT longitude_limit CHECK ((longitude_dd >= -179.99 AND longitude_dd <= -124) OR longitude_dd > 172),
+    longitude_dd decimal(19,16) NOT NULL CONSTRAINT longitude_limit CHECK ((longitude_dd >= -179.99 AND longitude_dd <= -123) OR longitude_dd > 172),
     h_error_m decimal(6,2) NOT NULL DEFAULT -999,
     positional_accuracy_id smallint NOT NULL REFERENCES positional_accuracy,
     location_type_id smallint NOT NULL REFERENCES location_type
@@ -40,7 +40,7 @@ CREATE TABLE site_visit (
     scope_vascular_id smallint NOT NULL REFERENCES scope,
     scope_bryophyte_id smallint NOT NULL REFERENCES scope,
     scope_lichen_id smallint NOT NULL REFERENCES scope,
-    observe_date date NOT NULL CONSTRAINT year_range CHECK (EXTRACT(YEAR FROM observe_date) BETWEEN 1990 AND EXTRACT(YEAR FROM CURRENT_DATE)),
+    observe_date date NOT NULL CONSTRAINT year_range CHECK (EXTRACT(YEAR FROM observe_date) BETWEEN 1975 AND EXTRACT(YEAR FROM CURRENT_DATE)),
     veg_observer_id smallint NOT NULL REFERENCES personnel,
     veg_recorder_id smallint REFERENCES personnel,
     env_observer_id smallint REFERENCES personnel,
