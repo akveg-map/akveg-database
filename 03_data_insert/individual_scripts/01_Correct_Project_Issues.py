@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Perform QC checks for Project table
 # Author: Amanda Droghini
-# Last Updated: 2026-01-24
+# Last Updated: 2026-02-18
 # Usage: Execute in Python 3.13+.
 # Description: "Perform QC checks for Project table" queries the AKVEG database to identify
 # data entry errors in the Project table of the AKVEG Database. The output is a CSV file that lists site codes that
@@ -53,8 +53,7 @@ project_errors = project_data.loc[
 # Correct errors in Project table
 project_correct = project_data.assign(
     completion_id=np.where(
-        (project_data["project_code"] == "accs_nelchina_2023")
-        | (project_data["project_code"] == "yukon_biophysical_2015"),
+        (project_data["project_code"] == "accs_nelchina_2023"),
         1,
         project_data["completion_id"],
     ),
