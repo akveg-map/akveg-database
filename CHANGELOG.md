@@ -5,10 +5,10 @@ All changes to the AKVEG Database will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses a [custom versioning 
 system](#versioning-system).
 
-## Unreleased
+## [2.5.0] - 2026-02-18
 
 ### Added
-
+* 2 new taxonomic records: *×Elyhordeum* and *×Elyhordeum macounii*.
 * **yukon_biophysical_2020**: Replaces yukon_biophysical_2015 and yukon_landcover_2016 (previously private, now 
   public). Add Project, Site, Site Visit, and Vegetation Cover.
 
