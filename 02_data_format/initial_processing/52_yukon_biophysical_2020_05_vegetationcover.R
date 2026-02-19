@@ -2,9 +2,10 @@
 # ---------------------------------------------------------------------------
 # "Format Vegetation Cover for Yukon Biophysical Inventory System Plots"
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-02-18
+# Last Updated: 2026-02-19
 # Usage: Must be executed in R version 4.5.1+.
 # Description: "Format Vegetation Cover for Yukon Biophysical Inventory System Plots" formats vegetation cover data for ingestion into the AKVEG Database. The script appends unique site visit identifiers, corrects taxonomic names using the AKVEG comprehensive checklist, and enforces formatting to match the AKVEG template. The output is a CSV table that can be converted and included in a SQL INSERT statement.
+# Sources Used: Department of Environment. 2017. Field Manual for Describing Yukon Ecosystems. Department of Environment, Government of Yukon. Whitehorse, Canada. Available online: https://yukon.ca/en/field-manual-describing-yukon-ecosystems Accessed 2026-02-19
 # ---------------------------------------------------------------------------
 
 # Load packages ----
@@ -37,6 +38,7 @@ credential_folder <- path(project_folder, "Credentials", "akveg_public_read")
 # Define datasets ----
 
 # Define input datasets
+site_input <- path(plot_folder, "02_site_yukonbiophysical2020.csv")
 visit_input <- path(plot_folder, "03_sitevisit_yukonbiophysical2020.csv")
 veg_input <- path(source_folder, "Veg_2024Apr09.xlsx")
 template_input <- path(template_folder, "05_vegetation_cover.xlsx")
@@ -51,6 +53,7 @@ authentication <- path(credential_folder, "authentication_akveg_public_read.csv"
 taxa_file <- path(repository_folder, "queries", "00_taxonomy.sql")
 
 # Read in data ----
+site_original <- read_csv(site_input, col_select = c("site_code", "perspective"))
 visit_original <- read_csv(visit_input, col_select = c("site_code", "site_visit_code"))
 veg_original <- read_xlsx(veg_input, .name_repair = "universal") ## Ignore warnings
 template <- colnames(read_xlsx(path = template_input))
@@ -78,10 +81,11 @@ taxonomy_original <- as_tibble(dbGetQuery(akveg_connection, query_taxa))
 # Append site visit code ----
 veg_data <- veg_original %>%
   mutate(site_code = str_c(Project.ID, Plot.ID, sep = "_")) %>%
-  right_join(visit_original, by = "site_code") %>% ## Drop sites that aren't included in site table
+  right_join(visit_original, by = "site_code") %>% ## Drop sites that aren't in visit table
+  right_join(site_original, by = "site_code") %>% 
   select(
     site_visit_code, Scientific.name, Veg.cover.pct,
-    Needs.checking.flg, Stratum.display.order, Veg.stratum.cd, Access
+    Needs.checking.flg, Stratum.display.order, Veg.stratum.cd, Access, perspective
   )
 
 # Ensure every site visit has at least one entry
@@ -187,15 +191,23 @@ print(veg_taxa %>%
 
 # Summarize percent cover ---
 veg_final <- veg_taxa %>%
-  group_by(site_visit_code, name_original, name_adjudicated, dead_status) %>%
+  group_by(site_visit_code, name_original, name_adjudicated, dead_status, perspective) %>%
   summarize(cover_percent = sum(Veg.cover.pct))
 
 # Format remaining columns ----
+## Cover type determined from description provided in field manual
 veg_final <- veg_final %>%
   mutate(
-    cover_type = "absolute foliar cover",
+    cover_type = case_when(perspective == "aerial" ~ "top canopy cover",
+                           perspective == "ground" ~ "absolute canopy cover"),
     cover_percent = signif(cover_percent, digits = 3)
-  ) %>%
+  )
+
+## Ensure that classification of cover type worked as expected
+print(table(veg_final$perspective, veg_final$cover_type))
+
+## Select final tables
+veg_final <- veg_final %>% 
   select(all_of(template))
 
 # QC -----
