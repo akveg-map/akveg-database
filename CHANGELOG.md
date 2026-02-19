@@ -5,6 +5,11 @@ All changes to the AKVEG Database will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses a [custom versioning 
 system](#versioning-system).
 
+## [2.5.1] - 2026-02-19
+
+### Fixed
+* **yukon_biophysical_2020**: Corrected `cover_type` for all site visits in Vegetation Cover table.
+
 ## [2.5.0] - 2026-02-18
 
 ### Added
