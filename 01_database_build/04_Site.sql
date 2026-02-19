@@ -2,8 +2,8 @@
 -- ---------------------------------------------------------------------------
 -- Build site and site visit tables
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2025-08-15
--- Usage: Script should be executed in a PostgreSQL 14+ database.
+-- Last Updated: 2026-02-18
+-- Usage: Script should be executed in a PostgreSQL 16+ database.
 -- Description: "Build site tables" creates the empty tables for the site components of the AKVEG database. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING SITE TABLE.
 -- ---------------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ CREATE TABLE site (
     plot_dimensions_id smallint NOT NULL REFERENCES plot_dimensions,
     h_datum_epsg integer NOT NULL REFERENCES h_datum,
     latitude_dd decimal(19,16) NOT NULL CONSTRAINT latitude_limit CHECK (latitude_dd >= 50.4 AND latitude_dd <= 71.6),
-    longitude_dd decimal(19,16) NOT NULL CONSTRAINT longitude_limit CHECK ((longitude_dd >= -179.99 AND longitude_dd <= -130) OR longitude_dd > 172),
+    longitude_dd decimal(19,16) NOT NULL CONSTRAINT longitude_limit CHECK ((longitude_dd >= -179.99 AND longitude_dd <= -124) OR longitude_dd > 172),
     h_error_m decimal(6,2) NOT NULL DEFAULT -999,
     positional_accuracy_id smallint NOT NULL REFERENCES positional_accuracy,
     location_type_id smallint NOT NULL REFERENCES location_type
