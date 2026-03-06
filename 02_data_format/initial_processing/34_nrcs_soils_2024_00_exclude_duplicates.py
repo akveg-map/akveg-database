@@ -9,7 +9,7 @@
 # script defines and executes a function, classify_duplicates(), to classify duplicates into three types: true
 # duplicates, duplicates with minor differences, and duplicates with major differences. The script excludes
 # duplicates with major differences from the Site, Site Visit, and Vegetation Cover tables. It depends upon the
-# outputs from 34_nrcs_02_site.py, 34_nrcs_03_sitevisit.py, and 34_nrcs_05_vegetationcover.py.
+# outputs from 34_nrcs_02_03_site.py and 34_nrcs_05_vegetationcover.py.
 # ------
 
 # Import packages
