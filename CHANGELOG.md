@@ -5,6 +5,13 @@ All changes to the AKVEG Database will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses a [custom versioning 
 system](#versioning-system).
 
+## [2.7.0] - 2026-03-05
+
+### Fixed
+* **nrcs_soils_2024** [private]: Improved spatial alignment of site coordinates with original data. Upgraded the 
+  coordinate transformation process from a generic WGS84-to-NAD83 shift to a high-precision datum realization 
+  (ITRF2000 to NAD83 2011), resolving a ~2-meter horizontal drift.
+
 ## [2.6.0] - 2026-02-19
 
 ### Fixed
