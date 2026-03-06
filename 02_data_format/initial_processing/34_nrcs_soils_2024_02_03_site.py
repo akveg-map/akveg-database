@@ -486,7 +486,7 @@ visit = visit.assign(
     )
 )
 
-# Obtain list of unique personnel names to obtain data dictionary
+# Obtain list of unique personnel names to update data dictionary
 personnel_list = pd.concat(
     [
         visit["veg_observer"],
@@ -495,8 +495,7 @@ personnel_list = pd.concat(
     ]
 )
 personnel_list = personnel_list.unique()
-personnel_list.sort()
-personnel_list = pd.DataFrame(personnel_list)
+personnel_list = pd.DataFrame(personnel_list).sort_values(by=0)
 
 # Populate remaining columns
 visit_final = visit.assign(
