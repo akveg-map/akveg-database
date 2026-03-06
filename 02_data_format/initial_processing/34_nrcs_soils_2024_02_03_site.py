@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format NRCS Alaska 2024 Site & Site Visit Data
 # Author: Amanda Droghini
-# Last Updated: 2025-11-05
+# Last Updated: 2026-03-05
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: "Format NRCS Alaska 2024 Site & Site Visit Data" reads in tables from the NRCS SQLite export received in
 # May
@@ -12,11 +12,13 @@
 # ---------------------------------------------------------------------------
 
 # Import librairies
-from pathlib import Path
 import sqlite3
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+from pathlib import Path
+from pyproj import CRS, Transformer
+import shapely.ops as ops
 
 # Set root directory
 drive = Path("C:/")
@@ -137,35 +139,48 @@ site = site_original.merge(
 ## Explore coordinates
 print(site.describe())  ## Minimum latitude is 0.00; obviously an error
 
+## Set high-precision mathematical transformation for WGS84 -> NAD83
+source_crs = CRS("EPSG:8999")
+target_crs = CRS("EPSG:6318")
+transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+
 ## Create geodataframe
-site_spatial = gpd.GeoDataFrame(
+site_spatial_precise = gpd.GeoDataFrame(
     site,
     geometry=gpd.points_from_xy(site.longstddecimaldegrees, site.latstddecimaldegrees),
-    crs="EPSG:4326",
-).to_crs("EPSG:3338")
+    crs=source_crs)
+
+## Shift coordinates using transformation
+site_spatial_precise['geometry'] = site_spatial_precise['geometry'].map(
+    lambda geom: ops.transform(transformer.transform, geom)
+)
+
+## Set the CRS using the object for better compatibility
+site_spatial_precise.crs = "EPSG:6318"
+
+## Create temporary object in EPSG:3338 for boundary check
+## Prevents having to re-project multiple times, with compounding uncertainty
+## Reset index (original index is not sequential)
+site_spatial_temp = site_spatial_precise.to_crs("EPSG:3338").reset_index(drop=True)
 
 ## Ensure projections are the same
-print(region_boundary.crs == site_spatial.crs)
+print(region_boundary.crs == site_spatial_temp.crs)
 
 ## Filter points that intersect with the area of interest
-
-## Reset index (original index is not sequential)
-site_spatial_reset = site_spatial.reset_index(drop=True)
-
 sites_inside = region_boundary.sindex.query(
-    geometry=site_spatial_reset.geometry, predicate="intersects"
+    geometry=site_spatial_temp.geometry,
+    predicate="intersects"
 )[0]
+
+## Drop problematic site
+sites_filtered = site_spatial_precise.iloc[sites_inside].copy()
 
 ## Investigate points that are outside region boundary
 ## Single site discovered above (with latitude = 0)
-sites_outside = site_spatial_reset.loc[~site_spatial_reset.index.isin(sites_inside)]
+sites_outside = site_spatial_precise.drop(sites_filtered.index)
 print(sites_outside)
 
-## Drop problematic site
-sites_filtered = site_spatial_reset.loc[site_spatial_reset.index.isin(sites_inside)]
-
-# Convert to NAD83 (EPSG: 4269)
-sites_filtered = sites_filtered.to_crs("EPSG:4269")
+# Round high-precision coordinates to six decimal points
 sites_filtered["longitude_dd"] = round(sites_filtered.geometry.x, 6)
 sites_filtered["latitude_dd"] = round(sites_filtered.geometry.y, 6)
 
@@ -190,8 +205,8 @@ lookup_visit = sites_filtered.loc[:, ["vegplotid", "vegplotiid", "site_code"]]
 del (
     sites_outside,
     sites_inside,
-    site_spatial_reset,
-    site_spatial,
+    site_spatial_temp,
+    site_spatial_precise,
     rows,
     site_original,
     region_boundary,
