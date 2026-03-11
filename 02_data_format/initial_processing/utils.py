@@ -223,7 +223,7 @@ def plot_survey_dates(
         title: str = "Distribution of Survey Dates"
 ) -> Figure:
     """
-    Generates a Plotly bar chart (histogram) shoiwing the frequency of survey dates.
+    Generates a Plotly bar chart (histogram) showing the frequency of survey dates.
 
     :param visit_df: The input Polars DataFrame containing site visit dates.
     :param date_col: The name of the column with the observation dates.
