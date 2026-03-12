@@ -13,7 +13,7 @@ The AKVEG Database contains:
 
 - A taxonomic standard to reconcile taxon names and concepts applied in Alaska and adjacent Canada
 - Site- and date-specific observations of vegetation and related environmental characteristics covering four biomes (Arctic, boreal, temperate, and northern subpolar oceanic) in Alaska and adjacent Canada
-- A versioned set of vegetation types officially accepted in [USNVC](<(https://usnvc.org/)>), along with additional provisional types for Alaska _(under development)_
+- A versioned set of vegetation types officially accepted in [USNVC](https://usnvc.org/), along with additional provisional types for Alaska _(under development)_
 
 The AKVEG Database supports a variety of projects related to conservation, vegetation ecology, wildlife ecology, and land use planning. Some of the goals of this project are to:
 
@@ -34,7 +34,7 @@ how many people are connecting.
 
 ## Documentation 📚
 
-[docs.akveg.org](docs.akveg.org) is the reference for the AKVEG Database.
+The reference for the AKVEG Database can be accessed at [docs.akveg.org](https://docs.akveg.org/).
 
 Our online documentation includes a detailed guide for connecting to, understanding, and exploring the AKVEG Database.
 
