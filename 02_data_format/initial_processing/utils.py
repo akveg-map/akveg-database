@@ -142,7 +142,10 @@ def filter_sites_in_alaska(
     # CRS of map boundary
     TARGET_CRS_INTERSECT = "EPSG:3338"
     # CRS of final output
-    TARGET_CRS_NAD83 = "EPSG:4269"
+    ## Use modern (2011) realization of NAD83
+    TARGET_CRS_NAD83 = "EPSG:6318"
+    # Modern realization of WGS84
+    MODERN_WGS84_CRS = "EPSG:8999"
 
     # 1. Load the region boundary
     try:
@@ -151,7 +154,7 @@ def filter_sites_in_alaska(
         print(f"ERROR loading or reprojecting region boundary: {e}")
         return None
 
-    # 2. Determine object type
+    # 2. Determine object type and convert to GeoDataFrame
     if isinstance(site_df, pl.DataFrame):
 
         ## Ensure user has specified CRS and coordinates
@@ -171,11 +174,20 @@ def filter_sites_in_alaska(
 
         ## Convert to GeoPandas GeoDataFrame
         site_pd = site_df.to_pandas()
-        site_spatial = gpd.GeoDataFrame(
-        site_pd,
-        geometry=gpd.points_from_xy(site_pd[longitude_col], site_pd[latitude_col]),
-        crs=input_crs
-        )
+
+        if input_crs == "EPSG:4326":
+            print(f"Converting {input_crs} to modern realization {MODERN_WGS84_CRS}")
+            site_spatial = gpd.GeoDataFrame(
+                site_pd,
+                geometry=gpd.points_from_xy(site_pd[longitude_col], site_pd[latitude_col]),
+                crs=MODERN_WGS84_CRS
+            )
+        else:
+            site_spatial = gpd.GeoDataFrame(
+                site_pd,
+                geometry=gpd.points_from_xy(site_pd[longitude_col], site_pd[latitude_col]),
+                crs=input_crs
+            )
     elif isinstance(site_df, gpd.GeoDataFrame):
         site_spatial = site_df
 
