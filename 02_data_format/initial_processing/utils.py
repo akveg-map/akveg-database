@@ -196,11 +196,11 @@ def filter_sites_in_alaska(
     # polygons; edge cases where a site is on the border of two polygons can lead to duplicate rows
     sites_inside_gdf = site_spatial.iloc[unique_idx].copy()
 
-    # 6. Log the results
-    sites_outside_count = site_df.shape[0] - sites_inside_gdf.shape[0]
+    # 6. Log sites that fell outside region boundary
+    sites_outside_gdf = site_spatial[~site_spatial.index.isin(sites_inside_gdf.index)].copy()
     print(f"Total input sites: {site_df.shape[0]}")
     print(f"Sites remaining after filtering (inside boundary): {sites_inside_gdf.shape[0]}")
-    print(f"Sites filtered out (outside boundary): {sites_outside_count}")
+    print(f"Sites filtered out (outside boundary): {sites_outside_gdf.shape[0]}")
 
     # 7. Reproject to NAD83 for final output
     sites_inside_nad83 = sites_inside_gdf.to_crs(TARGET_CRS_NAD83)
@@ -216,7 +216,7 @@ def filter_sites_in_alaska(
         # The original columns, plus the new NAD83 columns, are preserved here
     )
 
-    return sites_inside_df
+    return sites_inside_df, sites_outside_gdf
 
 
 # --- Function 3 ---
