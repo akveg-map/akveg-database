@@ -178,20 +178,23 @@ def filter_sites_in_alaska(
     # Confirm input CRS
     print(f"Input CRS of site df: {site_spatial.crs}")
 
-    # 3. Project sites to match the region boundary
-    site_spatial = site_spatial.to_crs(crs=TARGET_CRS_INTERSECT)
+    # 3. Create temporary object in EPSG:3338 for boundary check
+    ## Prevents having to re-project multiple times, with compounding uncertainty
+    site_spatial_temp = site_spatial.to_crs(crs=TARGET_CRS_INTERSECT)
 
     # 4. Find sites within the map boundary
     ## Spatial query returns an ndarray with shape 2 (input_geometries, tree_geometries). Index
     # 0 will contain row indices for the input geometries (i.e., sites) that had at least one intersection with the
     # region_boundary polygon.
     sites_inside_idx = region_boundary.sindex.query(
-        geometry=site_spatial.geometry, predicate="intersects"
+        geometry=site_spatial_temp.geometry,
+        predicate="intersects"
     )[0]
 
     # 5. Filter the original data using the resulting indices
-    unique_idx = np.unique(sites_inside_idx)
-    sites_inside_gdf = site_spatial.iloc[unique_idx]
+    unique_idx = np.unique(sites_inside_idx)  ## Necessary because region_boundary is a shapefile with multiple
+    # polygons; edge cases where a site is on the border of two polygons can lead to duplicate rows
+    sites_inside_gdf = site_spatial.iloc[unique_idx].copy()
 
     # 6. Log the results
     sites_outside_count = site_df.shape[0] - sites_inside_gdf.shape[0]
