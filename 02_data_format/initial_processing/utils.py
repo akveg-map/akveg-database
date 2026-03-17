@@ -206,8 +206,8 @@ def filter_sites_in_alaska(
     sites_inside_nad83 = sites_inside_gdf.to_crs(TARGET_CRS_NAD83)
 
     # Add new lat/long columns from the reprojected geometry
-    sites_inside_nad83['longitude_dd'] = sites_inside_nad83.geometry.x.round(decimals=5)
-    sites_inside_nad83['latitude_dd'] = sites_inside_nad83.geometry.y.round(decimals=5)
+    sites_inside_nad83['longitude_dd'] = sites_inside_nad83.geometry.x.round(decimals=6)
+    sites_inside_nad83['latitude_dd'] = sites_inside_nad83.geometry.y.round(decimals=6)
 
     # 6. Convert the filtered GeoDataFrame back to a Polars DataFrame
     # Drop the internal geometry column and the intermediate EPSG:3338 geometry
