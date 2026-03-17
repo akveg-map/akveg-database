@@ -74,9 +74,9 @@ for file in Path(TEMPLATE_DIR).glob('[0-9][0-9]_*'):
 # If table is not listed, use default Polarst ype
 SCHEMA_OVERRIDES = {
         "project": {"year_start": pl.Int64, "year_end": pl.Int64},
-        "site": {"latitude_dd": pl.Decimal,
-                     "longitude_dd": pl.Decimal,
-                     "h_error_m": pl.Decimal}
+        "site": {"latitude_dd": pl.Decimal(precision=19, scale=16),
+                     "longitude_dd": pl.Decimal(precision=19, scale=16),
+                     "h_error_m": pl.Decimal(precision=6, scale=2)}
 }
 
 # --- Function 1 ---
@@ -111,8 +111,9 @@ def filter_sites_in_alaska(
         site_df: pl.DataFrame | gpd.GeoDataFrame,
         input_crs: str | None = None,
         longitude_col: str | None = "longitude_dd",
-        latitude_col: str | None = "latitude_dd"
-) -> Tuple[pl.DataFrame, gpd.GeoDataFrame] | Tuple[None, None]:
+        latitude_col: str | None = "latitude_dd",
+        return_outside: bool = False
+) -> pl.DataFrame | Tuple[pl.DataFrame, gpd.GeoDataFrame] | None:
     """
     Filters a DataFrame of sites (Polars or GeoPandas), keeping only those
     that fall within the map boundary, and re-projects the coordinates to NAD83 (2011).
@@ -153,6 +154,8 @@ def filter_sites_in_alaska(
         region_boundary = gpd.read_file(BOUNDARY_PATH).to_crs(TARGET_CRS_INTERSECT)
     except Exception as e:
         print(f"ERROR loading or reprojecting region boundary: {e}")
+        if return_outside:
+            return None, None
         return None
 
     # 2. Determine object type and convert to GeoDataFrame
@@ -188,6 +191,10 @@ def filter_sites_in_alaska(
             )
     elif isinstance(site_df, gpd.GeoDataFrame):
         site_spatial = site_df.copy()
+
+    # Log input CRS
+    detected_crs = site_spatial.crs.to_string() if site_spatial.crs else "None"
+    print(f"Detected Input CRS: {detected_crs}")
 
     # Override input CRS if generic WGS84 was used
     if site_spatial.crs and site_spatial.crs.to_epsg() == 4326:
@@ -231,7 +238,10 @@ def filter_sites_in_alaska(
         pl.from_pandas(sites_inside_gdf.drop(columns=['geometry']))
     )
 
-    return sites_inside_df, sites_outside_gdf
+    if return_outside:
+        return sites_inside_df, sites_outside_gdf
+
+    return sites_inside_df
 
 
 # --- Function 3 ---
