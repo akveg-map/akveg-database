@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format NRCS Alaska 2024 Site & Site Visit Data
 # Author: Amanda Droghini
-# Last Updated: 2026-03-05
+# Last Updated: 2026-03-17
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: "Format NRCS Alaska 2024 Site & Site Visit Data" reads in tables from the NRCS SQLite export received in
 # May
@@ -160,8 +160,7 @@ site_spatial_precise.crs = "EPSG:6318"
 
 ## Create temporary object in EPSG:3338 for boundary check
 ## Prevents having to re-project multiple times, with compounding uncertainty
-## Reset index (original index is not sequential)
-site_spatial_temp = site_spatial_precise.to_crs("EPSG:3338").reset_index(drop=True)
+site_spatial_temp = site_spatial_precise.to_crs("EPSG:3338")
 
 ## Ensure projections are the same
 print(region_boundary.crs == site_spatial_temp.crs)
@@ -177,7 +176,7 @@ sites_filtered = site_spatial_precise.iloc[sites_inside].copy()
 
 ## Investigate points that are outside region boundary
 ## Single site discovered above (with latitude = 0)
-sites_outside = site_spatial_precise.drop(sites_filtered.index)
+sites_outside = site_spatial_precise[~site_spatial_precise.index.isin(sites_filtered.index)]
 print(sites_outside)
 
 # Round high-precision coordinates to six decimal points
