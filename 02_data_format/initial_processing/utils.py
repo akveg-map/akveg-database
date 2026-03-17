@@ -37,6 +37,7 @@ from typing import Union, Literal, List, Tuple
 from pathlib import Path
 from psycopg2 import sql
 from plotly.graph_objects import Figure
+from pyproj import CRS
 
 # Define file path for the map boundary
 BOUNDARY_PATH = os.path.join("C:/", "ACCS_Work", "Projects", "AKVEG_Map", "Data", "region_data",
@@ -114,7 +115,7 @@ def filter_sites_in_alaska(
 ) -> Tuple[pl.DataFrame, gpd.GeoDataFrame] | Tuple[None, None]:
     """
     Filters a DataFrame of sites (Polars or GeoPandas), keeping only those
-    that fall within the map boundary, and re-projects the coordinates to NAD83.
+    that fall within the map boundary, and re-projects the coordinates to NAD83 (2011).
 
     Args:
         site_df: The input DataFrame containing site coordinates. Accepted input types: Polars DataFrame, GeoPandas
@@ -142,7 +143,7 @@ def filter_sites_in_alaska(
     # CRS of map boundary
     TARGET_CRS_INTERSECT = "EPSG:3338"
     # CRS of final output
-    ## Use modern (2011) realization of NAD83
+    ## Use precise realization of NAD83
     TARGET_CRS_NAD83 = "EPSG:6318"
     # Modern realization of WGS84
     MODERN_WGS84_CRS = "EPSG:8999"
@@ -161,6 +162,12 @@ def filter_sites_in_alaska(
         if input_crs is None:
             raise ValueError("input_crs must be provided for Polars DataFrames.")
 
+        # Validate CRS
+        try:
+            valid_crs = CRS.from_user_input(input_crs)
+        except Exception:
+            raise ValueError(f"Invalid CRS provided: {input_crs}")
+
         # Identify missing coordinate columns
         required_coords = [longitude_col, latitude_col]
         missing_cols = []
@@ -177,7 +184,7 @@ def filter_sites_in_alaska(
         site_spatial = gpd.GeoDataFrame(
                 site_pd,
                 geometry=gpd.points_from_xy(site_pd[longitude_col], site_pd[latitude_col]),
-                crs=input_crs
+                crs=valid_crs
             )
     elif isinstance(site_df, gpd.GeoDataFrame):
         site_spatial = site_df.copy()
