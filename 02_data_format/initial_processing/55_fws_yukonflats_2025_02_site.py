@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Site table for USFWS Yukon Flats data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-01-29
+# Last Updated: 2026-03-17
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: "Format Site table for USFWS Yukon Flats data" extracts site data from an Esri
 # shapefile. The script verifies that all plots are in Alaska, re-projects coordinates to NAD83, populates missing
@@ -13,7 +13,7 @@
 import geopandas as gpd
 import polars as pl
 from pathlib import Path
-from utils import filter_sites_in_alaska
+from utils import get_template, filter_sites_in_alaska
 
 # Define directories
 drive = Path('C:/')
@@ -29,10 +29,8 @@ template_input = project_folder / 'Data_Entry' / '02_site.xlsx'
 site_output = plot_folder / '02_site_fwsyukonflats2025.csv'
 
 # Read in data
-site_original = gpd.read_file(site_input)
-template = pl.read_excel(template_input, schema_overrides={"latitude_dd": pl.Decimal,
-                                                           "longitude_dd": pl.Decimal,
-                                                           "h_error_m": pl.Decimal})
+site_original = gpd.read_file(site_input)  # Can ignore warning
+template = get_template("site")
 
 # Ensure that all site codes are unique
 print(site_original['plotID'].is_unique)
