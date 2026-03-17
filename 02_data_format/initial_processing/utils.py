@@ -174,29 +174,25 @@ def filter_sites_in_alaska(
 
         ## Convert to GeoPandas GeoDataFrame
         site_pd = site_df.to_pandas()
-
-        if input_crs == "EPSG:4326":
-            print(f"Converting {input_crs} to modern realization {MODERN_WGS84_CRS}")
-            site_spatial = gpd.GeoDataFrame(
-                site_pd,
-                geometry=gpd.points_from_xy(site_pd[longitude_col], site_pd[latitude_col]),
-                crs=MODERN_WGS84_CRS
-            )
-        else:
-            site_spatial = gpd.GeoDataFrame(
+        site_spatial = gpd.GeoDataFrame(
                 site_pd,
                 geometry=gpd.points_from_xy(site_pd[longitude_col], site_pd[latitude_col]),
                 crs=input_crs
             )
     elif isinstance(site_df, gpd.GeoDataFrame):
-        site_spatial = site_df
+        site_spatial = site_df.copy()
 
-    # Confirm input CRS
-    print(f"Input CRS of site df: {site_spatial.crs}")
+    # Override input CRS if generic WGS84 was used
+    if site_spatial.crs and site_spatial.crs.to_epsg() == 4326:
+        print(f"Re-interpreting generic EPSG:4326 as {MODERN_WGS84_CRS}")
+        site_spatial.crs = MODERN_WGS84_CRS
+
+    # 2. Project to NAD83 (2011)
+    site_spatial_project = site_spatial.to_crs(TARGET_CRS_NAD83)
 
     # 3. Create temporary object in EPSG:3338 for boundary check
     ## Prevents having to re-project multiple times, with compounding uncertainty
-    site_spatial_temp = site_spatial.to_crs(crs=TARGET_CRS_INTERSECT)
+    site_spatial_temp = site_spatial_project.to_crs(crs=TARGET_CRS_INTERSECT)
 
     # 4. Find sites within the map boundary
     ## Spatial query returns an ndarray with shape 2 (input_geometries, tree_geometries). Index
@@ -210,26 +206,22 @@ def filter_sites_in_alaska(
     # 5. Filter the original data using the resulting indices
     unique_idx = np.unique(sites_inside_idx)  ## Necessary because region_boundary is a shapefile with multiple
     # polygons; edge cases where a site is on the border of two polygons can lead to duplicate rows
-    sites_inside_gdf = site_spatial.iloc[unique_idx].copy()
+    sites_inside_gdf = site_spatial_project.iloc[unique_idx].copy()
 
     # 6. Log sites that fell outside region boundary
-    sites_outside_gdf = site_spatial[~site_spatial.index.isin(sites_inside_gdf.index)].copy()
+    sites_outside_gdf = site_spatial_project[~site_spatial_project.index.isin(sites_inside_gdf.index)].copy()
     print(f"Total input sites: {site_df.shape[0]}")
     print(f"Sites remaining after filtering (inside boundary): {sites_inside_gdf.shape[0]}")
     print(f"Sites filtered out (outside boundary): {sites_outside_gdf.shape[0]}")
 
-    # 7. Reproject to NAD83 for final output
-    sites_inside_nad83 = sites_inside_gdf.to_crs(TARGET_CRS_NAD83)
+    # 7. Add new lat/long columns from the reprojected geometry
+    sites_inside_gdf['longitude_dd'] = sites_inside_gdf.geometry.x.round(decimals=6)
+    sites_inside_gdf['latitude_dd'] = sites_inside_gdf.geometry.y.round(decimals=6)
 
-    # Add new lat/long columns from the reprojected geometry
-    sites_inside_nad83['longitude_dd'] = sites_inside_nad83.geometry.x.round(decimals=6)
-    sites_inside_nad83['latitude_dd'] = sites_inside_nad83.geometry.y.round(decimals=6)
-
-    # 6. Convert the filtered GeoDataFrame back to a Polars DataFrame
-    # Drop internal geometry column
+    # 8. Convert the filtered GeoDataFrame back to a Polars DataFrame
+    # Drop internal geometry column, but preserve original coordinates + NAD83-transformed coordinates
     sites_inside_df = (
-        pl.from_pandas(sites_inside_nad83.drop(columns=['geometry']))
-        # The original columns, plus the new NAD83 columns, are preserved here
+        pl.from_pandas(sites_inside_gdf.drop(columns=['geometry']))
     )
 
     return sites_inside_df, sites_outside_gdf
