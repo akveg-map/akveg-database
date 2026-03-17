@@ -125,6 +125,9 @@ def filter_sites_in_alaska(
                    input latitude and longitude columns. Required if site_df is a Polars DataFrame.
         longitude_col: Column name for longitude.
         latitude_col: Column name for latitude.
+        return_outside: bool, default False
+            If True, the function returns a tuple containing (sites_inside_df, sites_outside_gdf).
+            If False, returns only the sites_inside_df DataFrame.
 
     Returns:
         A tuple containing:
