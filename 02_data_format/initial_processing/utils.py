@@ -33,7 +33,7 @@ import polars as pl
 import os
 from akutils import connect_database_postgresql
 from akutils import query_to_dataframe
-from typing import Union, Literal, List
+from typing import Union, Literal, List, Tuple
 from pathlib import Path
 from psycopg2 import sql
 from plotly.graph_objects import Figure
@@ -111,7 +111,7 @@ def filter_sites_in_alaska(
         input_crs: str | None = None,
         longitude_col: str | None = "longitude_dd",
         latitude_col: str | None = "latitude_dd"
-) -> Union[pl.DataFrame, None]:
+) -> Tuple[pl.DataFrame, gpd.GeoDataFrame] | Tuple[None, None]:
     """
     Filters a DataFrame of sites (Polars or GeoPandas), keeping only those
     that fall within the map boundary, and re-projects the coordinates to NAD83.
@@ -120,13 +120,17 @@ def filter_sites_in_alaska(
         site_df: The input DataFrame containing site coordinates. Accepted input types: Polars DataFrame, GeoPandas
         GeoDataFrame.
         input_crs: The EPSG code (as a string, e.g., "EPSG:4269") of the
-                   input latitude and longitude columns.
-        longitude_col: The name of the column with longitude.
-        latitude_col: The name of the column with latitude.
+                   input latitude and longitude columns. Required if site_df is a Polars DataFrame.
+        longitude_col: Column name for longitude.
+        latitude_col: Column name for latitude.
 
     Returns:
-        A Polars DataFrame containing only the sites inside the boundary with coordinates in NAD83,
-        or None if the boundary file cannot be loaded.
+        A tuple containing:
+        1. sites_inside_df (pl.DataFrame): Sites inside the boundary,
+           re-projected to NAD83 with updated lat/long columns.
+        2. sites_outside_gdf (gpd.GeoDataFrame): Original sites that fell
+           outside the boundary (for troubleshooting).
+        Returns (None, None) if the boundary file cannot be loaded.
     """
 
     # --- Validate input ---
@@ -210,7 +214,7 @@ def filter_sites_in_alaska(
     sites_inside_nad83['latitude_dd'] = sites_inside_nad83.geometry.y.round(decimals=6)
 
     # 6. Convert the filtered GeoDataFrame back to a Polars DataFrame
-    # Drop the internal geometry column and the intermediate EPSG:3338 geometry
+    # Drop internal geometry column
     sites_inside_df = (
         pl.from_pandas(sites_inside_nad83.drop(columns=['geometry']))
         # The original columns, plus the new NAD83 columns, are preserved here
