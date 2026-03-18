@@ -42,7 +42,8 @@ Once you have obtained the server credentials, the [Getting Started tutorial](ht
 
 ## Update Schedule 🗓️
 
-The AKVEG Database is updated approximately once a month. Changes are recorded in our [CHANGELOG](CHANGELOG.md). If you need a stable version of the data, you can export your query results to a CSV file.
+The AKVEG Database is updated at least once a quarter. Changes are recorded in our [CHANGELOG](CHANGELOG.md). If 
+you need a static version of the data, you can export your query results to a CSV file.
 
 ## Contributing 🤝
 
