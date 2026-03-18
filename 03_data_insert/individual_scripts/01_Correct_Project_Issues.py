@@ -38,7 +38,6 @@ output_csv = os.path.join(output_folder, "projects.csv")
 project_data = pd.read_csv(project_file)
 
 # Perform Quality Control checks
-## No need to check for na; all fields are set to NOT NULL
 
 # Check for null values
 print(project_data.isna().sum())
