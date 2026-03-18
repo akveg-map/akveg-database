@@ -10,14 +10,14 @@ All changes to the AKVEG taxonomic standard are documented in this file. Changes
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Contents
-* [Unreleased](#unreleased)
+* [Version 1.3](#13---2026-03-17)
 * [Version 1.2](#12---2026-02-18)
 * [Version 1.1](#11---2026-02-12)
 * [Versioning System](#versioning-system)
 
 ---
 
-## Unreleased
+## [1.3] - 2026-03-17
 
 ### Added 
 * 1 functional group taxon: brown moss (hydrophytic).
