@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Vegetation Cover Table for USFWS Yukon Flats 2025 data
 # Author: Amanda Droghini
-# Last Updated: 2026-03-11
+# Last Updated: 2026-03-18
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: "Format Vegetation Cover Table for USFWS Yukon Flats 2025 data" uses data from line-point intercept surveys
 # to calculate site-level percent foliar cover for each recorded species. It appends unique site visit
@@ -21,7 +21,8 @@ drive = Path('C:/')
 root_folder = drive / 'ACCS_Work'
 
 # Define folders
-project_folder = root_folder / 'OneDrive - University of Alaska' / 'ACCS_Teams' / 'Vegetation' / 'AKVEG_Database' / 'Data'
+project_folder = (root_folder / 'OneDrive - University of Alaska' / 'ACCS_Teams' / 'Vegetation' /
+                  'AKVEG_Database' / 'Data')
 plot_folder = project_folder / 'Data_Plots' / '55_fws_yukonflats_2025'
 
 # Define inputs
@@ -104,6 +105,8 @@ trace_original = pl.read_excel(trace_input)
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 template = get_template("vegetation_cover")
 
+# --- Load data ---
+
 # Obtain taxonomy checklist from the AKVEG Database
 taxonomy_checklist = get_taxonomy(simple=True).lazy()
 
@@ -185,7 +188,7 @@ lpi_long = (
     .drop("strata")
 )
 
-# --- Obtain accepted taxonomic names ----
+# --- Obtain taxonomic names ----
 
 lpi_taxa = get_taxon_names(lpi_long, taxonomy_checklist)
 trace_taxa = (get_taxon_names(trace, taxonomy_checklist)
@@ -246,9 +249,9 @@ lpi_cover = (lpi_taxa
                   )
 
 # --- Combine with trace data ---
-# If entries exist in both LPI and trace dfs, prioritize the one with the highest cover
 cover_combined = pl.concat([lpi_cover, trace_taxa.select(lpi_cover.collect_schema().names())])
 
+# If entries exist in both LPI and trace dfs, prioritize the one with the highest cover
 # Prioritize by sorting and remove duplicates
 cover_combined = (
     cover_combined
