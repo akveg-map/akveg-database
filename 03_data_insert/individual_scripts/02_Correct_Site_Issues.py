@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Perform QC checks for Site and Site Visit tables
 # Author: Amanda Droghini
-# Last Updated: 2026-01-24
+# Last Updated: 2026-03-18
 # Usage: Execute in Python 3.13+.
 # Description: "Perform QC checks for Site and Site Visit tables" identifies and corrects
 # data entry errors in the Site and Site Visit tables of the AKVEG Database.
@@ -203,7 +203,8 @@ abiotic_unique = abiotic_data.site_visit_code.unique()
 cover_site_visits = np.concatenate((vegetation_unique, abiotic_unique))
 cover_site_visits = np.unique(cover_site_visits)  # Drop duplicates
 
-# Determine which sites are missing from the cover tables (n=169)
+# Determine which sites are missing from the cover tables (n=187)
+## Includes sites from yukon_biophysical_2020 and fws_pribilof_2022 that should not be dropped; addressed later
 errors_cover = np.setdiff1d(visit_array, cover_site_visits, assume_unique=True)
 
 # Create list of sites to be dropped
@@ -227,6 +228,10 @@ errors_cover = pd.merge(errors_cover, lookup_table, how="left", on="site_visit_c
 
 ## Combine error sites into a single dataframe
 errors_all = pd.concat([errors_sites_empty, errors_cover])
+## Exclude 18 yukon_biophysical_2020 sites and 10 fws_pribilof_2022 sites. Sites should not be dropped - abiotic cover
+# only, but abiotic table has not yet been processed
+errors_all = errors_all.loc[~errors_all['establishing_project_code'].isin(['yukon_biophysical_2020',
+                                                                           'fws_pribilof_2022'])]
 print(
     errors_all.isna().sum()
 )  # Sites that are missing site visit codes are sites that do not exist in the Site
