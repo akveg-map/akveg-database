@@ -32,6 +32,63 @@ visit_input = plot_folder / '03_sitevisit_fwsyukonflats2025.csv'
 # Define output
 veg_output = plot_folder / '05_vegetationcover_fwsyukonflats2025.csv'
 
+# Define taxon mapping dictionary
+## Used to correct field identifications (misspellings or misidentifications)
+taxon_mapping = {
+    "carath": "carathe",
+    "caratr": "carutr",
+    "trimar": "trimara",
+    "salsim": "solsim",
+    "parpan": "parpal",
+    "galtri": "galtristri",
+    "salpsema": "salpsea",
+    "salpse": "salpsea",
+    "sciacu": "schacu",
+    "scaacu": "schacu",
+    "epipul": "epipal",
+    "camang": "chaang",
+    "horbra": "×elmac",
+    "junarc": "junbalsate",
+    "antfre": "antros",
+    "pedfri": "petfri",
+    "brachy": "brachyt",
+    "callie": "calliergn",
+    "vaclug": "vaculi",
+    "vaclig": "vaculi",
+    "paltig": "peltig",
+    "sclfes": "scofes",
+    "achpta": "achsib",
+    "salnic": "salnip",
+    "erytra": "elytra",
+    "eutmin": "utrmin",
+    "glymax": "pucbor",
+    "panpal": "parpal",
+    "barbal": "parpal",
+    "tripol": "tripal",
+    "zygela": "zygele",
+    "wetmos": "fgmosbro",
+    "scnoug": "uforb",
+    "leurot": "uforb",
+    "pamnit": "tomnit",
+    "equstr": "equise",
+    "camcal": "chacal"
+}
+
+# Define abiotic element codes to drop
+abiotic_elements = ["l", "s", "o", "wl", "w", "bc"]
+
+# Define function to correct taxonomic codes and obtain taxonomic name from AKVEG checklist
+def get_taxon_names(lf: pl.LazyFrame, checklist: pl.LazyFrame) -> pl.LazyFrame:
+    """Applies taxonomic corrections and joins with AKVEG checklist."""
+    return(
+        lf.with_columns(
+            pl.col("taxon_code")
+            .replace_strict(taxon_mapping, default=pl.col("taxon_code"))
+        )
+        .join(checklist, how="left", on="taxon_code")
+        .rename({"taxon_name":"name_original"})
+    )
+
 # Read in data
 lpi_original = pl.read_excel(lpi_input)
 trace_original = pl.read_excel(trace_input)
@@ -39,7 +96,7 @@ visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code
 template = get_template("vegetation_cover")
 
 # Obtain taxonomy checklist from the AKVEG Database
-taxonomy_checklist = get_taxonomy(simple=True)
+taxonomy_checklist = get_taxonomy(simple=True).lazy()
 
 # Load and format trace data
 trace = (trace_original.lazy()
@@ -47,31 +104,34 @@ trace = (trace_original.lazy()
          .with_columns(pl.col("site_code").str.replace_all("_", ""),
                        pl.col("taxon_code").str.to_lowercase(),
                        pl.lit("FALSE").alias("dead_status"))
-         # Append site visit code using inner join to drop any plots that were excluded from site visit table
+         # Append site visit code using inner join to drop plots excluded from site visit table
          .join(visit_original.lazy(), on="site_code", how="inner")
          .drop("site_code")
-         .collect()
          )
+
 # Load and format LPI data
 vegcover = (
     lpi_original.lazy()
     # Format site code
     .with_columns(pl.col("site_code").str.replace_all("_", ""))
-    # Append site visit code using right join
-    .join(visit_original.lazy(), on="site_code", how="right")
+    # Append site visit code
+    .join(visit_original.lazy(), on="site_code", how="inner")
     # Create a sequential row number for each site visit
-    ## Solution from Ritchie Vink: https://github.com/pola-rs/polars/issues/2542
     .sort(by=["site_visit_code", "line", "point"])
-    .with_columns(pl.first()
-                  .cum_count()
-                  .alias("point_number")
-                  .over("site_visit_code")
-                  .list.explode(keep_nulls=False, empty_as_null=False))
+    .with_columns(pl.int_range(1, pl.len() + 1).alias("point_number")
+                  .over("site_visit_code"))
     .collect()
 )
 
-# Ensure no null site visit codes
-print(vegcover["site_code", "site_visit_code"].null_count())
+# Manually review any sites that don't have LPI data
+missing_lpi_sites = (
+    visit_original.lazy()
+    .join(lpi_original.lazy().with_columns(pl.col("site_code").str.replace_all("_", "")),
+          on="site_code",
+          how="anti")
+    .collect()
+)
+print(missing_lpi_sites.height)  ## Nothing to review
 
 # --- Calculate number of points per plot ---
 ## Plots should have 120 points
@@ -79,14 +139,11 @@ number_of_points = (vegcover
                     .group_by("site_visit_code")
                     .agg(pl.col("point_number")
                          .max())
-                    .rename({"point_number":"max_hits"})
+                    .rename({"point_number": "max_hits"})
                     )
 print(number_of_points.describe())
 
 # --- Convert to long format ---
-
-# Identify abiotic element codes to be excluded from species list
-abiotic_elements = ["l", "s", "o", "wl", "w", "bc"]
 
 # Identify groups of columns
 species_cols = vegcover.select(pl.col(["^layer_\\d$"])).columns
@@ -117,95 +174,35 @@ species_long = (
     # Sort by site visit code
     .sort(by=["site_visit_code", "point_number"])
     .drop("strata")
-    .collect()
 )
 
 # --- Obtain accepted taxonomic names ----
 
-# Create dictionary for correcting taxonomic codes (misspellings or misidentifications)
-taxon_mapping = {
-    "carath": "carathe",
-    "trimar": "trimara",
-    "salsim": "solsim",
-    "parpan": "parpal",
-    "galtri": "galtristri",
-    "salpsema": "salpsea",
-    "salpse": "salpsea",
-    "sciacu": "schacu",
-    "scaacu": "schacu",
-    "epipul": "epipal",
-    "camang": "chaang",
-    "horbra": "×elmac",
-    "junarc": "junbalsate",
-    "antfre": "antros",
-    "pedfri": "petfri",
-    "brachy": "brachyt",
-    "callie": "calliergn",
-    "vaclug": "vaculi",
-    "vaclig": "vaculi",
-    "paltig": "peltig",
-    "sclfes": "scofes",
-    "achpta": "achsib",
-    "salnic": "salnip",
-    "erytra": "elytra",
-    "eutmin": "utrmin",
-    "glymax": "pucbor",
-    "panpal": "parpal",
-    "barbal": "parpal",
-    "tripol": "tripal",
-    "zygela": "zygele",
-    "wetmos": "umoss"
-}
-
-# Apply to LPI dataset
-vegcover_taxa = (species_long.lazy()
-                 .with_columns(pl.col("taxon_code").replace_strict(taxon_mapping, default=pl.col("taxon_code")))
-                 # Join with AKVEG checklist to obtain accepted names
-                 .join(taxonomy_checklist.lazy(), how="left", on="taxon_code")
-                 .rename({"taxon_name":"name_original"})
-                 .collect()
-                 )
+vegcover_taxa = get_taxon_names(species_long, taxonomy_checklist)
+trace_taxa = get_taxon_names(trace, taxonomy_checklist)
 
 # Explore taxon codes that did not match with an AKVEG code
-unmatched_lpi = (vegcover_taxa
-                   .filter(pl.col("name_original").is_null())
-                   .select("taxon_code")
-                   .unique()
-                   )
+unmatched_taxa = (pl.concat([vegcover_taxa.select(["taxon_code", "name_original"]),
+                             trace_taxa.select(["taxon_code", "name_original"])])
+                  .filter(pl.col("name_original").is_null())
+                  .select("taxon_code")
+                  .unique()
+                  .sort("taxon_code")
+                  .collect()
+                  )
 
-## Reconcile entries to unknown for now (n=28)
-vegcover_taxa = (vegcover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
-                                            .then(pl.lit("unknown"))
-                                            .otherwise(pl.col("name_original"))
-                                            .alias("name_original"))
-                 .with_columns(pl.when(pl.col("name_original") == "unknown")
-                               .then(pl.lit("unknown"))
-                               .otherwise(pl.col("name_original"))
-                               .alias("name_adjudicated")
-                               )
+## Reconcile unmatched LPI entries to unknown for now (n=22)
+vegcover_taxa = (vegcover_taxa.with_columns(pl.col("name_original").fill_null("unknown"),
+                                            pl.col("name_adjudicated").fill_null("unknown"))
                  )
 
-# Obtain names for trace df
-trace_taxa = (trace.lazy()
-              .with_columns(pl.col("taxon_code").replace_strict(taxon_mapping, default=pl.col("taxon_code")))
-              # Join with AKVEG checklist to obtain accepted names
-              .join(taxonomy_checklist.lazy(), how="left", on="taxon_code")
-              .rename({"taxon_name": "name_original"})
-              .collect()
-              )
-
-# Explore taxon codes that did not match with an AKVEG code
-unmatched_trace = (trace_taxa
-                   .filter(pl.col("name_original").is_null())
-                   .select("taxon_code")
-                   .unique()
-                   )
-
-# Drop unmatched code (n=1)
+# Drop unmatched code (n=1) in trace
 trace_taxa = (trace_taxa.filter(pl.col("name_original").is_not_null())
               .with_columns(pl.col("name_original").alias("name_adjudicated"))
               .drop("taxon_code")
+              .collect()
               )
+
 # --- Calculate percent cover ---
 
 # Define grouping columns
@@ -228,7 +225,6 @@ group_columns_plots = [
 
 # Calculate cover percent for each species and site visit
 vegcover_final = (vegcover_taxa
-                    .lazy()
                     ## Get list of unique species per point
                     .unique(subset=group_columns_points)
 
@@ -265,6 +261,9 @@ merged_df = (
     .sort(["site_visit_code", "name_original"])
     .select(template.columns)
 )
+
+# Verify that estimates of non-vascular survey at B06-05 were correctly included
+nv_survey_check = merged_df.filter(pl.col("site_visit_code").str.contains("YKF25B0605"))
 
 # --- Quality checks ---
 ## Ensure no null values, range of % cover between 0-100%
