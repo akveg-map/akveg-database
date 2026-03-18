@@ -5,7 +5,7 @@
 # Changelog
 
 All changes to the AKVEG database are documented in this file. Changes to the AKVEG taxonomic standard are 
-documented in [TAXONOMY_CHANGELOG.md](TAXONOMY_CHANGELOG.md). 
+documented in [CHANGELOG_TAXONOMY.md](CHANGELOG_TAXONOMY.md). 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
