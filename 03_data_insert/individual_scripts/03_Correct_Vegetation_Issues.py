@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Perform QC check for Vegetation Cover table
 # Author: Amanda Droghini
-# Last Updated: 2026-01-24
+# Last Updated: 2026-03-18
 # Usage: Execute in Python 3.13+.
 # Description: "Perform QC check for Vegetation Cover table" identifies and corrects
 # data entry errors in the Vegetation Cover of the AKVEG Database.
@@ -91,20 +91,31 @@ top_cover_sum.establishing_project_code.unique()
 # Do not address for now. Need to discuss with TWN
 
 # Correct erroneous plant identifications
-print(
-    vegetation_data.loc[
-        (vegetation_data["name_original"] == "Salix planifolia")
-        & (vegetation_data["code_adjudicated"] != "salpul")
-    ]
-)  ## Affects 232 sites
+## Salix planifolia should be adjudicated to Salix pulchra for central/western Alaska sites
+vegetation_salpla = vegetation_data.query("name_original == 'Salix planifolia' & code_adjudicated != 'salpul'")
+vegetation_salpla = pd.merge(
+    vegetation_salpla,
+    lookup_table,
+    how="left",
+    left_on="site_visit_code",
+    right_on="site_visit_code",
+)
+print(vegetation_salpla.establishing_project_code.value_counts()) ## Affects 232 site visits in Alaska,
+# 479 site visits in Yukon Territories should not be adjudicated
+vegetation_salpla_yukon = vegetation_salpla.query("establishing_project_code == 'yukon_biophysical_2020'")
+sites_salpla_yukon = vegetation_salpla_yukon['site_visit_code'].to_list()
 
 corrected_vegetation = vegetation_data.assign(
     code_adjudicated=np.where(
-        vegetation_data["name_original"] == "Salix planifolia",
+        (vegetation_data["name_original"] == "Salix planifolia") & (~vegetation_data["site_visit_code"].isin(
+                                                                    sites_salpla_yukon)),
         "salpul",
         vegetation_data["code_adjudicated"],
     )
 )
+
+check = corrected_vegetation.query("name_original == 'Salix planifolia'")  ## 479 site visits kept as 'salpla'
+print(check.groupby('code_adjudicated').size())
 
 # Export corrected table
 corrected_vegetation.to_csv(vegetation_output, index=False)
