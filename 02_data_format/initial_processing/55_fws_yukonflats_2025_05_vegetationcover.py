@@ -257,6 +257,11 @@ cover_combined = (
     cover_combined
     .sort("cover_percent", descending=True)
     .unique(subset=["site_visit_code", "name_original", "dead_status"], keep="first")
+    # Convert any cover entries @ 0.1% to 0%
+    .with_columns(pl.when(pl.col("cover_percent") == 0.1)
+                  .then(0)
+                  .otherwise(pl.col("cover_percent"))
+                  .alias("cover_percent"))
     # Populate remaining columns
     .with_columns(pl.lit("absolute foliar cover").alias("cover_type"))
     # Sort and select columns
