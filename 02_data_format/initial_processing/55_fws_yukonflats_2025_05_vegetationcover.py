@@ -30,7 +30,7 @@ trace_input = plot_folder / 'source' / '05_usfws_yukonflats_2025_trace.xlsx'
 visit_input = plot_folder / '03_sitevisit_fwsyukonflats2025.csv'
 
 # Define output
-veg_output = plot_folder / '05_vegetationcover_fwsyukonflats2025.csv'
+cover_output = plot_folder / '05_vegetationcover_fwsyukonflats2025.csv'
 
 # Define taxon mapping dictionary
 ## Used to correct field identifications (misspellings or misidentifications)
@@ -71,7 +71,14 @@ taxon_mapping = {
     "leurot": "uforb",
     "pamnit": "tomnit",
     "equstr": "equise",
-    "camcal": "chacal"
+    "camcal": "chacal",
+    "clidin": "cladon",
+    "diarip": "diarep",
+    "helcym": "halcym",
+    "marpal": "unknown",
+    "palpul": "parpal",
+    "polpul": "parpal",
+    "palper": "unknown"
 }
 
 # Define abiotic element codes to drop
@@ -87,6 +94,8 @@ def get_taxon_names(lf: pl.LazyFrame, checklist: pl.LazyFrame) -> pl.LazyFrame:
         )
         .join(checklist, how="left", on="taxon_code")
         .rename({"taxon_name":"name_original"})
+        .with_columns(pl.col("name_original").alias("name_adjudicated"))  # name_original = name_adjudicated in this
+        # case
     )
 
 # Read in data
@@ -110,7 +119,7 @@ trace = (trace_original.lazy()
          )
 
 # Load and format LPI data
-vegcover = (
+lpi_points = (
     lpi_original.lazy()
     # Format site code
     .with_columns(pl.col("site_code").str.replace_all("_", ""))
@@ -135,7 +144,7 @@ print(missing_lpi_sites.height)  ## Nothing to review
 
 # --- Calculate number of points per plot ---
 ## Plots should have 120 points
-number_of_points = (vegcover
+number_of_points = (lpi_points
                     .group_by("site_visit_code")
                     .agg(pl.col("point_number")
                          .max())
@@ -146,12 +155,12 @@ print(number_of_points.describe())
 # --- Convert to long format ---
 
 # Identify groups of columns
-species_cols = vegcover.select(pl.col(["^layer_\\d$"])).columns
+species_cols = lpi_points.select(pl.col(["^layer_\\d$"])).columns
 id_cols = ["site_visit_code", "point_number"]
 
 # Melt species codes columns
-species_long = (
-    vegcover.lazy()
+lpi_long = (
+    lpi_points.lazy()
     .unpivot(
         on=species_cols,
         index=id_cols,
@@ -178,11 +187,13 @@ species_long = (
 
 # --- Obtain accepted taxonomic names ----
 
-vegcover_taxa = get_taxon_names(species_long, taxonomy_checklist)
-trace_taxa = get_taxon_names(trace, taxonomy_checklist)
+lpi_taxa = get_taxon_names(lpi_long, taxonomy_checklist)
+trace_taxa = (get_taxon_names(trace, taxonomy_checklist)
+              .with_columns(pl.col("cover_percent").cast(pl.Float64)))  ## Ensure cover_percent is Float64 to match
+# with lpi_cover later on
 
-# Explore taxon codes that did not match with an AKVEG code
-unmatched_taxa = (pl.concat([vegcover_taxa.select(["taxon_code", "name_original"]),
+# Verify that all codes were corrected and matched to an entry in the AKVEG checlist
+unmatched_taxa = (pl.concat([lpi_taxa.select(["taxon_code", "name_original"]),
                              trace_taxa.select(["taxon_code", "name_original"])])
                   .filter(pl.col("name_original").is_null())
                   .select("taxon_code")
@@ -190,18 +201,7 @@ unmatched_taxa = (pl.concat([vegcover_taxa.select(["taxon_code", "name_original"
                   .sort("taxon_code")
                   .collect()
                   )
-
-## Reconcile unmatched LPI entries to unknown for now (n=22)
-vegcover_taxa = (vegcover_taxa.with_columns(pl.col("name_original").fill_null("unknown"),
-                                            pl.col("name_adjudicated").fill_null("unknown"))
-                 )
-
-# Drop unmatched code (n=1) in trace
-trace_taxa = (trace_taxa.filter(pl.col("name_original").is_not_null())
-              .with_columns(pl.col("name_original").alias("name_adjudicated"))
-              .drop("taxon_code")
-              .collect()
-              )
+print(unmatched_taxa.height)
 
 # --- Calculate percent cover ---
 
@@ -224,7 +224,7 @@ group_columns_plots = [
 ]
 
 # Calculate cover percent for each species and site visit
-vegcover_final = (vegcover_taxa
+lpi_cover = (lpi_taxa
                     ## Get list of unique species per point
                     .unique(subset=group_columns_points)
 
@@ -242,17 +242,16 @@ vegcover_final = (vegcover_taxa
                     .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
                                   .round(3)
                                   .alias("cover_percent"))
-                  .select(trace_taxa.columns)
-                  .collect()
+                  .drop(["observation_marker", "max_hits"])
                   )
 
 # --- Combine with trace data ---
 # If entries exist in both LPI and trace dfs, prioritize the one with the highest cover
-combined_df = pl.concat([vegcover_final, trace_taxa])
+cover_combined = pl.concat([lpi_cover, trace_taxa.select(lpi_cover.collect_schema().names())])
 
 # Prioritize by sorting and remove duplicates
-merged_df = (
-    combined_df
+cover_combined = (
+    cover_combined
     .sort("cover_percent", descending=True)
     .unique(subset=["site_visit_code", "name_original", "dead_status"], keep="first")
     # Populate remaining columns
@@ -260,22 +259,23 @@ merged_df = (
     # Sort and select columns
     .sort(["site_visit_code", "name_original"])
     .select(template.columns)
+    .collect()
 )
 
 # Verify that estimates of non-vascular survey at B06-05 were correctly included
-nv_survey_check = merged_df.filter(pl.col("site_visit_code").str.contains("YKF25B0605"))
+nv_survey_check = cover_combined.filter(pl.col("site_visit_code").str.contains("YKF25B0605"))
 
 # --- Quality checks ---
 ## Ensure no null values, range of % cover between 0-100%
-print(merged_df.describe())
-print(merged_df
+print(cover_combined.describe())
+print(cover_combined
       .select(["site_visit_code", "name_original", "dead_status"])
       .is_duplicated()
       .sum())
 # Are the correct number of sites included?
-set_cover = set(merged_df.get_column("site_visit_code").unique().to_list())
-set_visit = set(merged_df.get_column("site_visit_code").unique().to_list())
+set_cover = set(cover_combined.get_column("site_visit_code").unique().to_list())
+set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
 print(set_cover == set_visit)
 
 # Export data
-vegcover_final.write_csv(veg_output)
+cover_combined.write_csv(cover_output)
