@@ -1,9 +1,15 @@
+<div align="left">
+  <img src="assets/akveg_logo.png" width="300" style="margin-bottom: -20px;" alt="AKVEG logo with text: Alaska Vegetation Map">
+</div>
+
 # Changelog
 
-All changes to the AKVEG Database will be documented in this file.
+All changes to the AKVEG database are documented in this file. Changes to the AKVEG taxonomic standard are 
+documented in [TAXONOMY_CHANGELOG.md](TAXONOMY_CHANGELOG.md). 
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses a [custom versioning 
-system](#versioning-system).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+---
 
 ## [2.7.0] - 2026-03-05
 
