@@ -4,12 +4,22 @@
 
 # Changelog
 
-All changes to the AKVEG database are documented in this file. Changes to the AKVEG taxonomic standard are 
-documented in [CHANGELOG_TAXONOMY.md](CHANGELOG_TAXONOMY.md). 
+All changes to the AKVEG database are documented in this file. Changes to the AKVEG taxonomic standard are
+documented in [CHANGELOG_TAXONOMY.md](CHANGELOG_TAXONOMY.md).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
+
+## [2.8.0] - 2026-03-18
+
+### Added
+* **fws_yukonflats_2025**: Added Project, Site, Site Visit, and Vegetation Cover tables, representing 34 site visits and 579 unique cover observations.
+
+### Fixed
+* **yukon_biophysical_2020**: Restored 18 sites with 100% abiotic cover. These sites were previously excluded by QC filters due to a lack of vegetation cover observations.
+* **fws_pribilof_2022**: Restored 10 sites (100% water/abiotic cover) that were previously excluded by QC filters.
+* Restricted post-compilation adjudication of *Salix planifolia* to *S. pulchra* to central and western Alaska projects only. QC script previously applied correction to Canadian sites in the yukon_biophysical_2020 dataset.
 
 ## [2.7.0] - 2026-03-05
 
