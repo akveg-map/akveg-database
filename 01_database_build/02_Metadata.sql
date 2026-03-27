@@ -57,159 +57,198 @@ DROP TABLE IF EXISTS
 CASCADE;
 
 -- Create constraint tables
+
 CREATE TABLE completion (
     completion_id smallint PRIMARY KEY,
     completion varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE cover_method (
     cover_method_id smallint PRIMARY KEY,
     cover_method varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE cover_type (
     cover_type_id smallint PRIMARY KEY,
     cover_type varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE crown_class (
     crown_class_id smallint PRIMARY KEY,
     crown_class varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE data_tier (
     data_tier_id smallint PRIMARY KEY,
     data_tier varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE data_type (
     data_type_id smallint PRIMARY KEY,
     data_type varchar(80) UNIQUE NOT NULL
 );
+
 CREATE TABLE disturbance (
     disturbance_id smallint PRIMARY KEY,
     disturbance varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE disturbance_severity (
     disturbance_severity_id smallint PRIMARY KEY,
     disturbance_severity varchar(20) UNIQUE NOT NULL
 );
+
 CREATE TABLE drainage (
     drainage_id smallint PRIMARY KEY,
     drainage varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE geomorphology (
     geomorphology_id smallint PRIMARY KEY,
     geomorphology varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE ground_element (
     ground_element_code varchar(2) PRIMARY KEY,
     ground_element varchar(50) UNIQUE NOT NULL,
     element_type varchar(7) NOT NULL
 );
+
 CREATE TABLE h_datum (
     h_datum_epsg integer PRIMARY KEY,
     h_datum varchar(20) UNIQUE NOT NULL
 );
+
 CREATE TABLE height_type (
     height_type_id smallint PRIMARY KEY,
     height_type varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE location_type (
     location_type_id smallint PRIMARY KEY,
     location_type varchar(20) UNIQUE NOT NULL
 );
+
 CREATE TABLE macrotopography (
     macrotopography_id smallint PRIMARY KEY,
     macrotopography varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE microtopography (
     microtopography_id smallint PRIMARY KEY,
     microtopography varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE moisture (
     moisture_id smallint PRIMARY KEY,
     moisture varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE organization_type (
     organization_type_id smallint PRIMARY KEY,
     organization_type varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE personnel (
     personnel_id smallint PRIMARY KEY,
     personnel varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE perspective (
     perspective_id smallint PRIMARY KEY,
     perspective varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE physiography (
     physiography_id smallint PRIMARY KEY,
     physiography varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE plot_dimensions (
     plot_dimensions_id smallint PRIMARY KEY,
     plot_dimensions_m varchar(20) UNIQUE NOT NULL
 );
+
 CREATE TABLE positional_accuracy (
     positional_accuracy_id smallint PRIMARY KEY,
     positional_accuracy varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE restrictive_type (
     restrictive_type_id smallint PRIMARY KEY,
     restrictive_type varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE schema_category (
     schema_category_id smallint PRIMARY KEY,
     schema_category varchar(80) UNIQUE NOT NULL
 );
+
 CREATE TABLE schema_table (
     schema_table_id smallint PRIMARY KEY,
     schema_table varchar(80) UNIQUE NOT NULL
 );
+
 CREATE TABLE scope (
     scope_id smallint PRIMARY KEY,
     scope varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE shrub_class (
     shrub_class_id smallint PRIMARY KEY,
     shrub_class varchar(20) UNIQUE NOT NULL
 );
+
 CREATE TABLE soil_class (
     soil_class_id smallint PRIMARY KEY,
     soil_class varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE soil_nonmatrix_features (
     nonmatrix_feature_code varchar(2) PRIMARY KEY,
     nonmatrix_feature varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE soil_structure (
     soil_structure_code varchar(3) PRIMARY KEY,
     soil_structure varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE soil_texture (
     soil_texture_code varchar(4) PRIMARY KEY,
     soil_texture varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE soil_horizon_type (
     soil_horizon_type_code varchar(1) PRIMARY KEY,
     soil_horizon_type varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE soil_horizon_suffix (
     soil_horizon_suffix_code varchar(2) PRIMARY KEY,
     soil_horizon_suffix varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE soil_hue (
     soil_hue_code varchar(5) PRIMARY KEY,
     soil_hue varchar(5) UNIQUE NOT NULL
 );
+
 CREATE TABLE source_collection (
     source_collection_id smallint PRIMARY KEY,
     source_collection varchar(100) UNIQUE NOT NULL
 );
+
 CREATE TABLE source_type (
     source_type_id smallint PRIMARY KEY,
     source_type varchar(30) UNIQUE NOT NULL
 );
+
 CREATE TABLE structural_class (
     structural_class_code varchar(10) PRIMARY KEY,
     structural_class varchar(50) UNIQUE NOT NULL
 );
+
 CREATE TABLE structural_group (
     structural_group_id smallint PRIMARY KEY,
     structural_group varchar(50) UNIQUE NOT NULL
