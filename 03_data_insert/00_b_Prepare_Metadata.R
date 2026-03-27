@@ -45,11 +45,10 @@ org_data <- read_excel(path(data_folder, "organization.xlsx"), sheet = "organiza
 # Parse constraints
 constraint_tables <- dictionary_data %>%
   arrange(field) %>% 
-  group_split(field) %>%
-  setNames(unique(sort(dictionary_data$field))) %>%
+  split(.$field) %>% 
   imap(function(df, field_name) {
     
-    # Find appropriate suffix for field name
+    # Create suffix for id column (end in "_id" or "_code" for most exceptions)
     suffix <- ifelse(field_name %in% names(suffix_exceptions), suffix_exceptions[field_name], "_id")
     
     # Handle plot_dimensions exception
@@ -57,7 +56,7 @@ constraint_tables <- dictionary_data %>%
       id_col    <- "plot_dimensions_id"  # Drop the "_m" from the id field
       value_col <- "plot_dimensions_m"   # Keep the "_m" for the values field
     } else {
-      # Standard logic for all other fields
+      # Create column names using field_name and suffix
       id_col    <- paste0(field_name, suffix)
       value_col <- field_name
     }
@@ -84,7 +83,9 @@ organization_table <- org_data %>%
 # Parse schema table
 database_schema_table <- schema_data %>%
   left_join(constraint_tables$schema_category, by = "schema_category") %>%
-  left_join(constraint_tables$schema_table %>% rename(link_table_id = schema_table_id), by = c("link_table" = "schema_table")) %>%
+  left_join(constraint_tables$schema_table %>% 
+              rename(link_table_id = schema_table_id), 
+            by = c("link_table" = "schema_table")) %>%
   left_join(constraint_tables$schema_table, by = "schema_table") %>%
   left_join(constraint_tables$data_type, by = "data_type") %>%
   rowid_to_column("field_id") %>%
