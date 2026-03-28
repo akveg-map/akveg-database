@@ -236,7 +236,7 @@ CREATE TABLE soil_hue (
 
 CREATE TABLE source_collection (
     source_collection_id smallint PRIMARY KEY,
-    source_collection varchar(100) UNIQUE NOT NULL
+    source_collection varchar(50) UNIQUE NOT NULL
 );
 
 CREATE TABLE source_type (
