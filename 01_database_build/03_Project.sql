@@ -13,7 +13,10 @@ START TRANSACTION;
 -- Drop project tables if they exist
 DROP TABLE IF EXISTS
     project,
-    project_status
+    citations,
+    project_source,
+    project_status,
+    project_citations
 CASCADE;
 
 -- Create projects table
