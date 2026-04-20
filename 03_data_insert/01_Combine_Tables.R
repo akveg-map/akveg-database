@@ -18,6 +18,31 @@ library(stringr)
 library(tibble)
 library(yaml)
 
+# Define functions ----
+# Iterate over plot folders to find files matching pattern and print a warning if any folder is missing a file
+find_files_warning <- function(folders, pattern) {
+  # Create a named list where each element is the result of dir_ls
+  search_results <- folders |> 
+    set_names() |> # Attach folder name to the result
+    map(\(dir) dir_ls(dir, regexp = pattern))
+  
+  # Identify folders where the length of the result is 0
+  missing_folders <- search_results |> 
+    keep(\(x) length(x) == 0) |> 
+    names()
+  
+  # Issue a warning if a file is missing
+  if (length(missing_folders) > 0) {
+    warning(paste(
+      "The following folders are missing a file for pattern [", pattern, "]:\n",
+      paste("-", missing_folders, collapse = "\n")
+    ))
+  }
+  
+  # Return vector of file paths
+  return(list_c(search_results))
+}
+
 # Define folder structure ----
 
 # Set root directory
@@ -42,43 +67,6 @@ queries_input = path(repository_folder,
                      '03_data_insert', 
                      'queries_lookup.yaml')
 
-# Define output files
-output_project = path(data_folder,
-                  'processed',
-                  'projects.csv')
-output_sites = path(data_folder,
-                  'processed',
-                  'sites.csv')
-output_visit = path(data_folder,
-                  'processed',
-                  'site_visits.csv')
-output_vegetation = path(data_folder,
-                  'processed',
-                  'vegetation_cover.csv')
-output_abiotic = path(data_folder, 'processed',
-                  'abiotic_top_cover.csv')
-output_tussock = path(data_folder,
-                  'processed',
-                  'whole_tussock_cover.csv')
-output_ground = path(data_folder,
-                  'processed',
-                  'ground_cover.csv')
-output_structure = path(data_folder,
-                  'processed',
-                  'structural_group_cover.csv')
-output_shrub = path(data_folder,
-                  'processed',
-                  'shrub_structure.csv')
-output_environment = path(data_folder,
-                  'processed',
-                  'environment.csv')
-output_soils = path(data_folder,
-                  'processed',
-                  'soil_metrics.csv')
-output_horizons = path(data_folder,
-                  'processed',
-                  'soil_horizons.csv')
-
 # Connect to AKVEG database ----
 
 # Import database connection function
@@ -96,45 +84,32 @@ database_connection = connect_database_postgresql(authentication)
 queries_lookup = read_yaml(queries_input)
 lookup_data = map(queries_lookup$queries, \(q) dbGetQuery(database_connection, q))
 
-# Read list of projects ----
-target_paths = fromJSON(file = project_list)
-target_paths = target_paths$projects
+# Define plot folders ----
+target_paths = fromJSON(file = project_list)$projects
+all_folders = path(data_folder, target_paths)
+
+# Create tibble specifying input file pattern and output file name
+config_table = tribble(~table_name, ~input_pattern, ~output_path,
+                       #-----------|----------------|-------------
+                       "project", '01_project.*csv', "projects.csv",
+                       )
 
 # Create project table ----
 
-# Set target pattern
-target_pattern = '^01_project.*csv'
+# Iterate through target paths and read in project files
+project_files = find_files_warning(all_folders, config_table$input_pattern[1])
+data_combine = project_files |> 
+  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
+  list_rbind()  # Convert to data frame
 
-print(str_c('Processing...', target_pattern, sep = " "))
-
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Read files into list
-data_list = lapply(files_list, read_csv, show_col_types = FALSE)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
-
-# Join metadata tables to project table
+# Join look-up tables to project table
 project_table = data_combine %>%
-  left_join(completion_data, by = 'completion') %>%
-  left_join(organization_data, by = c('originator' = 'organization')) %>%
+  left_join(lookup_data$completion, by = 'completion') %>%
+  left_join(lookup_data$organization, by = c('originator' = 'organization')) %>%
   rename(originator_id = organization_id) %>%
-  left_join(organization_data, by = c('funder' = 'organization')) %>%
+  left_join(lookup_data$organization, by = c('funder' = 'organization')) %>%
   rename(funder_id = organization_id) %>%
-  left_join(personnel_data, by = c('manager' = 'personnel')) %>%
+  left_join(lookup_data$personnel, by = c('manager' = 'personnel')) %>%
   rename(manager_id = personnel_id) %>%
   select(project_code, project_name, originator_id, funder_id, manager_id,
          completion_id, year_start, year_end, project_description, private)
