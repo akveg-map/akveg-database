@@ -10,11 +10,13 @@
 # Import required libraries ----
 library(dplyr, warn.conflicts = FALSE)
 library(fs)
+library(purrr)
 library(readr)
 library(rjson)
 library(RPostgres)
 library(stringr)
 library(tibble)
+library(yaml)
 
 # Define folder structure ----
 
@@ -32,12 +34,15 @@ credential_folder = path(drive, root_folder, 'Credentials')
 
 # Define files ----
 
-# Define input file
+# Define input files
 project_list = path(repository_folder, 
                          '03_data_insert', 
                          'List_Included_Projects.json')
+queries_input = path(repository_folder, 
+                     '03_data_insert', 
+                     'queries_lookup.yaml')
 
-# Define output file
+# Define output files
 output_project = path(data_folder,
                   'processed',
                   'projects.csv')
@@ -87,92 +92,9 @@ authentication = path(credential_folder,
                       'akveg_private_build', 'authentication_akveg_private_build.csv')
 database_connection = connect_database_postgresql(authentication)
 
-# Define queries ----
-query_completion = 'SELECT * FROM completion'
-query_organization = 'SELECT * FROM organization'
-query_personnel = 'SELECT * FROM personnel'
-
-query_perspective = 'SELECT * FROM perspective'
-query_method = 'SELECT * FROM cover_method'
-query_scope = 'SELECT * FROM scope'
-query_dimensions = 'SELECT * FROM plot_dimensions'
-query_datum = 'SELECT * FROM h_datum'
-query_accuracy = 'SELECT * FROM positional_accuracy'
-query_location = 'SELECT * FROM location_type'
-query_tier = 'SELECT * FROM data_tier'
-query_struct_class = 'SELECT * FROM structural_class'
-query_scope = 'SELECT * FROM scope'
-
-query_type = 'SELECT * FROM cover_type'
-query_taxa = 'SELECT * FROM taxon_all'
-
-query_element = 'SELECT * FROM ground_element'
-
-query_struct_group = 'SELECT * FROM structural_group'
-
-query_class = 'SELECT * FROM shrub_class'
-query_height = 'SELECT * FROM height_type'
-
-query_physiography = 'SELECT * FROM physiography'
-query_geomorphology = 'SELECT * FROM geomorphology'
-query_macrotopography = 'SELECT * FROM macrotopography'
-query_microtopography = 'SELECT * FROM microtopography'
-query_moisture = 'SELECT * FROM moisture'
-query_drainage = 'SELECT * FROM drainage'
-query_disturbance = 'SELECT * FROM disturbance'
-query_severity = 'SELECT * FROM disturbance_severity'
-query_restrictive = 'SELECT * FROM restrictive_type'
-query_texture = 'SELECT * FROM soil_texture'
-query_soil = 'SELECT * FROM soil_class'
-query_texture = 'SELECT * FROM soil_texture'
-
-query_horizon_type = 'SELECT * FROM soil_horizon_type'
-query_horizon_suffix = 'SELECT * FROM soil_horizon_suffix'
-query_structure = 'SELECT * FROM soil_structure'
-query_hue = 'SELECT * FROM soil_hue'
-query_nonmatrix = 'SELECT * FROM soil_nonmatrix_features'
-
 # Read in queries ----
-completion_data = as_tibble(dbGetQuery(database_connection, query_completion))
-organization_data = as_tibble(dbGetQuery(database_connection, query_organization))
-personnel_data = as_tibble(dbGetQuery(database_connection, query_personnel))
-
-tier_data = as_tibble(dbGetQuery(database_connection, query_tier))
-struct_class_data = as_tibble(dbGetQuery(database_connection, query_struct_class))
-scope_data = as_tibble(dbGetQuery(database_connection, query_scope))
-perspective_data = as_tibble(dbGetQuery(database_connection, query_perspective))
-method_data = as_tibble(dbGetQuery(database_connection, query_method))
-scope_data = as_tibble(dbGetQuery(database_connection, query_scope))
-dimensions_data = as_tibble(dbGetQuery(database_connection, query_dimensions))
-datum_data = as_tibble(dbGetQuery(database_connection, query_datum))
-accuracy_data = as_tibble(dbGetQuery(database_connection, query_accuracy))
-location_data = as_tibble(dbGetQuery(database_connection, query_location))
-
-type_data = as_tibble(dbGetQuery(database_connection, query_type))
-taxa_data = as_tibble(dbGetQuery(database_connection, query_taxa))
-
-element_data = as_tibble(dbGetQuery(database_connection, query_element))
-
-class_data = as_tibble(dbGetQuery(database_connection, query_class))
-height_data = as_tibble(dbGetQuery(database_connection, query_height))
-
-struct_group_data = as_tibble(dbGetQuery(database_connection, query_struct_group))
-
-physiography_data = as_tibble(dbGetQuery(database_connection, query_physiography))
-geomorphology_data = as_tibble(dbGetQuery(database_connection, query_geomorphology))
-macrotopography_data = as_tibble(dbGetQuery(database_connection, query_macrotopography))
-microtopography_data = as_tibble(dbGetQuery(database_connection, query_microtopography))
-moisture_data = as_tibble(dbGetQuery(database_connection, query_moisture))
-drainage_data = as_tibble(dbGetQuery(database_connection, query_drainage))
-disturbance_data = as_tibble(dbGetQuery(database_connection, query_disturbance))
-severity_data = as_tibble(dbGetQuery(database_connection, query_severity))
-restrictive_data = as_tibble(dbGetQuery(database_connection, query_restrictive))
-texture_data = as_tibble(dbGetQuery(database_connection, query_texture))
-soil_data = as_tibble(dbGetQuery(database_connection, query_soil))
-
-texture_data = as_tibble(dbGetQuery(database_connection, query_texture))
-structure_data = as_tibble(dbGetQuery(database_connection, query_structure))
-nonmatrix_data = as_tibble(dbGetQuery(database_connection, query_nonmatrix))
+queries_lookup = read_yaml(queries_input)
+lookup_data = map(queries_lookup$queries, \(q) dbGetQuery(database_connection, q))
 
 # Read list of projects ----
 target_paths = fromJSON(file = project_list)
