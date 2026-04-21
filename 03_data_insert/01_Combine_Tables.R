@@ -109,7 +109,14 @@ config_table = tribble(
   FALSE,
   "whole_tussock_cover.csv",
   clean_tussock_data,
-  join_tussock_metadata)
+  join_tussock_metadata,
+  "ground_cover",
+  "08_groundcover.*csv",
+  FALSE,
+  "ground_cover.csv",
+  clean_ground_data,
+  join_ground_metadata
+  )
   
   ,
   "structural_group",
@@ -138,47 +145,6 @@ process_tables <- function(input_pattern, warn_if_missing, clean_function, join_
 
 # Run every job in the table at once
 final_results_list <- pmap(config_table, process_tables)
-
-
-# Create ground cover table ----
-
-# Set target pattern
-target_pattern = '^08_groundcover.*csv'
-
-print(str_c('Processing...', target_pattern, sep = " "))
-
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Create read function
-read_data_site_visit_rename = function (data_file) {
-  rename_fields = c(site_visit_code = 'site_visit_id')
-  input_data = read_csv(data_file, show_col_types = FALSE) %>%
-    rename(any_of(rename_fields))
-  return(input_data)
-}
-
-# Read files into list
-data_list = lapply(files_list, read_data_site_visit_rename)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
-
-# Join metadata tables to ground cover table
-ground_table = data_combine %>%
-  left_join(element_data, by = 'ground_element') %>%
-  select(site_visit_code, ground_element_code, ground_cover_percent)
 
 # Create structural group cover table ----
 
