@@ -18,59 +18,6 @@ library(stringr)
 library(tibble)
 library(yaml)
 
-# Define functions ----
-
-# --- Function 1: find_files_warning ---
-# Iterate over plot folders to find files matching pattern and print a warning if any folder is missing a file
-find_files_warning <- function(folders, pattern) {
-  # Create a named list where each element is the result of dir_ls
-  search_results <- folders |> 
-    set_names() |> # Attach folder name to the result
-    map(\(dir) dir_ls(dir, regexp = pattern))
-  
-  # Identify folders where the length of the result is 0
-  missing_folders <- search_results |> 
-    keep(\(x) length(x) == 0) |> 
-    names()
-  
-  # Issue a warning if a file is missing
-  if (length(missing_folders) > 0) {
-    warning(paste(
-      "The following folders are missing a file for pattern [", pattern, "]:\n",
-      paste("-", missing_folders, collapse = "\n")
-    ))
-  }
-  
-  # Return vector of file paths
-  return(list_c(search_results))
-}
-
-# --- Function 2: clean_site_data ---
-clean_site_data <- function(df) {
-  df |>
-    rename(any_of(c('establishing_project_code' = 'establishing_project'))) |>
-    mutate(establishing_project_code = if_else(
-      establishing_project_code == 'accs_nelchina_2022', 
-      'accs_nelchina_2023', 
-      establishing_project_code
-    ))
-}
-
-# --- Function 3: join_site_metadata ---
-join_site_metadata <- function(df, lookup) {
-  df %>%
-  left_join(lookup$perspective, by = 'perspective') %>%
-  left_join(lookupa$method, by = 'cover_method') %>%
-  left_join(lookup$dimensions, by = 'plot_dimensions_m') %>%
-  left_join(lookup$datum, by = 'h_datum') %>%
-  left_join(lookup$accuracy, by = 'positional_accuracy') %>%
-  left_join(lookup$location, by = 'location_type') %>%
-  select(site_code, establishing_project_code, perspective_id, cover_method_id,
-         h_datum_epsg, latitude_dd, longitude_dd, h_error_m, positional_accuracy_id,
-         plot_dimensions_id, location_type_id)
-}
-
-
 # Define folder structure ----
 
 # Set root directory
@@ -85,15 +32,17 @@ repository_folder = path(drive,
                          'ACCS_Work/Repositories/akveg-database')
 credential_folder = path(drive, root_folder, 'Credentials')
 
-# Define files ----
-
-# Define input files
+# Define input files ----
 project_list = path(repository_folder, 
                          '03_data_insert', 
                          'List_Included_Projects.json')
 queries_input = path(repository_folder, 
                      '03_data_insert', 
                      'queries_lookup.yaml')
+
+# Define functions ----
+source(path(repository_folder, 
+          '03_data_insert', 'helper_functions_combine.R'))
 
 # Connect to AKVEG database ----
 
@@ -140,27 +89,16 @@ config_table = tribble(
 
 # Iterate through target paths and read in project files
 project_files = find_files_warning(all_folders, config_table$input_pattern[1])
-data_combine = project_files |> 
+project_table = project_files |> 
   map(\(f) read_csv(f, show_col_types = FALSE)) |> 
-  list_rbind()  # Convert to data frame
-
-# Join look-up tables to project table
-project_table = data_combine %>%
-  left_join(lookup_data$completion, by = 'completion') %>%
-  left_join(lookup_data$organization, by = c('originator' = 'organization')) %>%
-  rename(originator_id = organization_id) %>%
-  left_join(lookup_data$organization, by = c('funder' = 'organization')) %>%
-  rename(funder_id = organization_id) %>%
-  left_join(lookup_data$personnel, by = c('manager' = 'personnel')) %>%
-  rename(manager_id = personnel_id) %>%
-  select(project_code, project_name, originator_id, funder_id, manager_id,
-         completion_id, year_start, year_end, project_description, private)
+  list_rbind()  |> # Convert to data frame
+  join_project_metadata(lookup_data)
 
 # Create site table ----
 print(str_c('Processing...', config_table$table_name[2], sep = " "))
 
 site_files = find_files_warning(all_folders, config_table$input_pattern[2])
-data_combine = site_files |> 
+site_table = site_files |> 
   map(\(f) read_csv(f, show_col_types = FALSE)) |> 
   map(clean_site_data) |>  # Apply corrections to `establishing_project_code` field
   list_rbind()  |> # Convert to data frame
