@@ -19,6 +19,8 @@ library(tibble)
 library(yaml)
 
 # Define functions ----
+
+# --- Function 1: find_files_warning ---
 # Iterate over plot folders to find files matching pattern and print a warning if any folder is missing a file
 find_files_warning <- function(folders, pattern) {
   # Create a named list where each element is the result of dir_ls
@@ -42,6 +44,32 @@ find_files_warning <- function(folders, pattern) {
   # Return vector of file paths
   return(list_c(search_results))
 }
+
+# --- Function 2: clean_site_data ---
+clean_site_data <- function(df) {
+  df |>
+    rename(any_of(c('establishing_project_code' = 'establishing_project'))) |>
+    mutate(establishing_project_code = if_else(
+      establishing_project_code == 'accs_nelchina_2022', 
+      'accs_nelchina_2023', 
+      establishing_project_code
+    ))
+}
+
+# --- Function 3: join_site_metadata ---
+join_site_metadata <- function(df, lookup) {
+  df %>%
+  left_join(lookup$perspective, by = 'perspective') %>%
+  left_join(lookupa$method, by = 'cover_method') %>%
+  left_join(lookup$dimensions, by = 'plot_dimensions_m') %>%
+  left_join(lookup$datum, by = 'h_datum') %>%
+  left_join(lookup$accuracy, by = 'positional_accuracy') %>%
+  left_join(lookup$location, by = 'location_type') %>%
+  select(site_code, establishing_project_code, perspective_id, cover_method_id,
+         h_datum_epsg, latitude_dd, longitude_dd, h_error_m, positional_accuracy_id,
+         plot_dimensions_id, location_type_id)
+}
+
 
 # Define folder structure ----
 
@@ -89,10 +117,24 @@ target_paths = fromJSON(file = project_list)$projects
 all_folders = path(data_folder, target_paths)
 
 # Create tibble specifying input file pattern and output file name
-config_table = tribble(~table_name, ~input_pattern, ~output_path,
-                       #-----------|----------------|-------------
-                       "project", '01_project.*csv', "projects.csv",
-                       )
+config_table = tribble(
+  ~ table_name,
+  ~ input_pattern,
+  ~ output_path,
+  ~ clean_function,
+  ~ join_function,
+  #---------|---------|---------|---------
+  "project",
+  '01_project.*csv',
+  "projects.csv",
+  identity,
+  join_project_metadata,
+  "site",
+  "02_site.*csv",
+  "sites.csv",
+  clean_site_data,
+  join_site_metadata
+)
 
 # Create project table ----
 
@@ -115,54 +157,14 @@ project_table = data_combine %>%
          completion_id, year_start, year_end, project_description, private)
 
 # Create site table ----
+print(str_c('Processing...', config_table$table_name[2], sep = " "))
 
-# Set target pattern
-target_pattern = '^02_site.*csv'
-
-print(str_c('Processing...', target_pattern, sep = " "))
-
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Read files into list
-data_list = lapply(files_list, read_csv, show_col_types = FALSE)
-
-# Apply corrections to establishing project code field name and values
-rename_columns = function(dataframe) {
-  lookup = c('establishing_project_code' = 'establishing_project')
-  output_data = dataframe %>%
-    rename(any_of(lookup)) %>%
-    mutate(establishing_project_code = case_when(establishing_project_code == 'accs_nelchina_2022' ~ 'accs_nelchina_2023',
-                                                 TRUE ~ establishing_project_code))
-  return(output_data)
-}
-rename_list = lapply(data_list, rename_columns)
-
-# Combine list into data frame
-data_combine = do.call(rbind, rename_list)
-
-# Join metadata tables to site table
-site_table = data_combine %>%
-  left_join(perspective_data, by = 'perspective') %>%
-  left_join(method_data, by = 'cover_method') %>%
-  left_join(dimensions_data, by = 'plot_dimensions_m') %>%
-  left_join(datum_data, by = 'h_datum') %>%
-  left_join(accuracy_data, by = 'positional_accuracy') %>%
-  left_join(location_data, by = 'location_type') %>%
-  select(site_code, establishing_project_code, perspective_id, cover_method_id,
-         h_datum_epsg, latitude_dd, longitude_dd, h_error_m, positional_accuracy_id,
-         plot_dimensions_id, location_type_id)
+site_files = find_files_warning(all_folders, config_table$input_pattern[2])
+data_combine = site_files |> 
+  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
+  map(clean_site_data) |>  # Apply corrections to `establishing_project_code` field
+  list_rbind()  |> # Convert to data frame
+  join_site_metadata(lookup_data)
 
 # Create site visit table ----
 
