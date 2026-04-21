@@ -174,3 +174,11 @@ join_vegetation_metadata = function(df, lookup) {
     summarize(cover_percent = sum(cover_percent)) %>% 
     ungroup()
 }
+
+# Abiotic Top Cover table (join_abiotic_metadata)
+join_abiotic_metadata = function(df, lookup) {
+  df |> 
+    left_join(lookup$element, by = c('abiotic_element' = 'ground_element')) %>%
+    rename(abiotic_element_code = ground_element_code) %>%
+    select(site_visit_code, abiotic_element_code, abiotic_top_cover_percent)
+  }
