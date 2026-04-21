@@ -7,24 +7,30 @@
 # ---------------------------------------------------------------------------
 
 # --- Function 1: find_files_warning ---
-# Iterate over plot folders to find files matching pattern and print a warning if any folder is missing a file
-find_files_warning <- function(folders, pattern) {
+# Iterate over plot folders to find files matching a pattern. Optionally print a warning if a folder is missing a file
+find_files_warning <- function(folders, pattern, show_warning = TRUE) {
   # Create a named list where each element is the result of dir_ls
-  search_results <- folders |> 
+  search_results <- folders |>
     set_names() |> # Attach folder name to the result
     map(\(dir) dir_ls(dir, regexp = pattern))
   
-  # Identify folders where the length of the result is 0
-  missing_folders <- search_results |> 
-    keep(\(x) length(x) == 0) |> 
-    names()
-  
-  # Issue a warning if a file is missing
-  if (length(missing_folders) > 0) {
-    warning(paste(
-      "The following folders are missing a file for pattern [", pattern, "]:\n",
-      paste("-", missing_folders, collapse = "\n")
-    ))
+  if (show_warning) {
+    # Identify folders where the length of the result is 0
+    missing_folders <- search_results |>
+      keep(\(x) length(x) == 0) |>
+      names()
+    
+    # Issue a warning if a file is missing
+    if (length(missing_folders) > 0) {
+      warning(
+        paste(
+          "The following folders are missing a file for pattern [",
+          pattern,
+          "]:\n",
+          paste("-", missing_folders, collapse = "\n")
+        )
+      )
+    }
   }
   
   # Return vector of file paths
