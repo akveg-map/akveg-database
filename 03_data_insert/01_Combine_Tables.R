@@ -82,7 +82,18 @@ config_table = tribble(
   "02_site.*csv",
   "sites.csv",
   clean_site_data,
-  join_site_metadata
+  join_site_metadata,
+  "site_visit",
+  '03_sitevisit.*csv',
+  "site_visits.csv",
+  clean_visit_data,
+  join_visit_metadata,
+  "vegetation",
+  "05_vegetationcover.*csv",
+  "vegetation_cover.csv",
+  clean_vegetation_data,
+  identity
+  
 )
 
 # Create project table ----
@@ -106,129 +117,24 @@ site_table = site_files |>
 
 # Create site visit table ----
 
-# Set target pattern
-target_pattern = '^03_sitevisit.*csv'
+print('Processing... site visit')
 
-print(str_c('Processing...', target_pattern, sep = " "))
-
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Create read function
-read_data_site_visit_rename = function (data_file) {
-  rename_fields = c(site_visit_code = 'site_visit_id', homogeneous = 'homogenous')
-  input_data = read_csv(data_file, show_col_types = FALSE) %>%
-    rename(any_of(rename_fields)) %>%
-    mutate(veg_observer = case_when(veg_observer == 'Jess Grunblatt' ~ 'Jesse Grunblatt',
-    veg_observer == 'Robert Lieberman' ~ 'Robert Liebermann',
-                                    veg_observer == 'NULL' ~ 'none',
-                                    veg_observer == 'Unknown' ~ 'unknown',
-                                    veg_observer == 'None' ~  'none',
-                                    .default = veg_observer)) %>%
-    mutate(veg_recorder = case_when(veg_recorder == 'Jess Grunblatt' ~ 'Jesse Grunblatt',
-    veg_recorder == 'Robert Lieberman' ~ 'Robert Liebermann',
-                                    veg_recorder == 'NULL' ~ 'none',
-                                    veg_recorder == 'Unknown' ~ 'unknown',
-                                    veg_recorder == 'None' ~  'none',
-                                    project_code == 'accs_ribdon_2019' & is.na(veg_recorder) ~ 'Timm Nawrocki',
-                                    .default = veg_recorder)) %>%
-    mutate(env_observer = case_when(env_observer == 'Jess Grunblatt' ~ 'Jesse Grunblatt',
-    env_observer == 'Robert Lieberman' ~ 'Robert Liebermann',
-                                    env_observer == 'NULL' ~ 'none',
-                                    env_observer == 'Unknown' ~ 'unknown',
-                                    env_observer == 'None' ~  'none',
-                                    .default = env_observer)) %>%
-    mutate(soils_observer = case_when(soils_observer == 'Jess Grunblatt' ~ 'Jesse Grunblatt',
-        soils_observer == 'Robert Lieberman' ~ 'Robert Liebermann',
-                                      soils_observer == 'NULL' ~ 'none',
-                                      soils_observer == 'Unknown' ~ 'unknown',
-                                      soils_observer == 'None' ~  'none',
-                                      .default = soils_observer)) %>%
-    mutate(project_code = case_when(project_code == 'accs_nelchina_2022' ~ 'accs_nelchina_2023',
-                                    TRUE ~ project_code))
-  return(input_data)
-}
-
-# Read files into list
-data_list = lapply(files_list, read_data_site_visit_rename)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
-
-# Join metadata tables to site table
-site_visit_table = data_combine %>%
-  # Correct erroneous data
-  mutate(structural_class = case_when(structural_class == 'n/assess' ~ 'not assessed',
-                                      is.na(structural_class) ~ 'not assessed',
-                                      TRUE ~ structural_class)) %>%
-  mutate(structural_class = tolower(structural_class)) %>%
-  # Join attribute tables
-  left_join(tier_data, by = 'data_tier') %>%
-  left_join(personnel_data, by = c('veg_observer'= 'personnel')) %>%
-  rename(veg_observer_id = personnel_id) %>%
-  left_join(personnel_data, by = c('veg_recorder' = 'personnel')) %>%
-  rename(veg_recorder_id = personnel_id) %>%
-  left_join(personnel_data, by = c('env_observer'= 'personnel')) %>%
-  rename(env_observer_id = personnel_id) %>%
-  left_join(personnel_data, by = c('soils_observer' = 'personnel')) %>%
-  rename(soils_observer_id = personnel_id) %>%
-  left_join(struct_class_data, by = 'structural_class') %>%
-  left_join(scope_data, by = c('scope_vascular'= 'scope')) %>%
-  rename(scope_vascular_id = scope_id) %>%
-  left_join(scope_data, by = c('scope_bryophyte' = 'scope')) %>%
-  rename(scope_bryophyte_id = scope_id) %>%
-  left_join(scope_data, by = c('scope_lichen' = 'scope')) %>%
-  rename(scope_lichen_id = scope_id) %>%
-  # Select final fields
-  select(site_visit_code, project_code, site_code, data_tier_id, observe_date,
-         veg_observer_id, veg_recorder_id, env_observer_id, soils_observer_id, structural_class_code,
-         scope_vascular_id, scope_bryophyte_id, scope_lichen_id, homogeneous)
+visit_files = find_files_warning(all_folders, config_table$input_pattern[3])
+visit_table = visit_files |> 
+  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
+  map(clean_visit_data) |> 
+  list_rbind() |> 
+  join_visit_metadata(lookup_data)
 
 # Create vegetation cover table ----
 
-# Set target pattern
-target_pattern = '^05_vegetationcover.*csv'
+print('Processing... vegetation cover')
 
-print(str_c('Processing...', target_pattern, sep = " "))
-
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Create read function
-read_data_site_visit_rename = function (data_file) {
-  rename_fields = c(site_visit_code = 'site_visit_id')
-  input_data = read_csv(data_file, show_col_types = FALSE) %>%
-    rename(any_of(rename_fields))
-  return(input_data)
-}
-
-# Read files into list
-data_list = lapply(files_list, read_data_site_visit_rename)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
+vegetation_files = find_files_warning(all_folders, config_table$input_pattern[4])
+vegetation_table = vegetation_files |> 
+  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
+  map(clean_vegetation_data) |> 
+  list_rbind()
 
 # Join metadata tables to cover table
 cover_table = data_combine %>%
