@@ -92,15 +92,19 @@ config_table = tribble(
   "05_vegetationcover.*csv",
   "vegetation_cover.csv",
   clean_vegetation_data,
-  identity,
+  join_vegetation_metadata,
   "abiotic",
   '06_abiotictopcover.*csv',
-  "",
-  "",
+  "abiotic_top_cover.csv",
+  clean_abiotic_data,
+  join_abiotic_metadata,
   "whole_tussock",
-  'whole_tussock_cover.csv',
-  identity,
-  identity,
+  "07_wholetussockcover.*csv",
+  "whole_tussock_cover.csv",
+  clean_tussock_data,
+  join_tussock_metadata)
+  
+  ,
   "structural_group",
   'structural_group_cover.csv',
   identity,
@@ -115,6 +119,18 @@ config_table = tribble(
   'soil_horizons.csv'
   
 )
+
+# Create function for table processing
+process_tables <- function(input_pattern, clean_function, join_function, ...) {
+  find_files_warning(all_folders, input_pattern) |> 
+    map(\(f) read_csv(f, show_col_types = FALSE)) |> 
+    map(clean_function) |> 
+    list_rbind() |> 
+    join_function(lookup_data)
+}
+
+# Run every job in the table at once
+final_results_list <- pmap(config_table, process_tables)
 
 # Create project table ----
 
@@ -161,79 +177,23 @@ cover_table = vegetation_files |>
 
 print('Processing... abiotic')
 
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Create read function
-read_data_site_visit_rename = function (data_file) {
-  rename_fields = c(site_visit_code = 'site_visit_id', abiotic_element = 'ground_element')
-  input_data = read_csv(data_file, show_col_types = FALSE) %>%
-    rename(any_of(rename_fields))
-  return(input_data)
-}
-
-# Read files into list
-data_list = lapply(files_list, read_data_site_visit_rename)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
-
-# Join metadata tables to abiotic table
-abiotic_table = data_combine %>%
-  left_join(element_data, by = c('abiotic_element' = 'ground_element')) %>%
-  rename(abiotic_element_code = ground_element_code) %>%
-  select(site_visit_code, abiotic_element_code, abiotic_top_cover_percent)
+abiotic_table = all_folders |> 
+  map(\(dir) dir_ls(dir, regexp = config_table$input_pattern[5])) |> 
+  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
+  map(clean_abiotic_data) |> 
+  list_rbind() |> 
+  join_abiotic_metadata(lookup_data)
 
 # Create whole tussock cover table ----
 
-# Set target pattern
-target_pattern = '^07_wholetussockcover.*csv'
+tussock_table = all_folders |> 
+  map(\(dir) dir_ls(dir, regexp = config_table$input_pattern[6])) |> 
+  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
+  map(clean_tussock_data) |> 
+  list_rbind() |> 
+  join_tussock_metadata(lookup_data)
 
-print(str_c('Processing...', target_pattern, sep = " "))
 
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Create read function
-read_data_site_visit_rename = function (data_file) {
-  rename_fields = c(site_visit_code = 'site_visit_id', cover_percent = 'tussock_percent_cover')
-  input_data = read_csv(data_file, show_col_types = FALSE) %>%
-    rename(any_of(rename_fields))
-  return(input_data)
-}
-
-# Read files into list
-data_list = lapply(files_list, read_data_site_visit_rename)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
-
-# Join metadata tables to tussock table
-tussock_table = data_combine %>%
-  left_join(type_data, by = 'cover_type') %>%
-  select(site_visit_code, cover_type_id, cover_percent)
 
 # Create ground cover table ----
 
