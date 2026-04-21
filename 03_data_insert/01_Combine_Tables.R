@@ -123,18 +123,22 @@ config_table = tribble(
   'structural_group_cover.csv',
   clean_structural_data,
   join_structural_metadata,
-  )
-
   "shrub_structure",
+  "11_shrubstructure.*csv",
+  FALSE,
   'shrub_structure.csv',
+  rename_columns,
+  join_shrub_metadata,
   "environment",
+  "12_environment.*csv",
+  FALSE,
   'environment.csv',
+)
   "soil_metrics",
   'soil_metrics.csv',
   "soil_horizons",
   'soil_horizons.csv'
   
-)
 
 # Create function for table processing
 process_tables <- function(input_pattern, warn_if_missing, clean_function, join_function, ...) {
@@ -148,58 +152,11 @@ process_tables <- function(input_pattern, warn_if_missing, clean_function, join_
 # Run every job in the table at once
 final_results_list <- pmap(config_table, process_tables)
 
-# Create structural group cover table ----
-
-# Create shrub structure table ----
-
-# Set target pattern
-target_pattern = '^11_shrubstructure.*csv'
-
-print(str_c('Processing...', target_pattern, sep = " "))
-
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Create read function
-read_data_site_visit_rename = function (data_file) {
-  rename_fields = c(site_visit_code = 'site_visit_id')
-  input_data = read_csv(data_file, show_col_types = FALSE) %>%
-    rename(any_of(rename_fields))
-  return(input_data)
-}
-
-# Read files into list
-data_list = lapply(files_list, read_data_site_visit_rename)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
-
-# Join metadata tables to shrub structure table
-shrub_table = data_combine %>%
-  left_join(taxa_data, by = c('name_adjudicated' = 'taxon_name')) %>%
-  left_join(type_data, by = 'cover_type') %>%
-  left_join(class_data, by = 'shrub_class') %>%
-  left_join(height_data, by = 'height_type') %>%
-  rename(code_adjudicated = taxon_code) %>%
-  select(site_visit_code, name_original, code_adjudicated, shrub_class_id,
-         height_type_id, height_cm, cover_type_id, cover_percent,
-         mean_diameter_cm, number_stems, shrub_subplot_area_m2)
 
 # Create environment table ----
 
 # Set target pattern
-target_pattern = '^12_environment.*csv'
+target_pattern = '^'
 
 print(str_c('Processing...', target_pattern, sep = " "))
 
