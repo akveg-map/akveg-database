@@ -89,6 +89,13 @@ clean_vegetation_data <- function(df) {
                                   cover_type == 'top cover' ~ 'top foliar cover',
                                   .default = cover_type))
 }
+
+# Abiotic Top Cover table (clean_abiotic_data)
+clean_abiotic_data = function (df) {
+  df |> 
+    rename(any_of(c(site_visit_code = 'site_visit_id', abiotic_element = 'ground_element')))
+}
+
   
 # --- Join functions ---
 
