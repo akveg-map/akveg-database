@@ -93,12 +93,14 @@ clean_vegetation_data <- function(df) {
 # Abiotic Top Cover table (clean_abiotic_data)
 clean_abiotic_data = function (df) {
   df |> 
-    rename(any_of(c(site_visit_code = 'site_visit_id', abiotic_element = 'ground_element')))
+    rename(any_of(c(site_visit_code = 'site_visit_id', 
+                    abiotic_element = 'ground_element')))
 }
 
 # Whole Tussock Cover table (clean_tussock_data)
-clean_tusscok_data = function (df) {
-    rename(any_of(c(site_visit_code = 'site_visit_id', 
+clean_tussock_data = function (df) {
+  df |> 
+    rename(any_of(c(site_visit_code = 'site_visit_id',
                     cover_percent = 'tussock_percent_cover')))
 }
 
@@ -186,4 +188,14 @@ join_abiotic_metadata = function(df, lookup) {
     left_join(lookup$element, by = c('abiotic_element' = 'ground_element')) %>%
     rename(abiotic_element_code = ground_element_code) %>%
     select(site_visit_code, abiotic_element_code, abiotic_top_cover_percent)
-  }
+}
+
+# Whole Tussock Cover table (join_tussock_metadata)
+
+
+# Join metadata tables to tussock table
+join_tussock_metadata = function(df, lookup) {
+  df |> 
+  left_join(lookup$cover_type, by = 'cover_type') %>%
+  select(site_visit_code, cover_type_id, cover_percent)
+}
