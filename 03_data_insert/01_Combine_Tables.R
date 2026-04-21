@@ -92,7 +92,27 @@ config_table = tribble(
   "05_vegetationcover.*csv",
   "vegetation_cover.csv",
   clean_vegetation_data,
-  identity
+  identity,
+  "abiotic",
+  'abiotic_top_cover.csv',
+  "",
+  "",
+  "whole_tussock",
+  'whole_tussock_cover.csv',
+  identity,
+  identity,
+  "structural_group",
+  'structural_group_cover.csv',
+  identity,
+  identity,
+  "shrub_structure",
+  'shrub_structure.csv',
+  "environment",
+  'environment.csv',
+  "soil_metrics",
+  'soil_metrics.csv',
+  "soil_horizons",
+  'soil_horizons.csv'
   
 )
 
@@ -582,18 +602,7 @@ horizons_table = data_combine %>%
          nonmatrix_feature_code, nonmatrix_hue_code, nonmatrix_value, nonmatrix_chroma)
 
 # Export combined data ----
-write_csv(project_table, file = output_project)
-write_csv(site_table, file = output_sites)
-write_csv(site_visit_table, file = output_visit)
-write_csv(cover_table, file = output_vegetation)
-write_csv(abiotic_table, file = output_abiotic)
-write_csv(tussock_table, file = output_tussock)
-write_csv(ground_table, file = output_ground)
-write_csv(structural_table, file = output_structure)
-write_csv(shrub_table, file = output_shrub)
-write_csv(environment_table, file = output_environment)
-write_csv(soils_table, file = output_soils)
-write_csv(horizons_table, file = output_horizons)
+write_csv(path(data_folder, 'processed', config_table$output_path))
 
 # Close database connection ----
 dbDisconnect(database_connection)
