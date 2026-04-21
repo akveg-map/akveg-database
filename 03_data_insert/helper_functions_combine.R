@@ -227,7 +227,6 @@ join_ground_metadata = function(df, lookup) {
 }
 
 # Structural Group Cover table (join_structural_metadata)
-# Join metadata tables to structural group cover table
 join_structural_metadata = function(df, lookup) {
   df |> 
   left_join(lookup$structural_group, by = 'structural_group') %>%
@@ -235,3 +234,25 @@ join_structural_metadata = function(df, lookup) {
   select(site_visit_code, cover_type_id, structural_group_id, cover_percent)
 }
 
+# Shrub Structure table (join_shrub_metadata)
+join_shrub_metadata = function(df, lookup) {
+  df |>
+    left_join(lookup$taxa, by = c('name_adjudicated' = 'taxon_name')) %>%
+    left_join(lookup$cover_type, by = 'cover_type') %>%
+    left_join(lookup$class, by = 'shrub_class') %>%
+    left_join(lookup$height, by = 'height_type') %>%
+    rename(code_adjudicated = taxon_code) %>%
+    select(
+      site_visit_code,
+      name_original,
+      code_adjudicated,
+      shrub_class_id,
+      height_type_id,
+      height_cm,
+      cover_type_id,
+      cover_percent,
+      mean_diameter_cm,
+      number_stems,
+      shrub_subplot_area_m2
+    )
+}
