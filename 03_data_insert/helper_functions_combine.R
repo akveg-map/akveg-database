@@ -45,6 +45,40 @@ clean_site_data <- function(df) {
     ))
 }
 
+
+# Site Visit table (clean_visit_data)
+clean_visit_data <- function(df) {
+  
+  # Define personnel name corrections
+  name_fixes <- list(
+    "Jess Grunblatt" ~ "Jesse Grunblatt",
+    "Robert Lieberman" ~ "Robert Liebermann",
+    "NULL" ~ "none",
+    "Unknown" ~ "unknown",
+    "None" ~ "none"
+  )
+  
+  df |>
+    # Correct column names
+    rename(any_of(c(site_visit_code = 'site_visit_id',
+                    homogeneous = 'homogenous'))) |>
+    # Correct project code
+    mutate(project_code = if_else(project_code == 'accs_nelchina_2022', 
+                                             'accs_nelchina_2023', 
+                                             project_code),
+           # Correct personnel names
+           across(c(veg_observer, veg_recorder, env_observer, soils_observer), 
+                  \(x) case_match(x, !!!name_fixes, .default = x)),
+           veg_recorder = if_else(project_code == 'accs_ribdon_2019' & 
+                                    is.na(veg_recorder), 'Timm Nawrocki', 
+                                  veg_recorder),
+           # Correct structural class formatting
+           structural_class = case_when(structural_class == 'n/assess' ~ 'not assessed',
+                                        is.na(structural_class) ~ 'not assessed',
+                                        .default = str_to_lower(structural_class))
+                                        )
+}
+
 # --- Join functions ---
 
 # Project table (join_project_metadata)
