@@ -79,6 +79,13 @@ clean_visit_data <- function(df) {
                                         )
 }
 
+# Vegetation Cover table (clean_vegetation_data)
+clean_vegetation_data <- function(df) {
+  df |>
+    # Correct column names
+    rename(any_of(c(site_visit_code = 'site_visit_id')))
+}
+  
 # --- Join functions ---
 
 # Project table (join_project_metadata)
