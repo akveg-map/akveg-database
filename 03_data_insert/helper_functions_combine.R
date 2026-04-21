@@ -40,18 +40,19 @@ find_files_warning <- function(folders, pattern, show_warning = TRUE) {
 
 # --- Data cleaning/correction functions ---
 
-# Basic cleaning function
-## Renames only the 'site_visit_id' column to 'site_visit_code' (changed when moving from schema v1.0 to schema v2.0)
-## Applies to: ground_cover, structural_group_cover
-rename_site_id = function (df) {
+# Global renaming function
+## Handles renaming of fields where the renaming is consistent across all tables in which it appears (e.g., 'site_visit_id' column to 'site_visit_code')
+rename_columns = function (df) {
   df |> 
-    rename(any_of(c(site_visit_code = 'site_visit_id')))
+    rename(any_of(c(site_visit_code = 'site_visit_id',
+                    establishing_project_code = 'establishing_project',
+                    homogeneous = 'homogenous')))
 }
 
 # Site table (clean_site_data)
 clean_site_data <- function(df) {
   df |>
-    rename(any_of(c('establishing_project_code' = 'establishing_project'))) |>
+    rename_columns() |>
     mutate(establishing_project_code = if_else(
       establishing_project_code == 'accs_nelchina_2022', 
       'accs_nelchina_2023', 
@@ -73,9 +74,8 @@ clean_visit_data <- function(df) {
   )
   
   df |>
-    # Correct column names
-    rename(any_of(c(site_visit_code = 'site_visit_id',
-                    homogeneous = 'homogenous'))) |>
+    # Correct field names
+    rename_columns() |> 
     # Correct project code
     mutate(project_code = if_else(project_code == 'accs_nelchina_2022', 
                                              'accs_nelchina_2023', 
@@ -97,7 +97,7 @@ clean_visit_data <- function(df) {
 clean_vegetation_data <- function(df) {
   df |>
     # Correct column names
-    rename(any_of(c(site_visit_code = 'site_visit_id'))) |> 
+    rename_columns() |> 
     # Correct cover type
     mutate(cover_type = case_when(cover_type == 'absolute cover' ~ 'absolute foliar cover',
                                   cover_type == 'top cover' ~ 'top foliar cover',
@@ -107,15 +107,23 @@ clean_vegetation_data <- function(df) {
 # Abiotic Top Cover table (clean_abiotic_data)
 clean_abiotic_data = function (df) {
   df |> 
-    rename(any_of(c(site_visit_code = 'site_visit_id', 
-                    abiotic_element = 'ground_element')))
+    rename_columns() |> 
+    rename(any_of(c(abiotic_element = 'ground_element')))
 }
 
 # Whole Tussock Cover table (clean_tussock_data)
 clean_tussock_data = function (df) {
   df |> 
-    rename(any_of(c(site_visit_code = 'site_visit_id',
-                    cover_percent = 'tussock_percent_cover')))
+    rename_columns() |> 
+    rename(any_of(c(cover_percent = 'tussock_percent_cover')))
+}
+
+# Structural Group Cover table (clean_structural_data)
+clean_structural_data = function (df) {
+  df |> 
+    rename_columns() |> 
+    rename(any_of(c(cover_percent = 'structural_cover_percent',
+                    cover_type = 'structural_cover_type')))
 }
 
 # --- Join functions ---
@@ -217,3 +225,13 @@ join_ground_metadata = function(df, lookup) {
   left_join(lookup$element, by = 'ground_element') %>%
   select(site_visit_code, ground_element_code, ground_cover_percent)
 }
+
+# Structural Group Cover table (join_structural_metadata)
+# Join metadata tables to structural group cover table
+join_structural_metadata = function(df, lookup) {
+  df |> 
+  left_join(lookup$structural_group, by = 'structural_group') %>%
+  left_join(lookup$cover_type, by = 'cover_type') %>%
+  select(site_visit_code, cover_type_id, structural_group_id, cover_percent)
+}
+
