@@ -94,7 +94,7 @@ config_table = tribble(
   clean_vegetation_data,
   identity,
   "abiotic",
-  'abiotic_top_cover.csv',
+  '06_abiotictopcover.*csv',
   "",
   "",
   "whole_tussock",
@@ -154,18 +154,12 @@ vegetation_files = find_files_warning(all_folders, config_table$input_pattern[4]
 cover_table = vegetation_files |> 
   map(\(f) read_csv(f, show_col_types = FALSE)) |> 
   map(clean_vegetation_data) |> 
-  list_rbind()
-
-# Join metadata tables to cover table
-cover_table = data_combine %>%
-
+  list_rbind() |> 
+  join_vegetation_metadata(lookup_data)
 
 # Create abiotic top cover table ----
 
-# Set target pattern
-target_pattern = '^06_abiotictopcover.*csv'
-
-print(str_c('Processing...', target_pattern, sep = " "))
+print('Processing... abiotic')
 
 # Create empty list to store files
 files_list = list()
