@@ -40,6 +40,14 @@ find_files_warning <- function(folders, pattern, show_warning = TRUE) {
 
 # --- Data cleaning/correction functions ---
 
+# Basic cleaning function
+## Renames only the 'site_visit_id' column to 'site_visit_code' (changed when moving from schema v1.0 to schema v2.0)
+## Applies to: ground_cover, structural_group_cover
+rename_site_id = function (df) {
+  df |> 
+    rename(any_of(c(site_visit_code = 'site_visit_id')))
+}
+
 # Site table (clean_site_data)
 clean_site_data <- function(df) {
   df |>
@@ -108,12 +116,6 @@ clean_tussock_data = function (df) {
   df |> 
     rename(any_of(c(site_visit_code = 'site_visit_id',
                     cover_percent = 'tussock_percent_cover')))
-}
-
-# Ground Cover table (clean_ground_data)
-clean_ground_data = function (df) {
-  df |> 
-    rename(any_of(c(site_visit_code = 'site_visit_id')))
 }
 
 # --- Join functions ---
