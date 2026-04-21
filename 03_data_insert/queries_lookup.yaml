@@ -33,7 +33,7 @@ queries:
   structural_group: 'SELECT * FROM structural_group'
   class: 'SELECT * FROM shrub_class'
   height: 'SELECT * FROM height_type'
-  type: 'SELECT * FROM cover_type'
+  cover_type: 'SELECT * FROM cover_type'
   
   # Envrionment tables
   physiography: 'SELECT * FROM physiography'
