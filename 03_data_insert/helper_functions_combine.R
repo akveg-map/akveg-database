@@ -144,3 +144,26 @@ join_visit_metadata = function(df, lookup) {
          veg_observer_id, veg_recorder_id, env_observer_id, soils_observer_id, structural_class_code,
          scope_vascular_id, scope_bryophyte_id, scope_lichen_id, homogeneous)
 }
+
+# Vegetation Cover table (join_vegetation_metadata)
+join_vegetation_metadata = function(df, lookup) {
+  df |> 
+    left_join(lookup$cover_type, by = 'cover_type') %>%
+    left_join(lookup$taxa, by = c('name_adjudicated' = 'taxon_name')) %>%
+    rename(code_adjudicated = taxon_code) %>%
+    select(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status, cover_percent) %>%
+    # Correct code adjudicated for removed taxa
+    mutate(code_adjudicated = case_when(
+    name_original == 'Castilleja caudata var. caudata' ~ 'cascau',
+    name_original == 'Lysimachia europaea ssp. europaea' ~ 'lyseur',
+    name_original == 'Montia fontana ssp. fontana' ~ 'monfon',
+    name_original == 'Montia vassilievii ssp. vassilievii' ~ 'monbos',
+    name_original == 'Trientalis europaea ssp. europaea' ~ 'trieur',
+    .default = code_adjudicated)) %>% 
+    # Drop duplicates (same name, same % cover)
+    distinct(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status, cover_percent) %>% 
+    # Group 'duplicates' (different cover values) by summing cover percent (n=4)
+    group_by(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status) %>% 
+    summarize(cover_percent = sum(cover_percent)) %>% 
+    ungroup()
+}
