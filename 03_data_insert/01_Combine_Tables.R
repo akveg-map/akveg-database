@@ -128,8 +128,8 @@ config_table = tribble(
 )
 
 # Create function for table processing
-process_tables <- function(input_pattern, clean_function, join_function, ...) {
-  find_files_warning(all_folders, input_pattern) |> 
+process_tables <- function(input_pattern, warn_if_missing, clean_function, join_function, ...) {
+  find_files_warning(all_folders, input_pattern, show_warning = warn_if_missing) |> 
     map(\(f) read_csv(f, show_col_types = FALSE)) |> 
     map(clean_function) |> 
     list_rbind() |> 
@@ -138,68 +138,6 @@ process_tables <- function(input_pattern, clean_function, join_function, ...) {
 
 # Run every job in the table at once
 final_results_list <- pmap(config_table, process_tables)
-
-# Create project table ----
-
-# Iterate through target paths and read in project files
-project_files = find_files_warning(all_folders, config_table$input_pattern[1])
-project_table = project_files |> 
-  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
-  list_rbind()  |> # Convert to data frame
-  join_project_metadata(lookup_data)
-
-# Create site table ----
-print(str_c('Processing...', config_table$table_name[2], sep = " "))
-
-site_files = find_files_warning(all_folders, config_table$input_pattern[2])
-site_table = site_files |> 
-  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
-  map(clean_site_data) |>  # Apply corrections to `establishing_project_code` field
-  list_rbind()  |> # Convert to data frame
-  join_site_metadata(lookup_data)
-
-# Create site visit table ----
-
-print('Processing... site visit')
-
-visit_files = find_files_warning(all_folders, config_table$input_pattern[3])
-visit_table = visit_files |> 
-  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
-  map(clean_visit_data) |> 
-  list_rbind() |> 
-  join_visit_metadata(lookup_data)
-
-# Create vegetation cover table ----
-
-print('Processing... vegetation cover')
-
-vegetation_files = find_files_warning(all_folders, config_table$input_pattern[4])
-cover_table = vegetation_files |> 
-  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
-  map(clean_vegetation_data) |> 
-  list_rbind() |> 
-  join_vegetation_metadata(lookup_data)
-
-# Create abiotic top cover table ----
-
-print('Processing... abiotic')
-
-abiotic_table = all_folders |> 
-  map(\(dir) dir_ls(dir, regexp = config_table$input_pattern[5])) |> 
-  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
-  map(clean_abiotic_data) |> 
-  list_rbind() |> 
-  join_abiotic_metadata(lookup_data)
-
-# Create whole tussock cover table ----
-
-tussock_table = all_folders |> 
-  map(\(dir) dir_ls(dir, regexp = config_table$input_pattern[6])) |> 
-  map(\(f) read_csv(f, show_col_types = FALSE)) |> 
-  map(clean_tussock_data) |> 
-  list_rbind() |> 
-  join_tussock_metadata(lookup_data)
-
 
 
 # Create ground cover table ----
