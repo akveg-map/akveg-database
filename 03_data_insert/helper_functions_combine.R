@@ -203,9 +203,6 @@ join_abiotic_metadata = function(df, lookup) {
 }
 
 # Whole Tussock Cover table (join_tussock_metadata)
-
-
-# Join metadata tables to tussock table
 join_tussock_metadata = function(df, lookup) {
   df |> 
   left_join(lookup$cover_type, by = 'cover_type') %>%
