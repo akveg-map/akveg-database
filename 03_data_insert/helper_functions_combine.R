@@ -109,3 +109,27 @@ join_site_metadata <- function(df, lookup) {
            plot_dimensions_id, location_type_id)
 }
 
+# Site Visit table (join_visit_metadata)
+join_visit_metadata = function(df, lookup) {
+  df |> 
+  left_join(lookup$tier, by = 'data_tier') %>%
+  left_join(lookup$personnel, by = c('veg_observer'= 'personnel')) %>%
+  rename(veg_observer_id = personnel_id) %>%
+  left_join(lookup$personnel, by = c('veg_recorder' = 'personnel')) %>%
+  rename(veg_recorder_id = personnel_id) %>%
+  left_join(lookup$personnel, by = c('env_observer'= 'personnel')) %>%
+  rename(env_observer_id = personnel_id) %>%
+  left_join(lookup$personnel, by = c('soils_observer' = 'personnel')) %>%
+  rename(soils_observer_id = personnel_id) %>%
+  left_join(lookup$structural_class, by = 'structural_class') %>%
+  left_join(lookup$scope, by = c('scope_vascular'= 'scope')) %>%
+  rename(scope_vascular_id = scope_id) %>%
+  left_join(lookup$scope, by = c('scope_bryophyte' = 'scope')) %>%
+  rename(scope_bryophyte_id = scope_id) %>%
+  left_join(lookup$scope, by = c('scope_lichen' = 'scope')) %>%
+  rename(scope_lichen_id = scope_id) %>%
+  # Select final fields
+  select(site_visit_code, project_code, site_code, data_tier_id, observe_date,
+         veg_observer_id, veg_recorder_id, env_observer_id, soils_observer_id, structural_class_code,
+         scope_vascular_id, scope_bryophyte_id, scope_lichen_id, homogeneous)
+}
