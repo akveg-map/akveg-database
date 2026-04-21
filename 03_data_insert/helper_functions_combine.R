@@ -110,6 +110,12 @@ clean_tussock_data = function (df) {
                     cover_percent = 'tussock_percent_cover')))
 }
 
+# Ground Cover table (clean_ground_data)
+clean_ground_data = function (df) {
+  df |> 
+    rename(any_of(c(site_visit_code = 'site_visit_id')))
+}
+
 # --- Join functions ---
 
 # Project table (join_project_metadata)
@@ -204,4 +210,11 @@ join_tussock_metadata = function(df, lookup) {
   df |> 
   left_join(lookup$cover_type, by = 'cover_type') %>%
   select(site_visit_code, cover_type_id, cover_percent)
+}
+
+# Ground Cover table (join_ground_metadata)
+join_ground_metadata = function(df, lookup) {
+  df |> 
+  left_join(lookup$element, by = 'ground_element') %>%
+  select(site_visit_code, ground_element_code, ground_cover_percent)
 }
