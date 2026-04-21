@@ -31,7 +31,10 @@ find_files_warning <- function(folders, pattern) {
   return(list_c(search_results))
 }
 
-# --- Function 2: clean_site_data ---
+
+# --- Data cleaning/correction functions ---
+
+# Site table (clean_site_data)
 clean_site_data <- function(df) {
   df |>
     rename(any_of(c('establishing_project_code' = 'establishing_project'))) |>
@@ -42,7 +45,23 @@ clean_site_data <- function(df) {
     ))
 }
 
-# --- Function 3: join_site_metadata ---
+# --- Join functions ---
+
+# Project table (join_project_metadata)
+join_project_metadata <- function(df, lookup) {
+  df |> 
+    left_join(lookup$completion, by = 'completion') %>%
+    left_join(lookup$organization, by = c('originator' = 'organization')) %>%
+    rename(originator_id = organization_id) %>%
+    left_join(lookup$organization, by = c('funder' = 'organization')) %>%
+    rename(funder_id = organization_id) %>%
+    left_join(lookup$personnel, by = c('manager' = 'personnel')) %>%
+    rename(manager_id = personnel_id) %>%
+    select(project_code, project_name, originator_id, funder_id, manager_id,
+           completion_id, year_start, year_end, project_description, private)
+}
+
+# Site table (join_site_metadata)
 join_site_metadata <- function(df, lookup) {
   df %>%
     left_join(lookup$perspective, by = 'perspective') %>%
