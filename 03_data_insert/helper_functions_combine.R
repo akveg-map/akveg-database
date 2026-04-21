@@ -83,7 +83,11 @@ clean_visit_data <- function(df) {
 clean_vegetation_data <- function(df) {
   df |>
     # Correct column names
-    rename(any_of(c(site_visit_code = 'site_visit_id')))
+    rename(any_of(c(site_visit_code = 'site_visit_id'))) |> 
+    # Correct cover type
+    mutate(cover_type = case_when(cover_type == 'absolute cover' ~ 'absolute foliar cover',
+                                  cover_type == 'top cover' ~ 'top foliar cover',
+                                  .default = cover_type))
 }
   
 # --- Join functions ---
