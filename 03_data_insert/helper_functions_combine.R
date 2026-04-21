@@ -96,7 +96,12 @@ clean_abiotic_data = function (df) {
     rename(any_of(c(site_visit_code = 'site_visit_id', abiotic_element = 'ground_element')))
 }
 
-  
+# Whole Tussock Cover table (clean_tussock_data)
+clean_tusscok_data = function (df) {
+    rename(any_of(c(site_visit_code = 'site_visit_id', 
+                    cover_percent = 'tussock_percent_cover')))
+}
+
 # --- Join functions ---
 
 # Project table (join_project_metadata)
