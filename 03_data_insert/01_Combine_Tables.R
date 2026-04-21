@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Combine data tables
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-02-09
+# Last Updated: 2026-04-20
 # Usage: Script should be executed in R 4.5.1+.
 # Description: "Combine data tables" combines data from processed datasets into single CSV files. The CSV files can then be converted into a SQL statement for upload to the AKVEG database. The script requires metadata tables to be inserted into the AKVEG Database.
 # ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ database_connection = connect_database_postgresql(authentication)
 queries_lookup = read_yaml(queries_input)
 lookup_data = map(queries_lookup$queries, \(q) dbGetQuery(database_connection, q))
 
-# Define plot folders ----
+# Define vegetation plot folders ----
 target_paths = fromJSON(file = project_list)$projects
 all_folders = path(data_folder, target_paths)
 
@@ -151,35 +151,14 @@ visit_table = visit_files |>
 print('Processing... vegetation cover')
 
 vegetation_files = find_files_warning(all_folders, config_table$input_pattern[4])
-vegetation_table = vegetation_files |> 
+cover_table = vegetation_files |> 
   map(\(f) read_csv(f, show_col_types = FALSE)) |> 
   map(clean_vegetation_data) |> 
   list_rbind()
 
 # Join metadata tables to cover table
 cover_table = data_combine %>%
-  # Correct cover attribute
-  mutate(cover_type = case_when(cover_type == 'absolute cover' ~ 'absolute foliar cover',
-                                cover_type == 'top cover' ~ 'top foliar cover',
-                                .default = cover_type)) %>%
-  left_join(type_data, by = 'cover_type') %>%
-  left_join(taxa_data, by = c('name_adjudicated' = 'taxon_name')) %>%
-  rename(code_adjudicated = taxon_code) %>%
-  select(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status, cover_percent) %>%
-  # Correct code adjudicated for removed taxa
-  mutate(code_adjudicated = case_when(
-    name_original == 'Castilleja caudata var. caudata' ~ 'cascau',
-    name_original == 'Lysimachia europaea ssp. europaea' ~ 'lyseur',
-    name_original == 'Montia fontana ssp. fontana' ~ 'monfon',
-    name_original == 'Montia vassilievii ssp. vassilievii' ~ 'monbos',
-    name_original == 'Trientalis europaea ssp. europaea' ~ 'trieur',
-    .default = code_adjudicated)) %>% 
-  # Drop duplicates (same name, same % cover)
-  distinct(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status, cover_percent) %>% 
-  # Add cover percent for 'duplicates' with different cover values (n=4)
-  group_by(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status) %>% 
-  summarize(cover_percent = sum(cover_percent)) %>% 
-  ungroup()
+
 
 # Create abiotic top cover table ----
 
