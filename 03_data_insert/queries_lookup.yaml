@@ -10,17 +10,19 @@ queries:
   source_collect: 'SELECT * FROM source_collection'
   source_type: 'SELECT * FROM source_type'
   
-  # Site & site visit tables
+  # Site table
   perspective: 'SELECT * FROM perspective'
   method: 'SELECT * FROM cover_method'
-  scope: 'SELECT * FROM scope'
   dimensions: 'SELECT * FROM plot_dimensions'
   datum: 'SELECT * FROM h_datum'
   accuracy: 'SELECT * FROM positional_accuracy'
   location: 'SELECT * FROM location_type'
-  tier: 'SELECT * FROM data_tier'
-  struct_class: 'SELECT * FROM structural_class'
   
+  # Site Visit table
+  tier: 'SELECT * FROM data_tier'
+  structural_class: 'SELECT * FROM structural_class'  
+  scope: 'SELECT * FROM scope'
+
   # Taxonomy tables
   taxa: 'SELECT * FROM taxon_all'
   
@@ -28,7 +30,7 @@ queries:
   element: 'SELECT * FROM ground_element'
   
   # Vegetation tables
-  struct_group: 'SELECT * FROM structural_group'
+  structural_group: 'SELECT * FROM structural_group'
   class: 'SELECT * FROM shrub_class'
   height: 'SELECT * FROM height_type'
   type: 'SELECT * FROM cover_type'
