@@ -16,7 +16,7 @@
 #' @param folders Vector of directory paths
 #' @param pattern Regex string to match file names
 #' @param show_warning Logical; if TRUE, produces a warning if a folder is empty
-find_files_warning <- function(folders, pattern, show_warning = TRUE) {
+find_files_warning <- function(folders, pattern, show_warning = FALSE) {
   # Create a named list where each element is the result of dir_ls
   search_results <- folders |>
     set_names() |> # Attach folder name to the result
