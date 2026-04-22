@@ -46,7 +46,15 @@ rename_columns = function (df) {
   df |> 
     rename(any_of(c(site_visit_code = 'site_visit_id',
                     establishing_project_code = 'establishing_project',
-                    homogeneous = 'homogenous')))
+                    homogeneous = 'homogenous',
+                    horizon_primary_code = 'horizon_primary', 
+                    horizon_suffix_1_code = 'horizon_suffix_1',
+                    horizon_suffix_2_code = 'horizon_suffix_2', 
+                    horizon_secondary_code = 'horizon_secondary',
+                    horizon_suffix_3_code = 'horizon_suffix_3', 
+                    horizon_suffix_4_code = 'horizon_suffix_4',
+                    matrix_hue_code = 'matrix_hue',
+                    nonmatrix_hue_code = 'nonmatrix_hue')))
 }
 
 # Site table (clean_site_data)
@@ -173,6 +181,14 @@ clean_soil_metrics_data = function (df) {
     mutate_if(is.logical, as.character) %>%
     mutate(water_measurement = case_when(water_measurement == 'NULL' ~ 'FALSE',
                                          .default = water_measurement))
+}
+
+# Soil Horizons table (clean_soil_horizons_data)
+clean_soil_horizons_data = function (df) {
+  df |> 
+    rename_columns() |> 
+    rename(any_of(c(depth_upper_cm = 'depth_upper',
+                    depth_lower_cm = 'depth_lower')))
 }
 
 # --- Join functions ---
@@ -330,8 +346,32 @@ join_environment_metadata = function(df, lookup) {
 }
 
 # Soil Metrics table (join_soil_metrics_metadata)
-join_soil_metrics_metadata = function(df) {
+join_soil_metrics_metadata = function(df, lookup) {
   df |>
   select(site_visit_code, water_measurement, measure_depth_cm, ph,
          conductivity_mus, temperature_deg_c)
+}
+
+# Soil Horizons table (join_soil_horizons_metadata)
+join_soil_horizons_metadata = function(df, lookup) {
+  df |>
+  left_join(lookup$texture, by = c('texture' = 'soil_texture')) %>%
+  left_join(lookup$structure, by = c('structure' = 'soil_structure')) %>%
+    left_join(lookup$nonmatrix, by = 'nonmatrix_feature') %>%
+    left_join(lookup$hue, by=c('matrix_hue_code' = 'soil_hue')) |> 
+    select(-matrix_hue_code) |> 
+  rename(texture_code = soil_texture_code,
+         structure_code = soil_structure_code,
+         matrix_hue_code = soil_hue_code) %>%
+    left_join(lookup$hue, by=c('nonmatrix_hue_code' = 'soil_hue')) |> 
+    select(-nonmatrix_hue_code) |> 
+    rename(nonmatrix_hue_code = soil_hue_code) |> 
+  select(site_visit_code, horizon_order, thickness_cm, depth_upper_cm, depth_lower_cm,
+         depth_extend, horizon_primary_code, horizon_suffix_1_code,
+         horizon_suffix_2_code, horizon_secondary_code,
+         horizon_suffix_3_code, horizon_suffix_4_code, texture_code,
+         clay_percent, total_coarse_fragment_percent,
+         gravel_percent, cobble_percent, stone_percent, boulder_percent,
+         structure_code, matrix_hue_code, matrix_value, matrix_chroma,
+         nonmatrix_feature_code, nonmatrix_hue_code, nonmatrix_value, nonmatrix_chroma)
 }
