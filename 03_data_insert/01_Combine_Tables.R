@@ -133,6 +133,8 @@ config_table = tribble(
   "12_environment.*csv",
   FALSE,
   'environment.csv',
+  clean_environment_data,
+  join_environment_metadata
 )
   "soil_metrics",
   'soil_metrics.csv',
@@ -151,113 +153,6 @@ process_tables <- function(input_pattern, warn_if_missing, clean_function, join_
 
 # Run every job in the table at once
 final_results_list <- pmap(config_table, process_tables)
-
-
-# Create environment table ----
-
-# Set target pattern
-target_pattern = '^'
-
-print(str_c('Processing...', target_pattern, sep = " "))
-
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Create read function
-read_data_site_visit_rename = function (data_file) {
-  rename_fields = c(site_visit_code = 'site_visit_id')
-  input_data = read_csv(data_file, show_col_types=FALSE) %>%
-    rename(any_of(rename_fields))
-  return(input_data)
-}
-
-# Read files into list
-data_list = lapply(files_list, read_data_site_visit_rename)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
-
-# Join metadata tables to input table
-# Correct old names that are no longer in database dictionary
-environment_table = data_combine %>%
-  mutate(geomorphology = case_when(geomorphology == 'glaciofluvial outwash' ~ 'glaciofluvial deposit',
-                                   .default = geomorphology),
-         soil_class = case_when(soil_class == 'typic haplorthel' ~ 'typic haplorthels',
-                                soil_class == 'aquic haplorthel' ~ 'aquic haplorthels',
-                                soil_class == 'folistic histoturbel' ~ 'folistic histoturbels',
-                                soil_class == 'glacic umbriturbel' ~ 'glacic umbriturbels',
-                                soil_class == 'oxyaquic gelorthent' ~ 'oxyaquic gelorthents',
-                                soil_class == 'ruptic-histic aquorthel' ~ 'ruptic-histic aquorthels',
-                                soil_class == 'ruptic histoturbel' ~ 'ruptic histoturbels',
-                                soil_class == 'salic aquorthel' ~ 'salic aquorthels',
-                                soil_class == 'typic aquiturbel' ~ 'typic aquiturbels',
-                                soil_class == 'typic cryopsamment' ~ 'typic cryopsamments',
-                                soil_class == 'typic fibristel' ~ 'typic fibristels',
-                                soil_class == 'typic gelorthent' ~ 'typic gelorthents',
-                                soil_class == 'typic gelpsamment' ~ 'typic gelpsamments',
-                                soil_class == 'typic haploturbel' ~ 'typic haploturbels',
-                                soil_class == 'typic hemistel' ~ 'typic hemistels',
-                                soil_class == 'typic historthel' ~ 'typic historthels',
-                                soil_class == 'typic histoturbel' ~ 'typic histoturbels',
-                                soil_class == 'typic mollorthel' ~ 'typic mollorthels',
-                                soil_class == 'typic psammorthel' ~ 'typic psammorthels',
-                                soil_class == 'typic sapristel' ~ 'typic sapristels',
-                                soil_class == 'typic umbriturbel' ~ 'typic umbriturbels',
-                                .default = soil_class),
-         disturbance = case_when(disturbance == 'wildlife grazing' ~ 'wildlife foraging',
-                                 .default = disturbance),
-         moisture_regime = case_when(moisture_regime == 'xeric-mesic' | moisture_regime == 'mesic-xeric heterogeneous' ~ 'mesic-xeric heterogenous',
-                                     moisture_regime == 'mesic-hygric' | moisture_regime == 'hygric-mesic' | moisture_regime == 'hygric-mesic heterogeneous' ~ 'hygric-mesic heterogenous',
-                                     moisture_regime == 'hygric-hydric' | moisture_regime == 'hydric-hygric' ~ 'hydric-hygric heterogenous',
-                                     moisture_regime == 'hydric-aquatic' ~ 'aquatic-hydric heterogenous',
-                                     moisture_regime == 'hydric-mesic' | moisture_regime == 'mesic-hydric' ~ 'hydric-mesic heterogenous',
-                                     .default = moisture_regime
-         ),
-         microtopography = case_when(microtopography == 'tussock' ~ 'tussocks',
-                                     microtopography == 'channelled' ~ 'channeled',
-                                     .default = microtopography),
-         macrotopography = case_when(macrotopography == 'lakebed' ~ 'lake bed',
-                                     macrotopography == 'mountain bench' ~ 'bench',
-                                     is.na(macrotopography) & geomorphology == 'low center polygons' ~ 'polygons low-center',
-                                     .default = macrotopography),
-         geomorphology = case_when(geomorphology == 'ocean shore' ~ 'marine, shore',
-                                   geomorphology == 'low center polygons' ~ 'NULL',
-                                   geomorphology == 'peninsula' ~ 'NULL',
-                                   geomorphology == 'stream' ~ 'aquatic, river',
-                                   geomorphology == 'lake' | geomorphology == 'aquatic lake' ~ 'aquatic, lake',
-                                   geomorphology == 'estuary' ~ 'NULL',
-                                   geomorphology == 'valley lowland' ~ 'valley, lowland',
-                                   .default = geomorphology
-         )) %>%
-  left_join(physiography_data, by = 'physiography') %>%
-  left_join(geomorphology_data, by = 'geomorphology') %>%
-  left_join(macrotopography_data, by = 'macrotopography') %>%
-  left_join(microtopography_data, by = 'microtopography') %>%
-  left_join(moisture_data, by = c('moisture_regime' = 'moisture')) %>%
-  left_join(drainage_data, by = 'drainage') %>%
-  left_join(disturbance_data, by = 'disturbance') %>%
-  left_join(severity_data, by = 'disturbance_severity') %>%
-  left_join(restrictive_data, by = 'restrictive_type') %>%
-  left_join(texture_data, by = c('dominant_texture_40_cm' = 'soil_texture')) %>%
-  left_join(soil_data, by = 'soil_class') %>%
-  rename(dominant_texture_40_cm_code = soil_texture_code) %>%
-  select(site_visit_code, physiography_id, geomorphology_id, macrotopography_id,
-         microtopography_id, moisture_id, drainage_id, disturbance_id,
-         disturbance_severity_id, disturbance_time_y, depth_water_cm,
-         depth_moss_duff_cm, depth_restrictive_layer_cm, restrictive_type_id,
-         microrelief_cm, surface_water, soil_class_id, cryoturbation,
-         dominant_texture_40_cm_code, depth_15_percent_coarse_fragments_cm)
 
 # Create soil metrics table ----
 
