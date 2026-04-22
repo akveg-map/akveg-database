@@ -46,7 +46,7 @@ queries:
   severity: 'SELECT * FROM disturbance_severity'
   restrictive: 'SELECT * FROM restrictive_type'
   texture: 'SELECT * FROM soil_texture'
-  soil: 'SELECT * FROM soil_class'
+  soil_class: 'SELECT * FROM soil_class'
   
   # Soil horizons tables
   horizon_type: 'SELECT * FROM soil_horizon_type'
