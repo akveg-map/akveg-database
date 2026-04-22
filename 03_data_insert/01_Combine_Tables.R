@@ -151,7 +151,8 @@ config_table = tribble(
 )
 
 # Create function for table processing
-process_tables <- function(input_pattern, warn_if_missing, clean_function, join_function, ...) {
+process_tables <- function(input_pattern, table_name, warn_if_missing, clean_function, join_function, ...) {
+  message(paste0("Processing table... ", table_name))
   find_files_warning(all_folders, input_pattern, show_warning = warn_if_missing) |> 
     map(\(f) read_csv(f, show_col_types = FALSE)) |> 
     map(clean_function) |> 
@@ -163,7 +164,11 @@ process_tables <- function(input_pattern, warn_if_missing, clean_function, join_
 final_results_list <- pmap(config_table, process_tables)
 
 # Export combined data ----
-write_csv(path(data_folder, 'processed', config_table$output_path))
+## One table for each list item
+pwalk(list(final_results_list, config_table$output_path), 
+      \(data, name) {
+        write_csv(data, path(data_folder, 'processed', name))
+})
 
 # Close database connection ----
 dbDisconnect(database_connection)
