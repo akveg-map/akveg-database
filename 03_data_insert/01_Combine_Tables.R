@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Combine data tables
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-04-20
+# Last Updated: 2026-04-21
 # Usage: Script should be executed in R 4.5.1+.
 # Description: "Combine data tables" combines data from processed datasets into single CSV files. The CSV files can then be converted into a SQL statement for upload to the AKVEG database. The script requires metadata tables to be inserted into the AKVEG Database.
 # ---------------------------------------------------------------------------
