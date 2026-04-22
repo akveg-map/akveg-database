@@ -1,0 +1,56 @@
+# Define SQL queries to obtain look-up values for constrained fields
+
+queries:
+  # Project tables
+  completion: 'SELECT * FROM completion'
+  organization: 'SELECT * FROM organization'
+  personnel: 'SELECT * FROM personnel'
+  
+  # Project metadata tables
+  source_collect: 'SELECT * FROM source_collection'
+  source_type: 'SELECT * FROM source_type'
+  
+  # Site table
+  perspective: 'SELECT * FROM perspective'
+  method: 'SELECT * FROM cover_method'
+  dimensions: 'SELECT * FROM plot_dimensions'
+  datum: 'SELECT * FROM h_datum'
+  accuracy: 'SELECT * FROM positional_accuracy'
+  location: 'SELECT * FROM location_type'
+  
+  # Site Visit table
+  tier: 'SELECT * FROM data_tier'
+  structural_class: 'SELECT * FROM structural_class'  
+  scope: 'SELECT * FROM scope'
+
+  # Taxonomy tables
+  taxa: 'SELECT * FROM taxon_all'
+  
+  # Ground cover tables
+  element: 'SELECT * FROM ground_element'
+  
+  # Vegetation tables
+  structural_group: 'SELECT * FROM structural_group'
+  class: 'SELECT * FROM shrub_class'
+  height: 'SELECT * FROM height_type'
+  cover_type: 'SELECT * FROM cover_type'
+  
+  # Envrionment tables
+  physiography: 'SELECT * FROM physiography'
+  geomorphology: 'SELECT * FROM geomorphology'
+  macrotopography: 'SELECT * FROM macrotopography'
+  microtopography: 'SELECT * FROM microtopography'
+  moisture: 'SELECT * FROM moisture'
+  drainage: 'SELECT * FROM drainage'
+  disturbance: 'SELECT * FROM disturbance'
+  severity: 'SELECT * FROM disturbance_severity'
+  restrictive: 'SELECT * FROM restrictive_type'
+  texture: 'SELECT * FROM soil_texture'
+  soil_class: 'SELECT * FROM soil_class'
+  
+  # Soil horizons tables
+  horizon_type: 'SELECT * FROM soil_horizon_type'
+  horizon_suffix: 'SELECT * FROM soil_horizon_suffix'
+  structure: 'SELECT * FROM soil_structure'
+  hue: 'SELECT * FROM soil_hue'
+  nonmatrix: 'SELECT * FROM soil_nonmatrix_features'
