@@ -1,13 +1,21 @@
 # -*- coding: utf-8 -*-
-# ---------------------------------------------------------------------------
-# Helper functions for 01_Combine_Tables.R
-# Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-04-21
-# Usage: Script should be executed in R 4.5.1+.
-# ---------------------------------------------------------------------------
+#' @title Helper Functions for Combining Individual Project Tables Into Aggregate Tables For SQL Ingestion
+#' @description
+#' This script provides cleaning, standardization, and join logic to correct erroneous entries and
+#' transition datasets from the v1.0 to v2.0 AKVEG database schema. It is designed to be sourced
+#' by `01_Combine_Tables.R` and used within a `pmap` workflow.
+#' @author Amanda Droghini
+#' @date 2026-04-21
+#
+# ===========================================================================
+# 00. GLOBAL HELPERS ----
+# ===========================================================================
 
-# --- Function 1: find_files_warning ---
-# Iterate over plot folders to find files matching a pattern. Optionally print a warning if a folder is missing a file
+#' Find Files And Warn If Missing
+#' @description Find pattern-matching files in multiple folders with an optional warning if the file is missing
+#' @param folders Vector of directory paths
+#' @param pattern Regex string to match file names
+#' @param show_warning Logical; if TRUE, produces a warning if a folder is empty
 find_files_warning <- function(folders, pattern, show_warning = TRUE) {
   # Create a named list where each element is the result of dir_ls
   search_results <- folders |>
@@ -38,10 +46,8 @@ find_files_warning <- function(folders, pattern, show_warning = TRUE) {
 }
 
 
-# --- Data cleaning/correction functions ---
-
-# Global renaming function
-## Handles renaming of fields where the renaming is consistent across all tables in which it appears (e.g., 'site_visit_id' column to 'site_visit_code')
+#' Standardize Field Names
+#' @description Renames fields to ensure consistent names across all tables, consistent with the AKVEG Database schema 2.0
 rename_columns <- function(df) {
   df |>
     rename(any_of(c(
@@ -59,7 +65,33 @@ rename_columns <- function(df) {
     )))
 }
 
-# Site table (clean_site_data)
+# ===========================================================================
+# 01. PROJECT ----
+# ===========================================================================
+
+#' Join Project Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys (for constrained fields), numeric fields, and unconstrained character fields.
+join_project_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$completion, by = "completion") |>
+    left_join(lookup$organization, by = c("originator" = "organization")) |>
+    rename(originator_id = organization_id) |>
+    left_join(lookup$organization, by = c("funder" = "organization")) |>
+    rename(funder_id = organization_id) |>
+    left_join(lookup$personnel, by = c("manager" = "personnel")) |>
+    rename(manager_id = personnel_id) |>
+    select(
+      project_code, project_name, originator_id, funder_id, manager_id,
+      completion_id, year_start, year_end, project_description, private
+    )
+}
+
+# ===========================================================================
+# 02. SITE ----
+# ===========================================================================
+#' Clean Site Data
+#' @description Renames multi-year projects that should be treated as a single project.
+#' @param df A data frame of pre-processed data.
 clean_site_data <- function(df) {
   df |>
     rename_columns() |>
@@ -70,8 +102,32 @@ clean_site_data <- function(df) {
     ))
 }
 
+#' Join Site Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys (for constrained fields), numeric fields, and unconstrained character fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list containing constrained values in the database.
+join_site_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$perspective, by = "perspective") |>
+    left_join(lookup$method, by = "cover_method") |>
+    left_join(lookup$dimensions, by = "plot_dimensions_m") |>
+    left_join(lookup$datum, by = "h_datum") |>
+    left_join(lookup$accuracy, by = "positional_accuracy") |>
+    left_join(lookup$location, by = "location_type") |>
+    select(
+      site_code, establishing_project_code, perspective_id, cover_method_id,
+      h_datum_epsg, latitude_dd, longitude_dd, h_error_m, positional_accuracy_id,
+      plot_dimensions_id, location_type_id
+    )
+}
 
-# Site Visit table (clean_visit_data)
+# ===========================================================================
+# 03. SITE VISIT ----
+# ===========================================================================
+
+#' Clean Site Visit Data
+#' @description Renames multi-year projects that should be treated as a single project, corrects typos and missing values in personnel field, and corrects and formats to lowercase structural class field .
+#' @param df A data frame of pre-processed data.
 clean_visit_data <- function(df) {
   # Define personnel name corrections
   name_fixes <- list(
@@ -83,7 +139,7 @@ clean_visit_data <- function(df) {
   )
 
   df |>
-    # Correct field names
+    # Standardize column names names
     rename_columns() |>
     # Correct project code
     mutate(
@@ -100,7 +156,7 @@ clean_visit_data <- function(df) {
         is.na(veg_recorder), "Timm Nawrocki",
       veg_recorder
       ),
-      # Correct structural class formatting
+      # Correct structural class and format as lowercase
       structural_class = case_when(structural_class == "n/assess" ~ "not assessed",
         is.na(structural_class) ~ "not assessed",
         .default = str_to_lower(structural_class)
@@ -108,7 +164,43 @@ clean_visit_data <- function(df) {
     )
 }
 
-# Vegetation Cover table (clean_vegetation_data)
+#' Join Site Visit Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys (for constrained fields), numeric fields, and unconstrained character fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list containing constrained values in the database.
+join_visit_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$tier, by = "data_tier") |>
+    left_join(lookup$personnel, by = c("veg_observer" = "personnel")) |>
+    rename(veg_observer_id = personnel_id) |>
+    left_join(lookup$personnel, by = c("veg_recorder" = "personnel")) |>
+    rename(veg_recorder_id = personnel_id) |>
+    left_join(lookup$personnel, by = c("env_observer" = "personnel")) |>
+    rename(env_observer_id = personnel_id) |>
+    left_join(lookup$personnel, by = c("soils_observer" = "personnel")) |>
+    rename(soils_observer_id = personnel_id) |>
+    left_join(lookup$structural_class, by = "structural_class") |>
+    left_join(lookup$scope, by = c("scope_vascular" = "scope")) |>
+    rename(scope_vascular_id = scope_id) |>
+    left_join(lookup$scope, by = c("scope_bryophyte" = "scope")) |>
+    rename(scope_bryophyte_id = scope_id) |>
+    left_join(lookup$scope, by = c("scope_lichen" = "scope")) |>
+    rename(scope_lichen_id = scope_id) |>
+    # Select final fields
+    select(
+      site_visit_code, project_code, site_code, data_tier_id, observe_date,
+      veg_observer_id, veg_recorder_id, env_observer_id, soils_observer_id, structural_class_code,
+      scope_vascular_id, scope_bryophyte_id, scope_lichen_id, homogeneous
+    )
+}
+
+# ===========================================================================
+# 04. VEGETATION COVER ----
+# ===========================================================================
+
+# Clean Vegetation Cover Data
+#' @description Standardizes column names and corrects cover type values to match constrained values.
+#' @param df A data frame of pre-processed data.
 clean_vegetation_data <- function(df) {
   df |>
     # Correct column names
@@ -120,21 +212,101 @@ clean_vegetation_data <- function(df) {
     ))
 }
 
-# Abiotic Top Cover table (clean_abiotic_data)
+# Join Vegetation Cover Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Corrects taxonomic codes, drops true duplicate records, and aggregates "near-duplicates" (duplicates in all fields except cover percent) by summing cover percent. Selects and orders columns to match the database schema. Returns foreign keys (for constrained fields), numeric fields, and unconstrained character fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
+join_vegetation_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$cover_type, by = "cover_type") |>
+    left_join(lookup$taxa, by = c("name_adjudicated" = "taxon_name")) |>
+    rename(code_adjudicated = taxon_code) |>
+    select(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status, cover_percent) |>
+    # Correct code adjudicated for removed taxa
+    mutate(code_adjudicated = case_when(
+      name_original == "Castilleja caudata var. caudata" ~ "cascau",
+      name_original == "Lysimachia europaea ssp. europaea" ~ "lyseur",
+      name_original == "Montia fontana ssp. fontana" ~ "monfon",
+      name_original == "Montia vassilievii ssp. vassilievii" ~ "monbos",
+      name_original == "Trientalis europaea ssp. europaea" ~ "trieur",
+      .default = code_adjudicated
+    )) |>
+    # Drop duplicates (same name, same % cover)
+    distinct(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status, cover_percent) |>
+    # Group 'duplicates' (different cover values) by summing cover percent (n=4)
+    group_by(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status) |>
+    summarize(cover_percent = sum(cover_percent)) |>
+    ungroup()
+}
+
+# ===========================================================================
+# 05. ABIOTIC TOP COVER ----
+# ===========================================================================
+
+#' Clean Abiotic Top Cover Data
+#' @description Standardizes column names and renames 'ground_element' to 'abiotic_element'.
+#' @param df A data frame of pre-processed data.
 clean_abiotic_data <- function(df) {
   df |>
     rename_columns() |>
     rename(any_of(c(abiotic_element = "ground_element")))
 }
 
-# Whole Tussock Cover table (clean_tussock_data)
+#' Join Abiotic Top Cover Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys and essential linking fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
+join_abiotic_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$element, by = c("abiotic_element" = "ground_element")) |>
+    rename(abiotic_element_code = ground_element_code) |>
+    select(site_visit_code, abiotic_element_code, abiotic_top_cover_percent)
+}
+
+# ===========================================================================
+# 06. WHOLE TUSSOCK COVER ----
+# ===========================================================================
+
+#' Clean Whole Tussock Cover Data
+#' @description Standardizes column names and renames 'tussock_percent_cover' to 'cover_percent'.
+#' @param df A data frame of pre-processed data.
 clean_tussock_data <- function(df) {
   df |>
     rename_columns() |>
     rename(any_of(c(cover_percent = "tussock_percent_cover")))
 }
 
-# Structural Group Cover table (clean_structural_data)
+#' Join Whole Tussock Cover Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys and essential linking fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
+join_tussock_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$cover_type, by = "cover_type") |>
+    select(site_visit_code, cover_type_id, cover_percent)
+}
+
+# ===========================================================================
+# 07. GROUND COVER ----
+# ===========================================================================
+
+#' Join Ground Cover Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys and essential linking fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
+join_ground_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$element, by = "ground_element") |>
+    select(site_visit_code, ground_element_code, ground_cover_percent)
+}
+
+# ===========================================================================
+# 08. STRUCTURAL GROUP COVER ----
+# ===========================================================================
+
+#' Clean Structural Group Cover Data
+#' @description Standardizes column names, renames 'structural_cover_percent' to 'cover_percent', and renames 'structural_cover_type' to 'cover_type'.
+#' @param df A data frame of pre-processed data.
 clean_structural_data <- function(df) {
   df |>
     rename_columns() |>
@@ -144,10 +316,57 @@ clean_structural_data <- function(df) {
     )))
 }
 
-# Environment table (clean_environment_data)
+#' Join Structural Group Cover Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys and essential linking fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
+join_structural_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$structural_group, by = "structural_group") |>
+    left_join(lookup$cover_type, by = "cover_type") |>
+    select(site_visit_code, cover_type_id, structural_group_id, cover_percent)
+}
+
+# ===========================================================================
+# 09. SHRUB STRUCTURE ----
+# ===========================================================================
+
+#' Join Shrub Structure Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys and essential linking fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
+join_shrub_metadata <- function(df, lookup) {
+  df |>
+    left_join(lookup$taxa, by = c("name_adjudicated" = "taxon_name")) |>
+    left_join(lookup$cover_type, by = "cover_type") |>
+    left_join(lookup$class, by = "shrub_class") |>
+    left_join(lookup$height, by = "height_type") |>
+    rename(code_adjudicated = taxon_code) |>
+    select(
+      site_visit_code,
+      name_original,
+      code_adjudicated,
+      shrub_class_id,
+      height_type_id,
+      height_cm,
+      cover_type_id,
+      cover_percent,
+      mean_diameter_cm,
+      number_stems,
+      shrub_subplot_area_m2
+    )
+}
+
+# ===========================================================================
+# 10. ENVIRONMENT ----
+# ===========================================================================
+
+#' Clean Environment Data
+#' @description Enforces empty columns to be read in as character, standardizes column names, and corrects constrained values tomatch values in the most recent version of the data dictionary.
+#' @param df A data frame of pre-processed data.
 clean_environment_data <- function(df) {
   df |>
-    # Enforce empty columns being read as character rather than boolean
+    # Enforce empty columns as character rather than boolean
     mutate(across(any_of(c("cryoturbation", "surface_water")), as.character)) |>
     rename_columns() |>
     # Correct names that are no longer in database dictionary
@@ -191,165 +410,10 @@ clean_environment_data <- function(df) {
     )
 }
 
-# Soil Metrics table (clean_soil_metrics_data)
-clean_soil_metrics_data <- function(df) {
-  df |>
-    rename_columns() |>
-    mutate_if(is.logical, as.character) |>
-    mutate(water_measurement = case_when(water_measurement == "NULL" ~ "FALSE",
-      .default = water_measurement
-    ))
-}
-
-# Soil Horizons table (clean_soil_horizons_data)
-clean_soil_horizons_data <- function(df) {
-  df |>
-    rename_columns() |>
-    rename(any_of(c(
-      depth_upper_cm = "depth_upper",
-      depth_lower_cm = "depth_lower"
-    )))
-}
-
-# --- Join functions ---
-
-# Project table (join_project_metadata)
-join_project_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$completion, by = "completion") |>
-    left_join(lookup$organization, by = c("originator" = "organization")) |>
-    rename(originator_id = organization_id) |>
-    left_join(lookup$organization, by = c("funder" = "organization")) |>
-    rename(funder_id = organization_id) |>
-    left_join(lookup$personnel, by = c("manager" = "personnel")) |>
-    rename(manager_id = personnel_id) |>
-    select(
-      project_code, project_name, originator_id, funder_id, manager_id,
-      completion_id, year_start, year_end, project_description, private
-    )
-}
-
-# Site table (join_site_metadata)
-join_site_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$perspective, by = "perspective") |>
-    left_join(lookup$method, by = "cover_method") |>
-    left_join(lookup$dimensions, by = "plot_dimensions_m") |>
-    left_join(lookup$datum, by = "h_datum") |>
-    left_join(lookup$accuracy, by = "positional_accuracy") |>
-    left_join(lookup$location, by = "location_type") |>
-    select(
-      site_code, establishing_project_code, perspective_id, cover_method_id,
-      h_datum_epsg, latitude_dd, longitude_dd, h_error_m, positional_accuracy_id,
-      plot_dimensions_id, location_type_id
-    )
-}
-
-# Site Visit table (join_visit_metadata)
-join_visit_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$tier, by = "data_tier") |>
-    left_join(lookup$personnel, by = c("veg_observer" = "personnel")) |>
-    rename(veg_observer_id = personnel_id) |>
-    left_join(lookup$personnel, by = c("veg_recorder" = "personnel")) |>
-    rename(veg_recorder_id = personnel_id) |>
-    left_join(lookup$personnel, by = c("env_observer" = "personnel")) |>
-    rename(env_observer_id = personnel_id) |>
-    left_join(lookup$personnel, by = c("soils_observer" = "personnel")) |>
-    rename(soils_observer_id = personnel_id) |>
-    left_join(lookup$structural_class, by = "structural_class") |>
-    left_join(lookup$scope, by = c("scope_vascular" = "scope")) |>
-    rename(scope_vascular_id = scope_id) |>
-    left_join(lookup$scope, by = c("scope_bryophyte" = "scope")) |>
-    rename(scope_bryophyte_id = scope_id) |>
-    left_join(lookup$scope, by = c("scope_lichen" = "scope")) |>
-    rename(scope_lichen_id = scope_id) |>
-    # Select final fields
-    select(
-      site_visit_code, project_code, site_code, data_tier_id, observe_date,
-      veg_observer_id, veg_recorder_id, env_observer_id, soils_observer_id, structural_class_code,
-      scope_vascular_id, scope_bryophyte_id, scope_lichen_id, homogeneous
-    )
-}
-
-# Vegetation Cover table (join_vegetation_metadata)
-join_vegetation_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$cover_type, by = "cover_type") |>
-    left_join(lookup$taxa, by = c("name_adjudicated" = "taxon_name")) |>
-    rename(code_adjudicated = taxon_code) |>
-    select(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status, cover_percent) |>
-    # Correct code adjudicated for removed taxa
-    mutate(code_adjudicated = case_when(
-      name_original == "Castilleja caudata var. caudata" ~ "cascau",
-      name_original == "Lysimachia europaea ssp. europaea" ~ "lyseur",
-      name_original == "Montia fontana ssp. fontana" ~ "monfon",
-      name_original == "Montia vassilievii ssp. vassilievii" ~ "monbos",
-      name_original == "Trientalis europaea ssp. europaea" ~ "trieur",
-      .default = code_adjudicated
-    )) |>
-    # Drop duplicates (same name, same % cover)
-    distinct(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status, cover_percent) |>
-    # Group 'duplicates' (different cover values) by summing cover percent (n=4)
-    group_by(site_visit_code, cover_type_id, name_original, code_adjudicated, dead_status) |>
-    summarize(cover_percent = sum(cover_percent)) |>
-    ungroup()
-}
-
-# Abiotic Top Cover table (join_abiotic_metadata)
-join_abiotic_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$element, by = c("abiotic_element" = "ground_element")) |>
-    rename(abiotic_element_code = ground_element_code) |>
-    select(site_visit_code, abiotic_element_code, abiotic_top_cover_percent)
-}
-
-# Whole Tussock Cover table (join_tussock_metadata)
-join_tussock_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$cover_type, by = "cover_type") |>
-    select(site_visit_code, cover_type_id, cover_percent)
-}
-
-# Ground Cover table (join_ground_metadata)
-join_ground_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$element, by = "ground_element") |>
-    select(site_visit_code, ground_element_code, ground_cover_percent)
-}
-
-# Structural Group Cover table (join_structural_metadata)
-join_structural_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$structural_group, by = "structural_group") |>
-    left_join(lookup$cover_type, by = "cover_type") |>
-    select(site_visit_code, cover_type_id, structural_group_id, cover_percent)
-}
-
-# Shrub Structure table (join_shrub_metadata)
-join_shrub_metadata <- function(df, lookup) {
-  df |>
-    left_join(lookup$taxa, by = c("name_adjudicated" = "taxon_name")) |>
-    left_join(lookup$cover_type, by = "cover_type") |>
-    left_join(lookup$class, by = "shrub_class") |>
-    left_join(lookup$height, by = "height_type") |>
-    rename(code_adjudicated = taxon_code) |>
-    select(
-      site_visit_code,
-      name_original,
-      code_adjudicated,
-      shrub_class_id,
-      height_type_id,
-      height_cm,
-      cover_type_id,
-      cover_percent,
-      mean_diameter_cm,
-      number_stems,
-      shrub_subplot_area_m2
-    )
-}
-
-# Environment table (join_environment_metadata)
+#' Join Environment Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys, essential linking fields, and numeric fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
 join_environment_metadata <- function(df, lookup) {
   df |>
     left_join(lookup$physiography, by = "physiography") |>
@@ -374,7 +438,27 @@ join_environment_metadata <- function(df, lookup) {
     )
 }
 
-# Soil Metrics table (join_soil_metrics_metadata)
+# ===========================================================================
+# 11. SOIL METRICS ----
+# ===========================================================================
+
+#' Clean Soil Metrics Data
+#' @description Standardizes column names, converts logical fields to character, and corrects null values to boolean FALSE.
+#' @param df A data frame of pre-processed data.
+clean_soil_metrics_data <- function(df) {
+  df |>
+    rename_columns() |>
+    mutate_if(is.logical, as.character) |>
+    mutate(water_measurement = case_when(water_measurement == "NULL" ~ "FALSE",
+      .default = water_measurement
+    ))
+}
+
+
+#' Join Soil Metrics Table
+#' @description Selects and orders columns to match database schema.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
 join_soil_metrics_metadata <- function(df, lookup) {
   df |>
     select(
@@ -383,7 +467,26 @@ join_soil_metrics_metadata <- function(df, lookup) {
     )
 }
 
-# Soil Horizons table (join_soil_horizons_metadata)
+# ===========================================================================
+# 12. SOIL HORIZONS ----
+# ===========================================================================
+
+#' Clean Soil Horizons Data
+#' @description Standardizes column names, and renames 'depth_upper' and 'depth_lower' fields to append measurement units.
+#' @param df A data frame of pre-processed data.
+clean_soil_horizons_data <- function(df) {
+  df |>
+    rename_columns() |>
+    rename(any_of(c(
+      depth_upper_cm = "depth_upper",
+      depth_lower_cm = "depth_lower"
+    )))
+}
+
+#' Join Soil Horizons Table
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys, essential linking fields, and numeric fields.
+#' @param df A data frame of processed data.
+#' @param lookup A named list of constrained values in the database.
 join_soil_horizons_metadata <- function(df, lookup) {
   df |>
     left_join(lookup$texture, by = c("texture" = "soil_texture")) |>
