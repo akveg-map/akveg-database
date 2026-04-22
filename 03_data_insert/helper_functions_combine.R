@@ -126,6 +126,47 @@ clean_structural_data = function (df) {
                     cover_type = 'structural_cover_type')))
 }
 
+# Environment table (clean_environment_data)
+clean_environment_data = function (df) {
+  df |> 
+    # Enforce empty columns being read as character rather than boolean
+    mutate(across(any_of(c("cryoturbation", "surface_water")), as.character)) |>
+    rename_columns() |>
+    # Correct names that are no longer in database dictionary
+    mutate(geomorphology = case_when(geomorphology == 'glaciofluvial outwash' ~ 'glaciofluvial deposit',
+                                     .default = geomorphology),
+           # Pluralize soil classes that aren't plural
+           soil_class = case_when(is.na(soil_class) | soil_class %in% c("NULL", "not available") ~ soil_class,
+                                  str_detect(soil_class, "s$") ~ soil_class,
+                                  .default = str_c(soil_class, "s")),
+           disturbance = case_when(disturbance == 'wildlife grazing' ~ 'wildlife foraging',
+                                   .default = disturbance),
+           moisture_regime = case_when(moisture_regime == 'xeric-mesic' | moisture_regime == 'mesic-xeric heterogeneous' ~ 'mesic-xeric heterogenous',
+                                       moisture_regime == 'mesic-hygric' | moisture_regime == 'hygric-mesic' | moisture_regime == 'hygric-mesic heterogeneous' ~ 'hygric-mesic heterogenous',
+                                       moisture_regime == 'hygric-hydric' | moisture_regime == 'hydric-hygric' ~ 'hydric-hygric heterogenous',
+                                       moisture_regime == 'hydric-aquatic' ~ 'aquatic-hydric heterogenous',
+                                       moisture_regime == 'hydric-mesic' | moisture_regime == 'mesic-hydric' ~ 'hydric-mesic heterogenous',
+                                       .default = moisture_regime
+           ),
+           microtopography = case_when(microtopography == 'tussock' ~ 'tussocks',
+                                       microtopography == 'channelled' ~ 'channeled',
+                                       .default = microtopography),
+           macrotopography = case_when(macrotopography == 'lakebed' ~ 'lake bed',
+                                       macrotopography == 'mountain bench' ~ 'bench',
+                                       is.na(macrotopography) & geomorphology == 'low center polygons' ~ 'polygons low-center',
+                                       .default = macrotopography),
+           geomorphology = case_when(geomorphology == 'ocean shore' ~ 'marine, shore',
+                                     geomorphology == 'low center polygons' ~ 'NULL',
+                                     geomorphology == 'peninsula' ~ 'NULL',
+                                     geomorphology == 'stream' ~ 'aquatic, river',
+                                     geomorphology == 'lake' | geomorphology == 'aquatic lake' ~ 'aquatic, lake',
+                                     geomorphology == 'estuary' ~ 'NULL',
+                                     geomorphology == 'valley lowland' ~ 'valley, lowland',
+                                     .default = geomorphology
+           ))
+}
+    
+    
 # --- Join functions ---
 
 # Project table (join_project_metadata)
@@ -255,4 +296,27 @@ join_shrub_metadata = function(df, lookup) {
       number_stems,
       shrub_subplot_area_m2
     )
+}
+
+# Environment table (join_environment_metadata)
+join_environment_metadata = function(df, lookup) {
+  df |>
+  left_join(lookup$physiography, by = 'physiography') %>%
+  left_join(lookup$geomorphology, by = 'geomorphology') %>%
+  left_join(lookup$macrotopography, by = 'macrotopography') %>%
+  left_join(lookup$microtopography, by = 'microtopography') %>%
+  left_join(lookup$moisture, by = c('moisture_regime' = 'moisture')) %>%
+  left_join(lookup$drainage, by = 'drainage') %>%
+  left_join(lookup$disturbance, by = 'disturbance') %>%
+  left_join(lookup$severity, by = 'disturbance_severity') %>%
+  left_join(lookup$restrictive, by = 'restrictive_type') %>%
+  left_join(lookup$texture, by = c('dominant_texture_40_cm' = 'soil_texture')) %>%
+  left_join(lookup$soil_class, by = 'soil_class') %>%
+  rename(dominant_texture_40_cm_code = soil_texture_code) %>%
+  select(site_visit_code, physiography_id, geomorphology_id, macrotopography_id,
+         microtopography_id, moisture_id, drainage_id, disturbance_id,
+         disturbance_severity_id, disturbance_time_y, depth_water_cm,
+         depth_moss_duff_cm, depth_restrictive_layer_cm, restrictive_type_id,
+         microrelief_cm, surface_water, soil_class_id, cryoturbation,
+         dominant_texture_40_cm_code, depth_15_percent_coarse_fragments_cm)
 }
