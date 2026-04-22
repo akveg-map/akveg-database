@@ -4,7 +4,7 @@
 # Authors: Timm Nawrocki, Amanda Droghini, ACCS
 # Last Updated: 2026-03-26
 # Usage: Script should be executed in R 4.5.1+.
-# Description: Dynamically parses metadata and constraints from Excel into a SQL query for upload into empty tables. Developed using Gemini 3 Flash (Google AI), March 2026.
+# Description: Dynamically parses metadata and constraints from Excel into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
 
 # Import required libraries
@@ -26,15 +26,15 @@ sql_metadata <- path(root_folder, "Data_Plots/sql_statements/00_b_Insert_Metadat
 
 # Define naming exceptions for ID columns
 suffix_exceptions <- c(
-  "ground_element"      = "_code",
-  "h_datum"             = "_epsg",
-  "soil_texture"        = "_code",
-  "soil_horizon_type"   = "_code",
+  "ground_element" = "_code",
+  "h_datum" = "_epsg",
+  "soil_texture" = "_code",
+  "soil_horizon_type" = "_code",
   "soil_horizon_suffix" = "_code",
-  "soil_hue"            = "_code",
-  "structural_class"    = "_code",
+  "soil_hue" = "_code",
+  "structural_class" = "_code",
   "nonmatrix_feature" = "_code",
-  "soil_structure"      = "_code"
+  "soil_structure" = "_code"
 )
 
 # Read in data
@@ -44,23 +44,22 @@ org_data <- read_excel(path(data_folder, "organization.xlsx"), sheet = "organiza
 
 # Parse constraints
 constraint_tables <- dictionary_data %>%
-  arrange(field) %>% 
-  split(.$field) %>% 
+  arrange(field) %>%
+  split(.$field) %>%
   imap(function(df, field_name) {
-    
     # Create suffix for id column (end in "_id" or "_code" for most exceptions)
     suffix <- ifelse(field_name %in% names(suffix_exceptions), suffix_exceptions[field_name], "_id")
-    
+
     # Handle plot_dimensions exception
     if (field_name == "plot_dimensions_m") {
-      id_col    <- "plot_dimensions_id"  # Drop the "_m" from the id field
-      value_col <- "plot_dimensions_m"   # Keep the "_m" for the values field
+      id_col <- "plot_dimensions_id" # Drop the "_m" from the id field
+      value_col <- "plot_dimensions_m" # Keep the "_m" for the values field
     } else {
       # Create column names using field_name and suffix
-      id_col    <- paste0(field_name, suffix)
+      id_col <- paste0(field_name, suffix)
       value_col <- field_name
     }
-    
+
     # Rename columns
     df %>%
       select(data_attribute_id, data_attribute) %>%
@@ -83,14 +82,18 @@ organization_table <- org_data %>%
 # Parse schema table
 database_schema_table <- schema_data %>%
   left_join(constraint_tables$schema_category, by = "schema_category") %>%
-  left_join(constraint_tables$schema_table %>% 
-              rename(link_table_id = schema_table_id), 
-            by = c("link_table" = "schema_table")) %>%
+  left_join(
+    constraint_tables$schema_table %>%
+      rename(link_table_id = schema_table_id),
+    by = c("link_table" = "schema_table")
+  ) %>%
   left_join(constraint_tables$schema_table, by = "schema_table") %>%
   left_join(constraint_tables$data_type, by = "data_type") %>%
   rowid_to_column("field_id") %>%
-  select(field_id, standards_section, schema_category_id, schema_table_id, field, data_type_id, 
-         field_length, is_unique, is_key, required, link_table_id, field_description)
+  select(
+    field_id, standards_section, schema_category_id, schema_table_id, field, data_type_id,
+    field_length, is_unique, is_key, required, link_table_id, field_description
+  )
 
 # Parse dictionary table
 database_dictionary_table <- dictionary_data %>%
@@ -109,10 +112,12 @@ names(constraint_tables)[names(constraint_tables) == "nonmatrix_feature"] <- "so
 
 # Compile list of all metadata tables
 final_tables <- c(
-  constraint_tables, 
-  list(organization = organization_table, 
-       database_schema = database_schema_table,
-       database_dictionary = database_dictionary_table)
+  constraint_tables,
+  list(
+    organization = organization_table,
+    database_schema = database_schema_table,
+    database_dictionary = database_dictionary_table
+  )
 )
 
 # Write data to SQL file
@@ -136,27 +141,29 @@ statement <- c(
 # Loop through all metadata tables
 for (table_name in names(final_tables)) {
   df <- final_tables[[table_name]]
-  
+
   # Add apostrophes, coerce to string, and format NULL
   df_sql <- df %>%
     mutate(across(where(is.character), ~ paste0("'", str_replace_all(.x, "'", "''"), "'"))) %>% # Format character columns by adding apostrophes at the start/end of the string, convert single apostrophes to double apostrophes for SQL
-    mutate(across(everything(), ~ replace_na(as.character(.x), "NULL"))) %>%  # Coerce all columns to string and replace NA with "NULL"
+    mutate(across(everything(), ~ replace_na(as.character(.x), "NULL"))) %>% # Coerce all columns to string and replace NA with "NULL"
     mutate(across(everything(), ~ ifelse(.x == "'NA'" | .x == "''", "NULL", .x)))
-  
+
   # Add header
   cols <- paste(names(df), collapse = ", ")
-  statement <- c(statement,
-                 paste0("INSERT INTO ", table_name, " (", cols, ") VALUES"))
-  
+  statement <- c(
+    statement,
+    paste0("INSERT INTO ", table_name, " (", cols, ") VALUES")
+  )
+
   # Collapse data into character vector
   rows <- df_sql %>%
     unite("row", everything(), sep = ", ") %>%
     mutate(row = paste0("  (", row, "),")) %>%
     pull(row)
-  
+
   # Replace final comma with semicolon
   rows[length(rows)] <- str_replace(rows[length(rows)], ",$", ";")
-  
+
   statement <- c(statement, rows, "") # Add rows and a blank line for readability
 }
 
