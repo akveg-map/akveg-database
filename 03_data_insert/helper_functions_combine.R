@@ -136,7 +136,7 @@ clean_environment_data = function (df) {
     mutate(geomorphology = case_when(geomorphology == 'glaciofluvial outwash' ~ 'glaciofluvial deposit',
                                      .default = geomorphology),
            # Pluralize soil classes that aren't plural
-           soil_class = case_when(is.na(soil_class) | soil_class %in% c("NULL", "not available") ~ soil_class,
+           soil_class = case_when(is.na(soil_class) | soil_class %in% c("NULL", "not available", "not determined") ~ soil_class,
                                   str_detect(soil_class, "s$") ~ soil_class,
                                   .default = str_c(soil_class, "s")),
            disturbance = case_when(disturbance == 'wildlife grazing' ~ 'wildlife foraging',
