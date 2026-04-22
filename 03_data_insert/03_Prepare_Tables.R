@@ -114,7 +114,12 @@ build_insert_statement <- function(table_name, input_csv, output_sql, database_c
 
 # Execute logic ----
 # Iterate through every row in the config table
-pwalk(config_table, build_insert_statement)
+pwalk(config_table, ~ build_insert_statement(
+  table_name = ..1,
+  input_csv = ..2,
+  output_sql = ..3,
+  database_connection = database_connection
+))
 
 # Close database connection
 dbDisconnect(database_connection)
