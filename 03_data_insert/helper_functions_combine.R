@@ -166,7 +166,15 @@ clean_environment_data = function (df) {
            ))
 }
     
-    
+# Soil Metrics table (clean_soil_metrics_data)
+clean_soil_metrics_data = function (df) {
+  df |> 
+    rename_columns() |> 
+    mutate_if(is.logical, as.character) %>%
+    mutate(water_measurement = case_when(water_measurement == 'NULL' ~ 'FALSE',
+                                         .default = water_measurement))
+}
+
 # --- Join functions ---
 
 # Project table (join_project_metadata)
@@ -319,4 +327,11 @@ join_environment_metadata = function(df, lookup) {
          depth_moss_duff_cm, depth_restrictive_layer_cm, restrictive_type_id,
          microrelief_cm, surface_water, soil_class_id, cryoturbation,
          dominant_texture_40_cm_code, depth_15_percent_coarse_fragments_cm)
+}
+
+# Soil Metrics table (join_soil_metrics_metadata)
+join_soil_metrics_metadata = function(df) {
+  df |>
+  select(site_visit_code, water_measurement, measure_depth_cm, ph,
+         conductivity_mus, temperature_deg_c)
 }
