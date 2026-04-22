@@ -21,62 +21,76 @@ library(yaml)
 # Define folder structure ----
 
 # Set root directory
-drive = 'C:'
-root_folder = 'ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database'
+drive <- "C:"
+root_folder <- "ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database"
 
 # Define input folders
-data_folder = path(drive,
-                   root_folder,
-                   'Data/Data_Plots')
-repository_folder = path(drive,
-                         'ACCS_Work/Repositories/akveg-database')
-credential_folder = path(drive, root_folder, 'Credentials')
+data_folder <- path(
+  drive,
+  root_folder,
+  "Data/Data_Plots"
+)
+repository_folder <- path(
+  drive,
+  "ACCS_Work/Repositories/akveg-database"
+)
+credential_folder <- path(drive, root_folder, "Credentials")
 
 # Define input files ----
-project_list = path(repository_folder, 
-                         '03_data_insert', 
-                         'List_Included_Projects.json')
-queries_input = path(repository_folder, 
-                     '03_data_insert', 
-                     'queries_lookup.yaml')
+project_list <- path(
+  repository_folder,
+  "03_data_insert",
+  "List_Included_Projects.json"
+)
+queries_input <- path(
+  repository_folder,
+  "03_data_insert",
+  "queries_lookup.yaml"
+)
 
 # Define functions ----
-source(path(repository_folder, 
-          '03_data_insert', 
-          'helper_functions_combine.R'))
+source(path(
+  repository_folder,
+  "03_data_insert",
+  "helper_functions_combine.R"
+))
 
 # Connect to AKVEG database ----
 
 # Import database connection function
-connection_script = path(repository_folder,
-                         'pull_functions',
-                         'connect_database_postgresql.R')
+connection_script <- path(
+  repository_folder,
+  "pull_functions",
+  "connect_database_postgresql.R"
+)
 source(connection_script)
 
 # Create a connection to the AKVEG PostgreSQL database
-authentication = path(credential_folder,
-                      'akveg_private_build', 'authentication_akveg_private_build.csv')
-database_connection = connect_database_postgresql(authentication)
+authentication <- path(
+  credential_folder,
+  "akveg_private_build", "authentication_akveg_private_build.csv"
+)
+database_connection <- connect_database_postgresql(authentication)
 
 # Read in queries ----
-queries_lookup = read_yaml(queries_input)
-lookup_data = map(queries_lookup$queries, \(q) dbGetQuery(database_connection, q))
+queries_lookup <- read_yaml(queries_input)
+lookup_data <- map(queries_lookup$queries, \(q) dbGetQuery(database_connection, q))
 
 # Define vegetation plot folders ----
-target_paths = fromJSON(file = project_list)$projects
-all_folders = path(data_folder, target_paths)
+target_paths <- fromJSON(file = project_list)$projects
+all_folders <- path(data_folder, target_paths)
 
 # Create tibble specifying input file pattern and output file name
-config_table = tribble(
-  ~ table_name,
-  ~ input_pattern,
-  ~ warn_if_missing,
-  ~ output_path,
-  ~ clean_function,
-  ~ join_function,
+config_table <- tribble(
+  ~table_name,
+  ~input_pattern,
+  ~warn_if_missing,
+  ~output_path,
+  ~clean_function,
+  ~join_function,
   #---------|---------|---------|---------
   "project",
-  '01_project.*csv',
+  "01_project.*csv",
   TRUE,
   "projects.csv",
   identity,
@@ -88,7 +102,7 @@ config_table = tribble(
   clean_site_data,
   join_site_metadata,
   "site_visit",
-  '03_sitevisit.*csv',
+  "03_sitevisit.*csv",
   TRUE,
   "site_visits.csv",
   clean_visit_data,
@@ -100,7 +114,7 @@ config_table = tribble(
   clean_vegetation_data,
   join_vegetation_metadata,
   "abiotic",
-  '06_abiotictopcover.*csv',
+  "06_abiotictopcover.*csv",
   FALSE,
   "abiotic_top_cover.csv",
   clean_abiotic_data,
@@ -120,43 +134,42 @@ config_table = tribble(
   "structural_group",
   "09_structuralgroupcover.*csv",
   FALSE,
-  'structural_group_cover.csv',
+  "structural_group_cover.csv",
   clean_structural_data,
   join_structural_metadata,
   "shrub_structure",
   "11_shrubstructure.*csv",
   FALSE,
-  'shrub_structure.csv',
+  "shrub_structure.csv",
   rename_columns,
   join_shrub_metadata,
   "environment",
   "12_environment.*csv",
   FALSE,
-  'environment.csv',
+  "environment.csv",
   clean_environment_data,
   join_environment_metadata,
   "soil_metrics",
   "13_soilmetrics.*csv",
   FALSE,
-  'soil_metrics.csv',
+  "soil_metrics.csv",
   clean_soil_metrics_data,
   join_soil_metrics_metadata,
   "soil_horizons",
   "14_soilhorizons.*csv",
   FALSE,
-  'soil_horizons.csv',
+  "soil_horizons.csv",
   clean_soil_horizons_data,
   join_soil_horizons_metadata
-  
 )
 
 # Create function for table processing
 process_tables <- function(input_pattern, table_name, warn_if_missing, clean_function, join_function, ...) {
   message(paste0("Processing table... ", table_name))
-  find_files_warning(all_folders, input_pattern, show_warning = warn_if_missing) |> 
-    map(\(f) read_csv(f, show_col_types = FALSE)) |> 
-    map(clean_function) |> 
-    list_rbind() |> 
+  find_files_warning(all_folders, input_pattern, show_warning = warn_if_missing) |>
+    map(\(f) read_csv(f, show_col_types = FALSE)) |>
+    map(clean_function) |>
+    list_rbind() |>
     join_function(lookup_data)
 }
 
@@ -165,13 +178,15 @@ final_results_list <- pmap(config_table, process_tables)
 
 # Export combined data ----
 ## One table for each list item
-pwalk(list(final_results_list, config_table$output_path), 
-      \(data, name) {
-        write_csv(data, path(data_folder, 'processed', name))
-})
+pwalk(
+  list(final_results_list, config_table$output_path),
+  \(data, name) {
+    write_csv(data, path(data_folder, "processed", name))
+  }
+)
 
 # Close database connection ----
 dbDisconnect(database_connection)
 
 # Clear workspace ----
-rm(list=ls())
+rm(list = ls())
