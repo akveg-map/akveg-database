@@ -49,7 +49,7 @@ config_table <- tribble(
   "soil_metrics", "soil_metrics.csv", "13_Insert_SoilMetrics.sql",
   "soil_horizons", "soil_horizons.csv", "14_Insert_SoilHorizons.sql",
   "citations", "citations.csv", "15_Insert_Citations.sql",
-  "project_source", "project_source.csv", "16_Insert_Source.sql",
+  "project_source", "project_source.csv", "16_Insert_Project_Source.sql",
   "project_citations", "project_citations.csv", "17_Insert_Project_Citations.sql"
 )
 
