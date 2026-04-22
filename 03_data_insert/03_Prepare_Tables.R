@@ -10,6 +10,7 @@
 # Import required libraries ----
 library(dplyr, warn.conflicts = FALSE)
 library(fs)
+library(glue)
 library(purrr)
 library(readr)
 library(RPostgres)
@@ -87,9 +88,9 @@ build_insert_statement <- function(table_name, input_csv, output_sql, database_c
   header <- c(
     "-- -*- coding: utf-8 -*-",
     "-- ---------------------------------------------------------------------------",
-    "-- Insert project metadata",
+    glue("-- Insert data for {table_name}"),
     "-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science",
-    paste("-- Last Updated:", Sys.Date(), sep = " "),
+    glue("-- Last Updated: {Sys.Date()}"),
     "-- Usage: Script should be executed in a PostgreSQL 16+ database.",
     "-- ---------------------------------------------------------------------------",
     "",
