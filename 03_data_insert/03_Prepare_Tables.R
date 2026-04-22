@@ -25,7 +25,7 @@ data_folder <- path(drive, root_folder, "Data", "Data_Plots")
 config_table <- tribble(
   ~table_name, ~input_path, ~output_path,
   #--------------------------|------------|-----------
-  "project", "projects.csv", "01a_Insert_Project.sql",
+  "project", "projects.csv", "01_Insert_Project.sql",
   "site", "sites.csv", "02_Insert_Site.sql",
   "site_visit", "site_visits.csv", "03_Insert_SiteVisit.sql",
   "vegetation_cover", "vegetation_cover.csv", "05_Insert_VegetationCover.sql",
@@ -37,9 +37,9 @@ config_table <- tribble(
   "environment", "environment.csv", "12_Insert_Environment.sql",
   "soil_metrics", "soil_metrics.csv", "13_Insert_SoilMetrics.sql",
   "soil_horizons", "soil_horizons.csv", "14_Insert_SoilHorizons.sql",
-  "citations", "citations.csv", "01b_Insert_Citations.sql",
-  "project_source", "project_source.csv", "01c_Insert_Source.sql",
-  "project_citations", "project_citations.csv", "01d_Insert_Project_Citations.sql"
+  "citations", "citations.csv", "15_Insert_Citations.sql",
+  "project_source", "project_source.csv", "16_Insert_Source.sql",
+  "project_citations", "project_citations.csv", "17_Insert_Project_Citations.sql"
 )
 
 # Prepare project table ----
