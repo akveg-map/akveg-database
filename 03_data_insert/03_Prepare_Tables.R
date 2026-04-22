@@ -11,6 +11,7 @@
 library(dplyr, warn.conflicts = FALSE)
 library(fs)
 library(glue)
+library(lubridate)
 library(purrr)
 library(readr)
 library(RPostgres)
@@ -73,10 +74,11 @@ build_insert_statement <- function(table_name, input_csv, output_sql, database_c
   }
 
   # Format table for as SQL string
-  # We escape single quotes and wrap characters in quotes
+  # Escape single quotes, wrap characters and dates in quotes
   input_sql <- df %>%
-    mutate(across(where(is.character), ~ str_replace_all(., "'", "''"))) %>%
-    mutate(across(where(is.character), ~ paste0("'", ., "'"))) %>%
+    mutate(across(where(~ is.character(.) | is.Date(.)), ~ str_replace_all(., "'", "''"))) %>%
+    mutate(across(where(~ is.character(.) | is.Date(.)), ~ paste0("'", ., "'"))) %>%
+    mutate(across(everything(), as.character)) |>
     unite(sql_row, everything(), sep = ", ") %>%
     mutate(sql_row = paste0("(", sql_row, "),"))
 
@@ -88,7 +90,7 @@ build_insert_statement <- function(table_name, input_csv, output_sql, database_c
   header <- c(
     "-- -*- coding: utf-8 -*-",
     "-- ---------------------------------------------------------------------------",
-    glue("-- Insert data for {table_name}"),
+    glue("-- Insert data for {table_name} table"),
     "-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science",
     glue("-- Last Updated: {Sys.Date()}"),
     "-- Usage: Script should be executed in a PostgreSQL 16+ database.",
