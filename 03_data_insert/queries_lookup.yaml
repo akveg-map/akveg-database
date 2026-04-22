@@ -7,7 +7,7 @@ queries:
   personnel: 'SELECT * FROM personnel'
   
   # Project metadata tables
-  source_collect: 'SELECT * FROM source_collection'
+  source_collection: 'SELECT * FROM source_collection'
   source_type: 'SELECT * FROM source_type'
   
   # Site table
