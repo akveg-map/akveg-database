@@ -134,10 +134,15 @@ config_table = tribble(
   FALSE,
   'environment.csv',
   clean_environment_data,
-  join_environment_metadata
-)
+  join_environment_metadata,
   "soil_metrics",
+  "13_soilmetrics.*csv",
+  FALSE,
   'soil_metrics.csv',
+  clean_soil_metrics_data,
+  join_soil_metrics_metadata
+  
+)
   "soil_horizons",
   'soil_horizons.csv'
   
@@ -154,48 +159,6 @@ process_tables <- function(input_pattern, warn_if_missing, clean_function, join_
 # Run every job in the table at once
 final_results_list <- pmap(config_table, process_tables)
 
-# Create soil metrics table ----
-
-# Set target pattern
-target_pattern = '^13_soilmetrics.*csv'
-
-print(str_c('Processing...', target_pattern, sep = " "))
-
-# Create empty list to store files
-files_list = list()
-
-# Iterate through target paths and create file list
-for (target_path in target_paths) {
-  # Create full path
-  full_path = paste(data_folder, target_path, sep = '/')
-  # Find file and append to file list
-  files = list.files(full_path, pattern = target_pattern)
-  if (!is.na(files[1])) {
-    files_list = append(files_list, paste(full_path, files[1], sep = '/'))
-  }
-}
-
-# Create read function
-read_data_site_visit_rename = function (data_file) {
-  rename_fields = c(site_visit_code = 'site_visit_id')
-  input_data = read_csv(data_file, show_col_types = FALSE) %>%
-    rename(any_of(rename_fields)) %>%
-    mutate_if(is.logical, as.character) %>%
-    mutate(water_measurement = case_when(water_measurement == 'NULL' ~ 'FALSE',
-                                         .default = water_measurement))
-  return(input_data)
-}
-
-# Read files into list
-data_list = lapply(files_list, read_data_site_visit_rename)
-
-# Combine list into data frame
-data_combine = do.call(rbind, data_list)
-
-# Join metadata tables to input table
-soils_table = data_combine %>%
-  select(site_visit_code, water_measurement, measure_depth_cm, ph,
-         conductivity_mus, temperature_deg_c)
 
 # Create soil horizons table ----
 
