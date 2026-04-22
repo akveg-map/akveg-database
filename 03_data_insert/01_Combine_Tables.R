@@ -80,7 +80,7 @@ lookup_data <- map(queries_lookup$queries, \(q) dbGetQuery(database_connection, 
 target_paths <- fromJSON(file = project_list)$projects
 all_folders <- path(data_folder, target_paths)
 
-# Create tibble specifying input file pattern and output file name
+# Create config table to hold table-specific values and functions
 config_table <- tribble(
   ~table_name,
   ~input_pattern,
