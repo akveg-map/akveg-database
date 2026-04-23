@@ -5,7 +5,7 @@
 #' transition datasets from the v1.0 to v2.0 AKVEG database schema. It is designed to be sourced
 #' by `01_Combine_Tables.R` and used within a `pmap` workflow.
 #' @author Amanda Droghini
-#' @date 2026-04-21
+#' @date 2026-04-22
 #
 # ===========================================================================
 # 00. GLOBAL HELPERS ----
@@ -79,11 +79,7 @@ join_project_metadata <- function(df, lookup) {
     left_join(lookup$organization, by = c("funder" = "organization")) |>
     rename(funder_id = organization_id) |>
     left_join(lookup$personnel, by = c("manager" = "personnel")) |>
-    rename(manager_id = personnel_id) |>
-    select(
-      project_code, project_name, originator_id, funder_id, manager_id,
-      completion_id, year_start, year_end, project_description, private
-    )
+    rename(manager_id = personnel_id)
 }
 
 # ===========================================================================
@@ -116,12 +112,7 @@ join_site_metadata <- function(df, lookup) {
     left_join(lookup$dimensions, by = "plot_dimensions_m") |>
     left_join(lookup$datum, by = "h_datum") |>
     left_join(lookup$accuracy, by = "positional_accuracy") |>
-    left_join(lookup$location, by = "location_type") |>
-    select(
-      site_code, establishing_project_code, perspective_id, cover_method_id,
-      h_datum_epsg, latitude_dd, longitude_dd, h_error_m, positional_accuracy_id,
-      plot_dimensions_id, location_type_id
-    )
+    left_join(lookup$location, by = "location_type")
 }
 
 # ===========================================================================
@@ -188,13 +179,7 @@ join_visit_metadata <- function(df, lookup) {
     left_join(lookup$scope, by = c("scope_bryophyte" = "scope")) |>
     rename(scope_bryophyte_id = scope_id) |>
     left_join(lookup$scope, by = c("scope_lichen" = "scope")) |>
-    rename(scope_lichen_id = scope_id) |>
-    # Select final fields
-    select(
-      site_visit_code, project_code, site_code, data_tier_id, observe_date,
-      veg_observer_id, veg_recorder_id, env_observer_id, soils_observer_id, structural_class_code,
-      scope_vascular_id, scope_bryophyte_id, scope_lichen_id, homogeneous
-    )
+    rename(scope_lichen_id = scope_id)
 }
 
 # ===========================================================================
@@ -262,8 +247,7 @@ clean_abiotic_data <- function(df) {
 join_abiotic_metadata <- function(df, lookup) {
   df |>
     left_join(lookup$element, by = c("abiotic_element" = "ground_element")) |>
-    rename(abiotic_element_code = ground_element_code) |>
-    select(site_visit_code, abiotic_element_code, abiotic_top_cover_percent)
+    rename(abiotic_element_code = ground_element_code)
 }
 
 # ===========================================================================
@@ -285,8 +269,7 @@ clean_tussock_data <- function(df) {
 #' @param lookup A named list of constrained values in the database.
 join_tussock_metadata <- function(df, lookup) {
   df |>
-    left_join(lookup$cover_type, by = "cover_type") |>
-    select(site_visit_code, cover_type_id, cover_percent)
+    left_join(lookup$cover_type, by = "cover_type")
 }
 
 # ===========================================================================
@@ -299,8 +282,7 @@ join_tussock_metadata <- function(df, lookup) {
 #' @param lookup A named list of constrained values in the database.
 join_ground_metadata <- function(df, lookup) {
   df |>
-    left_join(lookup$element, by = "ground_element") |>
-    select(site_visit_code, ground_element_code, ground_cover_percent)
+    left_join(lookup$element, by = "ground_element")
 }
 
 # ===========================================================================
@@ -326,8 +308,7 @@ clean_structural_data <- function(df) {
 join_structural_metadata <- function(df, lookup) {
   df |>
     left_join(lookup$structural_group, by = "structural_group") |>
-    left_join(lookup$cover_type, by = "cover_type") |>
-    select(site_visit_code, cover_type_id, structural_group_id, cover_percent)
+    left_join(lookup$cover_type, by = "cover_type")
 }
 
 # ===========================================================================
@@ -344,20 +325,7 @@ join_shrub_metadata <- function(df, lookup) {
     left_join(lookup$cover_type, by = "cover_type") |>
     left_join(lookup$class, by = "shrub_class") |>
     left_join(lookup$height, by = "height_type") |>
-    rename(code_adjudicated = taxon_code) |>
-    select(
-      site_visit_code,
-      name_original,
-      code_adjudicated,
-      shrub_class_id,
-      height_type_id,
-      height_cm,
-      cover_type_id,
-      cover_percent,
-      mean_diameter_cm,
-      number_stems,
-      shrub_subplot_area_m2
-    )
+    rename(code_adjudicated = taxon_code)
 }
 
 # ===========================================================================
@@ -430,15 +398,7 @@ join_environment_metadata <- function(df, lookup) {
     left_join(lookup$restrictive, by = "restrictive_type") |>
     left_join(lookup$texture, by = c("dominant_texture_40_cm" = "soil_texture")) |>
     left_join(lookup$soil_class, by = "soil_class") |>
-    rename(dominant_texture_40_cm_code = soil_texture_code) |>
-    select(
-      site_visit_code, physiography_id, geomorphology_id, macrotopography_id,
-      microtopography_id, moisture_id, drainage_id, disturbance_id,
-      disturbance_severity_id, disturbance_time_y, depth_water_cm,
-      depth_moss_duff_cm, depth_restrictive_layer_cm, restrictive_type_id,
-      microrelief_cm, surface_water, soil_class_id, cryoturbation,
-      dominant_texture_40_cm_code, depth_15_percent_coarse_fragments_cm
-    )
+    rename(dominant_texture_40_cm_code = soil_texture_code)
 }
 
 # ===========================================================================
@@ -459,15 +419,11 @@ clean_soil_metrics_data <- function(df) {
 
 
 #' Join Soil Metrics Table
-#' @description Selects and orders columns to match database schema.
+#' @description Empty function to conform with lookup argument requirement
 #' @param df A data frame of processed data.
 #' @param lookup A named list of constrained values in the database.
 join_soil_metrics_metadata <- function(df, lookup) {
-  df |>
-    select(
-      site_visit_code, water_measurement, measure_depth_cm, ph,
-      conductivity_mus, temperature_deg_c
-    )
+  return(df)
 }
 
 # ===========================================================================
@@ -504,15 +460,5 @@ join_soil_horizons_metadata <- function(df, lookup) {
     ) |>
     left_join(lookup$hue, by = c("nonmatrix_hue_code" = "soil_hue")) |>
     select(-nonmatrix_hue_code) |>
-    rename(nonmatrix_hue_code = soil_hue_code) |>
-    select(
-      site_visit_code, horizon_order, thickness_cm, depth_upper_cm, depth_lower_cm,
-      depth_extend, horizon_primary_code, horizon_suffix_1_code,
-      horizon_suffix_2_code, horizon_secondary_code,
-      horizon_suffix_3_code, horizon_suffix_4_code, texture_code,
-      clay_percent, total_coarse_fragment_percent,
-      gravel_percent, cobble_percent, stone_percent, boulder_percent,
-      structure_code, matrix_hue_code, matrix_value, matrix_chroma,
-      nonmatrix_feature_code, nonmatrix_hue_code, nonmatrix_value, nonmatrix_chroma
-    )
+    rename(nonmatrix_hue_code = soil_hue_code)
 }
