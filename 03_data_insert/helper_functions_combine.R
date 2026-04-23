@@ -70,7 +70,7 @@ rename_columns <- function(df) {
 # ===========================================================================
 
 #' Join Project Table
-#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Selects and orders columns to match the database schema. Returns foreign keys (for constrained fields), numeric fields, and unconstrained character fields.
+#' @description Maps cleaned values to their corresponding database IDs using a lookup list. Returns foreign keys (for constrained fields), numeric fields, and unconstrained character fields.
 join_project_metadata <- function(df, lookup) {
   df |>
     left_join(lookup$completion, by = "completion") |>
@@ -82,6 +82,16 @@ join_project_metadata <- function(df, lookup) {
     rename(manager_id = personnel_id)
 }
 
+#' Join Project Source table
+#' #' @description Converts source type to lowercase for consistency with constrained values. Returns foreign key values for constrained fields.
+join_source_metadata <- function(df, lookup) {
+  df |>
+    mutate(source_type = str_to_lower(source_type)) |>
+    left_join(lookup_data$source_type, by = "source_type") |>
+    left_join(lookup_data$personnel, by = c("source_contact" = "personnel")) |>
+    left_join(lookup_data$source_collection, by = "source_collection") |>
+    rename(source_contact_id = personnel_id)
+}
 # ===========================================================================
 # 02. SITE ----
 # ===========================================================================
