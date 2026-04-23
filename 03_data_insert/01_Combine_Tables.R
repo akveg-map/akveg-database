@@ -108,9 +108,9 @@ config_table <- tribble(
   "environment", "12_environment.*csv", FALSE, "environment.csv",
   clean_environment_data, join_environment_metadata, "environment_id",
   "soil_metrics", "13_soilmetrics.*csv", FALSE, "soil_metrics.csv",
-  clean_soil_metrics_data, join_soil_metrics_metadata, "soil_metrics_id",
+  clean_soil_metrics_data, join_soil_metrics_metadata, "soil_metric_id",
   "soil_horizons", "14_soilhorizons.*csv", FALSE, "soil_horizons.csv",
-  clean_soil_horizons_data, join_soil_horizons_metadata, "soil_horizons_id"
+  clean_soil_horizons_data, join_soil_horizons_metadata, "soil_horizon_id"
 )
 
 # Create function for table processing
