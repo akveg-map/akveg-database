@@ -30,34 +30,19 @@ authentication <- path(
   "authentication_akveg_private_build.csv"
 )
 
+## Metadata for tables
+metadata_input <- path(repository_folder, "03_data_insert", "config", "tables_metadata.csv")
+config_table <- read_csv(metadata_input,
+  col_select = c("table_name", "combined_table_csv", "output_sql", "serial_key_id")
+)
+
 # Connect to AKVEG database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
 database_connection <- connect_database_postgresql(authentication)
 
-# Create config table to hold table-specific values and functions
-config_table <- tribble(
-  ~table_name, ~input_csv, ~output_sql, ~serial_key_id,
-  #--------------------------|------------|-----------
-  "project", "projects.csv", "01_Insert_Project.sql", NA,
-  "site", "sites.csv", "02_Insert_Site.sql", NA,
-  "site_visit", "site_visits.csv", "03_Insert_SiteVisit.sql", NA,
-  "vegetation_cover", "vegetation_cover.csv", "05_Insert_VegetationCover.sql", "vegetation_cover_id",
-  "abiotic_top_cover", "abiotic_top_cover.csv", "06_Insert_AbioticTopCover.sql", "abiotic_cover_id",
-  "whole_tussock_cover", "whole_tussock_cover.csv", "07_Insert_WholeTussockCover.sql", "tussock_id",
-  "ground_cover", "ground_cover.csv", "08_Insert_GroundCover.sql", "ground_cover_id",
-  "structural_group_cover", "structural_group_cover.csv", "09_Insert_StructuralGroupCover.sql",
-  "structural_cover_id",
-  "shrub_structure", "shrub_structure.csv", "11_Insert_ShrubStructure.sql", "shrub_structure_id",
-  "environment", "environment.csv", "12_Insert_Environment.sql", "environment_id",
-  "soil_metrics", "soil_metrics.csv", "13_Insert_SoilMetrics.sql", "soil_metric_id",
-  "soil_horizons", "soil_horizons.csv", "14_Insert_SoilHorizons.sql", "soil_horizon_id",
-  "citations", "citations.csv", "15_Insert_Citations.sql", NA,
-  "project_source", "project_source.csv", "16_Insert_Project_Source.sql", NA,
-  "project_citations", "project_citations.csv", "17_Insert_Project_Citations.sql", NA
-)
-
 # Define core logic ----
-build_insert_statement <- function(table_name, input_csv, output_sql, serial_key_id, database_connection) {
+build_insert_statement <- function(table_name, combined_table_csv,
+                                   output_sql, serial_key_id, database_connection) {
   # Get table schema from AKVEG database
   column_names <- dbListFields(database_connection, table_name)
   # Remove auto-incrementing ID field for tables that use it
@@ -67,8 +52,8 @@ build_insert_statement <- function(table_name, input_csv, output_sql, serial_key
   sql_columns <- paste(column_names, collapse = ", ")
 
   # Define I/O paths
-  corrected_path <- path(data_folder, "processed", "corrected", input_csv)
-  processed_path <- path(data_folder, "processed", input_csv)
+  corrected_path <- path(data_folder, "processed", "corrected", combined_table_csv)
+  processed_path <- path(data_folder, "processed", combined_table_csv)
   output_path <- path(data_folder, "sql_statements", output_sql)
 
   # Read corrected table if it exists
@@ -129,13 +114,7 @@ build_insert_statement <- function(table_name, input_csv, output_sql, serial_key
 
 # Execute logic ----
 # Iterate through every row in the config table
-pwalk(config_table, ~ build_insert_statement(
-  table_name = ..1,
-  input_csv = ..2,
-  output_sql = ..3,
-  serial_key_id = ..4,
-  database_connection = database_connection
-))
+pwalk(config_table, build_insert_statement, database_connection = database_connection)
 
 # Close database connection
 dbDisconnect(database_connection)
