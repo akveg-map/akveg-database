@@ -30,7 +30,13 @@ CREATE TABLE project (
     year_start smallint NOT NULL,
     year_end smallint NOT NULL,
     project_description varchar(500) NOT NULL,
-    private boolean NOT NULL
+    private boolean NOT NULL,
+    source_type_id smallint NOT NULL REFERENCES source_type,
+    source_collection_id smallint REFERENCES source_collection,
+    published bool NOT NULL,
+    download_url text,
+    source_contact_id smallint REFERENCES personnel,
+    acquisition_date date NOT NULL
 );
 
 -- Create citations table
@@ -39,18 +45,6 @@ CREATE TABLE citations (
   citation_short varchar(50) UNIQUE NOT NULL,
   citation_long text UNIQUE NOT NULL,
   citation_url text
-);
-
--- Create project source table
-CREATE TABLE project_source (
-    project_source_id smallint PRIMARY KEY,
-    project_code varchar(30) NOT NULL REFERENCES project,
-    source_type_id smallint NOT NULL REFERENCES source_type,
-    source_collection_id smallint REFERENCES source_collection,
-    published bool NOT NULL,
-    download_url text,
-    source_contact_id smallint REFERENCES personnel,
-    acquisition_date date NOT NULL
 );
 
 -- Create project status table
