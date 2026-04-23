@@ -135,7 +135,7 @@ final_tables <- c(
 
 # Execute SQL build and ingestion ----
 
-# Run database build scripts
+# 1. Run database build scripts
 ## This will drop existing metadata tables and create new (empty) ones
 build_scripts <- "02_Metadata.sql"
 
@@ -165,28 +165,51 @@ for (script in build_scripts) {
   message(paste("Finished script:", script))
 }
 
-# 2. Upload metadata tables directly
-# Note: Ensure final_tables is ordered so parents (lookups) are inserted before children
-for (table_name in names(final_tables)) {
-  message(paste("Directly inserting data into table:", table_name))
+# 2. Upload metadata tables to database
+## All warnings about transactions being in progress (or not) can be safely ignored
 
-  # dbWriteTable handles the R-to-SQL type conversion, NA-to-NULL, and escaping
-  dbWriteTable(
-    conn = database_connection,
-    name = table_name,
-    value = final_tables[[table_name]],
-    append = TRUE, # Add to the tables we just created/cleared
-    row.names = FALSE
-  )
-}
+# Close any open transactions (e.g., from transaction failure)
+try(dbExecute(database_connection, "ROLLBACK;"))
 
-# 3. Optional: Run post-upload SQL fixes (The "Update Joins")
-# If you have an excel-based correction to apply via a staging table:
-# source(path(repository_folder, "03_data_insert", "run_bulk_corrections.R"))
+# Begin transaction
+dbExecute(database_connection, "BEGIN;")
+
+tryCatch(
+  {
+    # Obtain table names
+    table_list <- names(final_tables)
+
+    for (i in seq_along(table_list)) {
+      target_table <- table_list[i]
+
+      message(paste0("Step ", i, " of ", length(table_list), ": Inserting into ", target_table, "..."))
+
+      dbWriteTable(
+        conn = database_connection,
+        name = target_table,
+        value = final_tables[[target_table]],
+        append = TRUE,
+        row.names = FALSE
+      )
+    }
+
+    # Commit to database if error-free
+    dbExecute(database_connection, "COMMIT;")
+    message("--- Success! All metadata successfully migrated to the database. ---")
+  },
+  error = function(e) {
+    # If a table fails, undo the entire transaction
+    dbExecute(database_connection, "ROLLBACK;")
+    message("--- DATA INSERT FAILURE")
+    message(e$message)
+    # Stop the script
+    stop("Migration failed. Database has been rolled back to empty tables.")
+  }
+)
 
 # Close database connection ----
 dbDisconnect(database_connection)
-message("Database build and metadata insertion complete.")
+message("Metadata build and migration complete.")
 
 # Clear workspace
 rm(list = ls())
