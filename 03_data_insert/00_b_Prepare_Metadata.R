@@ -8,21 +8,26 @@
 # ---------------------------------------------------------------------------
 
 # Import required libraries
+library(DBI)
 library(dplyr, warn.conflicts = FALSE)
 library(fs)
 library(readr)
 library(readxl)
+library(RPostgres)
 library(stringr)
 library(purrr)
 library(tidyr)
 library(tibble)
 
-# Set directories
-root_folder <- "C:/ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database/Data"
-data_folder <- path(root_folder, "Tables_Metadata")
+# Set file and directory paths ----
+root_folder <- "C:/ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database"
+data_folder <- path(root_folder, "Data", "Tables_Metadata")
+repository_folder <- path_dir(path_real("."))
+authentication <- path(root_folder, "Credentials", "akveg_private_build", "authentication_akveg_private_build.csv")
 
-# Define output
-sql_metadata <- path(root_folder, "Data_Plots/sql_statements/00_b_Insert_Metadata.sql")
+# Connect to the AKVEG Database ----
+source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
+database_connection <- connect_database_postgresql(authentication)
 
 # Define naming exceptions for ID columns
 suffix_exceptions <- c(
@@ -117,6 +122,7 @@ names(constraint_tables)[names(constraint_tables) == "plot_dimensions_m"] <- "pl
 names(constraint_tables)[names(constraint_tables) == "nonmatrix_feature"] <- "soil_nonmatrix_features"
 
 # Compile list of all metadata tables
+## Schema table must be ordered before database dictionary
 final_tables <- c(
   constraint_tables,
   list(
@@ -127,58 +133,60 @@ final_tables <- c(
   )
 )
 
-# Write data to SQL file
-statement <- c(
-  "-- -*- coding: utf-8 -*-",
-  "-- ---------------------------------------------------------------------------",
-  "-- Insert metadata and constraints",
-  "-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science",
-  paste("-- Last Updated: ", Sys.Date()),
-  "-- Usage: Script should be executed in a PostgreSQL 16+ database.",
-  '-- Description: "Insert metadata and constraints" pushes data from the database dictionary and schema into the database server. The script "Build metadata and constraint tables" should be run prior to this script to start with empty, properly formatted tables.',
-  "-- ---------------------------------------------------------------------------",
-  "",
-  "-- Initialize transaction",
-  "START TRANSACTION;",
-  "",
-  "-- Insert data into constraint tables",
-  ""
-)
+# Execute SQL build and ingestion ----
 
-# Loop through all metadata tables
-for (table_name in names(final_tables)) {
-  df <- final_tables[[table_name]]
+# Run database build scripts
+## This will drop existing metadata tables and create new (empty) ones
+build_scripts <- "02_Metadata.sql"
 
-  # Add apostrophes, coerce to string, and format NULL
-  df_sql <- df %>%
-    mutate(across(where(is.character), ~ paste0("'", str_replace_all(.x, "'", "''"), "'"))) %>% # Format character columns by adding apostrophes at the start/end of the string, convert single apostrophes to double apostrophes for SQL
-    mutate(across(everything(), ~ replace_na(as.character(.x), "NULL"))) %>% # Coerce all columns to string and replace NA with "NULL"
-    mutate(across(everything(), ~ ifelse(.x == "'NA'" | .x == "''", "NULL", .x)))
+for (script in build_scripts) {
+  message(paste("Executing build script:", script))
+  build_path <- path(repository_folder, "01_database_build", script)
 
-  # Add header
-  cols <- paste(names(df), collapse = ", ")
-  statement <- c(
-    statement,
-    paste0("INSERT INTO ", table_name, " (", cols, ") VALUES")
-  )
+  # Read in full file
+  full_sql <- read_file(build_path)
 
-  # Collapse data into character vector
-  rows <- df_sql %>%
-    unite("row", everything(), sep = ", ") %>%
-    mutate(row = paste0("  (", row, "),")) %>%
-    pull(row)
+  # Chunk the file into separate CREATE statements
+  ## Split by semicolon
+  sql_commands <- str_split(full_sql, ";(\\s*\\n|$)") %>%
+    flatten_chr() %>%
+    str_trim() %>% ## Remove whitespaces
+    keep(~ grepl("CREATE|INSERT|COMMIT|DROP", .x, ignore.case = TRUE)) ## Ignore comments and non-commands
 
-  # Replace final comma with semicolon
-  rows[length(rows)] <- str_replace(rows[length(rows)], ",$", ";")
+  total_chunks <- length(sql_commands)
 
-  statement <- c(statement, rows, "") # Add rows and a blank line for readability
+  # Execute each command individually
+  # Use iwalk to produce visual counter message in console
+  iwalk(sql_commands, function(cmd, i) {
+    message(paste0("Chunk ", i, " of ", total_chunks, ": ", substr(cmd, 1, 40), "..."))
+    dbExecute(database_connection, cmd)
+  })
+
+  message(paste("Finished script:", script))
 }
 
-statement <- c(
-  statement,
-  "-- Commit transaction",
-  "COMMIT TRANSACTION;"
-)
+# 2. Upload metadata tables directly
+# Note: Ensure final_tables is ordered so parents (lookups) are inserted before children
+for (table_name in names(final_tables)) {
+  message(paste("Directly inserting data into table:", table_name))
 
-# Write statement to SQL file
-write_lines(statement, sql_metadata)
+  # dbWriteTable handles the R-to-SQL type conversion, NA-to-NULL, and escaping
+  dbWriteTable(
+    conn = database_connection,
+    name = table_name,
+    value = final_tables[[table_name]],
+    append = TRUE, # Add to the tables we just created/cleared
+    row.names = FALSE
+  )
+}
+
+# 3. Optional: Run post-upload SQL fixes (The "Update Joins")
+# If you have an excel-based correction to apply via a staging table:
+# source(path(repository_folder, "03_data_insert", "run_bulk_corrections.R"))
+
+# Close database connection ----
+dbDisconnect(database_connection)
+message("Database build and metadata insertion complete.")
+
+# Clear workspace
+rm(list = ls())
