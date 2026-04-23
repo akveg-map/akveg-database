@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Combine data tables
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-04-21
+# Last Updated: 2026-04-22
 # Usage: Script should be executed in R 4.5.1+.
 # Description: "Combine data tables" combines data from processed datasets into single CSV files. The CSV files can then be converted into a SQL statement for upload to the AKVEG database. The script requires metadata tables to be inserted into the AKVEG Database.
 # ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ all_folders <- path(data_folder, target_paths)
 # Read control table file
 config_table <- read_csv(metadata_input,
   col_select = c(
-    "table_name", "input_pattern", "output_csv", "warn_if_missing",
+    "table_name", "input_pattern", "combined_table_csv", "warn_if_missing",
     "clean_function", "join_function", "serial_key_id",
     "include_combine"
   )
@@ -104,7 +104,7 @@ final_results_list <- pmap(config_table, process_tables,
 # Export combined data ----
 ## One table for each list item
 pwalk(
-  list(final_results_list, config_table$output_csv),
+  list(final_results_list, config_table$combined_table_csv),
   \(data, name) {
     write_csv(data, path(data_folder, "processed", name))
   }
