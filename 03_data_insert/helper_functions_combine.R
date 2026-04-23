@@ -95,11 +95,14 @@ join_project_metadata <- function(df, lookup) {
 clean_site_data <- function(df) {
   df |>
     rename_columns() |>
-    mutate(establishing_project_code = if_else(
-      establishing_project_code == "accs_nelchina_2022",
-      "accs_nelchina_2023",
-      establishing_project_code
-    ))
+    mutate(
+      establishing_project_code = if_else(
+        establishing_project_code == "accs_nelchina_2022",
+        "accs_nelchina_2023",
+        establishing_project_code
+      ),
+      across(c(latitude_dd, longitude_dd), ~ round(.x, digits = 9))
+    )
 }
 
 #' Join Site Table
