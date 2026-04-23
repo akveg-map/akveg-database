@@ -56,8 +56,13 @@ config_table <- tribble(
 )
 
 # Define core logic ----
-build_insert_statement <- function(table_name, input_csv, output_sql, database_connection) {
+build_insert_statement <- function(table_name, input_csv, output_sql, serial_key_id, database_connection) {
+  # Get table schema from AKVEG database
   column_names <- dbListFields(database_connection, table_name)
+  # Remove auto-incrementing ID field for tables that use it
+  if (!is.na(serial_key_id)) {
+    column_names <- column_names[column_names != serial_key_id]
+  }
   sql_columns <- paste(column_names, collapse = ", ")
 
   # Define I/O paths
@@ -121,6 +126,7 @@ pwalk(config_table, ~ build_insert_statement(
   table_name = ..1,
   input_csv = ..2,
   output_sql = ..3,
+  serial_key_id = ..4,
   database_connection = database_connection
 ))
 
