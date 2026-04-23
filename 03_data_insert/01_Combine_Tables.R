@@ -88,93 +88,64 @@ config_table <- tribble(
   ~output_path,
   ~clean_function,
   ~join_function,
+  ~serial_key_id,
   #---------|---------|---------|---------
-  "project",
-  "01_project.*csv",
-  TRUE,
-  "projects.csv",
-  identity,
-  join_project_metadata,
-  "site",
-  "02_site.*csv",
-  TRUE,
-  "sites.csv",
-  clean_site_data,
-  join_site_metadata,
-  "site_visit",
-  "03_sitevisit.*csv",
-  TRUE,
-  "site_visits.csv",
-  clean_visit_data,
-  join_visit_metadata,
-  "vegetation",
-  "05_vegetationcover.*csv",
-  TRUE,
-  "vegetation_cover.csv",
-  clean_vegetation_data,
-  join_vegetation_metadata,
-  "abiotic",
-  "06_abiotictopcover.*csv",
-  FALSE,
-  "abiotic_top_cover.csv",
-  clean_abiotic_data,
-  join_abiotic_metadata,
-  "whole_tussock",
-  "07_wholetussockcover.*csv",
-  FALSE,
-  "whole_tussock_cover.csv",
-  clean_tussock_data,
-  join_tussock_metadata,
-  "ground_cover",
-  "08_groundcover.*csv",
-  FALSE,
-  "ground_cover.csv",
-  rename_columns,
-  join_ground_metadata,
-  "structural_group",
-  "09_structuralgroupcover.*csv",
-  FALSE,
-  "structural_group_cover.csv",
-  clean_structural_data,
-  join_structural_metadata,
-  "shrub_structure",
-  "11_shrubstructure.*csv",
-  FALSE,
-  "shrub_structure.csv",
-  rename_columns,
-  join_shrub_metadata,
-  "environment",
-  "12_environment.*csv",
-  FALSE,
-  "environment.csv",
-  clean_environment_data,
-  join_environment_metadata,
-  "soil_metrics",
-  "13_soilmetrics.*csv",
-  FALSE,
-  "soil_metrics.csv",
-  clean_soil_metrics_data,
-  join_soil_metrics_metadata,
-  "soil_horizons",
-  "14_soilhorizons.*csv",
-  FALSE,
-  "soil_horizons.csv",
-  clean_soil_horizons_data,
-  join_soil_horizons_metadata
+  "project", "01_project.*csv", TRUE, "projects.csv", identity, join_project_metadata, NA,
+  "site", "02_site.*csv", TRUE, "sites.csv", clean_site_data, join_site_metadata, NA,
+  "site_visit", "03_sitevisit.*csv", TRUE, "site_visits.csv", clean_visit_data, join_visit_metadata, NA,
+  "vegetation_cover", "05_vegetationcover.*csv", TRUE, "vegetation_cover.csv", clean_vegetation_data,
+  join_vegetation_metadata, "vegetation_cover_id",
+  "abiotic_top_cover", "06_abiotictopcover.*csv", FALSE, "abiotic_top_cover.csv",
+  clean_abiotic_data, join_abiotic_metadata, "abiotic_cover_id",
+  "whole_tussock_cover", "07_wholetussockcover.*csv", FALSE, "whole_tussock_cover.csv",
+  clean_tussock_data, join_tussock_metadata, "tussock_id",
+  "ground_cover", "08_groundcover.*csv", FALSE, "ground_cover.csv",
+  rename_columns, join_ground_metadata, "ground_cover_id",
+  "structural_group_cover", "09_structuralgroupcover.*csv", FALSE, "structural_group_cover.csv",
+  clean_structural_data, join_structural_metadata, "structural_cover_id",
+  "shrub_structure", "11_shrubstructure.*csv", FALSE, "shrub_structure.csv", rename_columns,
+  join_shrub_metadata, "shrub_structure_id",
+  "environment", "12_environment.*csv", FALSE, "environment.csv",
+  clean_environment_data, join_environment_metadata, "environment_id",
+  "soil_metrics", "13_soilmetrics.*csv", FALSE, "soil_metrics.csv",
+  clean_soil_metrics_data, join_soil_metrics_metadata, "soil_metrics_id",
+  "soil_horizons", "14_soilhorizons.*csv", FALSE, "soil_horizons.csv",
+  clean_soil_horizons_data, join_soil_horizons_metadata, "soil_horizons_id"
 )
 
 # Create function for table processing
-process_tables <- function(input_pattern, table_name, warn_if_missing, clean_function, join_function, ...) {
+process_tables <- function(input_pattern, table_name, warn_if_missing, clean_function,
+                           join_function, serial_key_id,
+                           database_connection, ...) {
   message(paste0("Processing table... ", table_name))
+
+  # Get table schema from AKVEG database
+  column_names <- dbListFields(database_connection, table_name)
+
+  # Remove auto-incrementing ID field for tables that use it
+  if (!is.na(serial_key_id)) {
+    column_names <- column_names[column_names != serial_key_id]
+  }
+
+  # Process and combine individual tables
   find_files_warning(all_folders, input_pattern, show_warning = warn_if_missing) |>
     map(\(f) read_csv(f, show_col_types = FALSE)) |>
     map(clean_function) |>
     list_rbind() |>
-    join_function(lookup_data)
+    join_function(lookup_data) |>
+    select(all_of(column_names))
 }
 
 # Iterate through every row in the config table and apply process_tables function
-final_results_list <- pmap(config_table, process_tables)
+final_results_list <- pmap(config_table, ~ process_tables(
+  table_name          = ..1,
+  input_pattern       = ..2,
+  warn_if_missing     = ..3,
+  clean_function      = ..5,
+  join_function       = ..6,
+  serial_key_id       = ..7,
+  database_connection = database_connection
+))
 
 # Export combined data ----
 ## One table for each list item
