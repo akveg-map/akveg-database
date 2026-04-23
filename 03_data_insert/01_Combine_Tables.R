@@ -12,6 +12,7 @@ library(dplyr, warn.conflicts = FALSE)
 library(fs)
 library(purrr)
 library(readr)
+library(readxl)
 library(rjson)
 library(RPostgres)
 library(stringr)
@@ -33,6 +34,7 @@ credential_folder <- path(drive, root_folder, "Credentials")
 project_list <- path(repository_folder, "03_data_insert", "config", "List_Included_Projects.json")
 queries_input <- path(repository_folder, "03_data_insert", "config", "queries_lookup.yaml")
 metadata_input <- path(repository_folder, "03_data_insert", "config", "tables_metadata.csv")
+source_input <- path(drive, root_folder, "Data", "Tables_Metadata", "project_source.xlsx")
 
 # Define functions ----
 source(path(repository_folder, "03_data_insert", "helper_functions_combine.R"))
@@ -49,14 +51,14 @@ authentication <- path(
 )
 database_connection <- connect_database_postgresql(authentication)
 
-# Read in metadata ----
-# Read and execute SQL queries
+# Read in files ----
+# 1. Read and execute SQL queries
 queries_lookup <- read_yaml(queries_input)
 lookup_data <- map(queries_lookup$queries, \(q) dbGetQuery(database_connection, q))
-# Define vegetation plot folders
+# 2. Read plot folder paths
 target_paths <- fromJSON(file = project_list)$projects
 all_folders <- path(data_folder, target_paths)
-# Read control table file
+# 3. Read control table file
 config_table <- read_csv(metadata_input,
   col_select = c(
     "table_name", "input_pattern", "combined_table_csv", "warn_if_missing",
@@ -65,6 +67,11 @@ config_table <- read_csv(metadata_input,
   )
 ) |>
   filter(include_combine) # Drop files that aren't used in this script
+# 4. Read project source data
+source_original <- read_excel(source_input)
+
+# Process project source table
+source_processed <- join_source_metadata(source_original, lookup_data)
 
 # Create function for table processing
 process_tables <- function(input_pattern, table_name, warn_if_missing, clean_function,
@@ -85,11 +92,22 @@ process_tables <- function(input_pattern, table_name, warn_if_missing, clean_fun
   }
 
   # Process and combine individual tables
-  find_files_warning(all_folders, input_pattern, show_warning = warn_if_missing) |>
+  df_join <- find_files_warning(all_folders, input_pattern, show_warning = warn_if_missing) |>
     map(\(f) read_csv(f, show_col_types = FALSE)) |>
     map(clean_logic) |>
     list_rbind() |>
-    join_logic(lookup_data) |>
+    join_logic(lookup_data)
+
+  # Add source metadata to project table
+  if (table_name == "project") {
+    source_columns <- setdiff(names(source_processed), "project_code")
+
+    # This part will have to be modified once we have project tables that reflect the new schema
+    df_join <- df_join |>
+      left_join(source_processed, by = "project_code")
+  }
+
+  df_join |>
     select(all_of(column_names))
 }
 
