@@ -80,11 +80,17 @@ build_insert_statement <- function(table_name, input_csv, output_sql, serial_key
   }
 
   # Format table for as SQL string
-  # Escape single quotes, wrap characters and dates in quotes
   input_sql <- df %>%
+    # Escape single quotes, and wrap characters and dates in quotes
     mutate(across(where(~ is.character(.) | is.Date(.)), ~ str_replace_all(., "'", "''"))) %>%
     mutate(across(where(~ is.character(.) | is.Date(.)), ~ paste0("'", ., "'"))) %>%
+    # Convert all columns to character
     mutate(across(everything(), as.character)) |>
+    # Replace true NA with 'NULL' (numeric columns)
+    mutate(across(everything(), ~ if_else(is.na(.), "NULL", as.character(.)))) |>
+    # Replace 'NA' with 'NULL' (character columns)
+    mutate(across(everything(), ~ str_replace(., "^'NA'$", "NULL"))) %>%
+    # Combine all columns and values into a single row
     unite(sql_row, everything(), sep = ", ") %>%
     mutate(sql_row = paste0("(", sql_row, "),"))
 
