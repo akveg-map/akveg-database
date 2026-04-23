@@ -85,7 +85,7 @@ config_table <- tribble(
   ~table_name,
   ~input_pattern,
   ~warn_if_missing,
-  ~output_path,
+  ~output_csv,
   ~clean_function,
   ~join_function,
   ~serial_key_id,
@@ -150,7 +150,7 @@ final_results_list <- pmap(config_table, ~ process_tables(
 # Export combined data ----
 ## One table for each list item
 pwalk(
-  list(final_results_list, config_table$output_path),
+  list(final_results_list, config_table$output_csv),
   \(data, name) {
     write_csv(data, path(data_folder, "processed", name))
   }
