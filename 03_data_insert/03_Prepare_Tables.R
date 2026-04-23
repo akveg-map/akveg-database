@@ -36,23 +36,24 @@ database_connection <- connect_database_postgresql(authentication)
 
 # Create config table to hold table-specific values and functions
 config_table <- tribble(
-  ~table_name, ~input_csv, ~output_sql,
+  ~table_name, ~input_csv, ~output_sql, ~serial_key_id,
   #--------------------------|------------|-----------
-  "project", "projects.csv", "01_Insert_Project.sql",
-  "site", "sites.csv", "02_Insert_Site.sql",
-  "site_visit", "site_visits.csv", "03_Insert_SiteVisit.sql",
-  "vegetation_cover", "vegetation_cover.csv", "05_Insert_VegetationCover.sql",
-  "abiotic_top_cover", "abiotic_top_cover.csv", "06_Insert_AbioticTopCover.sql",
-  "whole_tussock_cover", "whole_tussock_cover.csv", "07_Insert_WholeTussockCover.sql",
-  "ground_cover", "ground_cover.csv", "08_Insert_GroundCover.sql",
+  "project", "projects.csv", "01_Insert_Project.sql", NA,
+  "site", "sites.csv", "02_Insert_Site.sql", NA,
+  "site_visit", "site_visits.csv", "03_Insert_SiteVisit.sql", NA,
+  "vegetation_cover", "vegetation_cover.csv", "05_Insert_VegetationCover.sql", "vegetation_cover_id",
+  "abiotic_top_cover", "abiotic_top_cover.csv", "06_Insert_AbioticTopCover.sql", "abiotic_cover_id",
+  "whole_tussock_cover", "whole_tussock_cover.csv", "07_Insert_WholeTussockCover.sql", "tussock_id",
+  "ground_cover", "ground_cover.csv", "08_Insert_GroundCover.sql", "ground_cover_id",
   "structural_group_cover", "structural_group_cover.csv", "09_Insert_StructuralGroupCover.sql",
-  "shrub_structure", "shrub_structure.csv", "11_Insert_ShrubStructure.sql",
-  "environment", "environment.csv", "12_Insert_Environment.sql",
-  "soil_metrics", "soil_metrics.csv", "13_Insert_SoilMetrics.sql",
-  "soil_horizons", "soil_horizons.csv", "14_Insert_SoilHorizons.sql",
-  "citations", "citations.csv", "15_Insert_Citations.sql",
-  "project_source", "project_source.csv", "16_Insert_Project_Source.sql",
-  "project_citations", "project_citations.csv", "17_Insert_Project_Citations.sql"
+  "structural_cover_id",
+  "shrub_structure", "shrub_structure.csv", "11_Insert_ShrubStructure.sql", "shrub_structure_id",
+  "environment", "environment.csv", "12_Insert_Environment.sql", "environment_id",
+  "soil_metrics", "soil_metrics.csv", "13_Insert_SoilMetrics.sql", "soil_metric_id",
+  "soil_horizons", "soil_horizons.csv", "14_Insert_SoilHorizons.sql", "soil_horizon_id",
+  "citations", "citations.csv", "15_Insert_Citations.sql", NA,
+  "project_source", "project_source.csv", "16_Insert_Project_Source.sql", NA,
+  "project_citations", "project_citations.csv", "17_Insert_Project_Citations.sql", NA
 )
 
 # Define core logic ----
