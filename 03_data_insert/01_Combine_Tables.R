@@ -26,10 +26,7 @@ root_folder <- "ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/
 
 # Define input folders
 data_folder <- path(drive, root_folder, "Data/Data_Plots")
-repository_folder <- path(
-  drive,
-  "ACCS_Work/Repositories/akveg-database"
-)
+repository_folder <- path(drive, "ACCS_Work/Repositories/akveg-database")
 credential_folder <- path(drive, root_folder, "Credentials")
 
 # Define input files ----
