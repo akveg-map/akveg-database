@@ -37,7 +37,7 @@ metadata_input <- path(repository_folder, "03_data_insert", "config", "tables_me
 source_input <- path(drive, root_folder, "Data", "Tables_Metadata", "project_source.xlsx")
 
 # Define functions ----
-source(path(repository_folder, "03_data_insert", "helper_functions_combine.R"))
+source(path(repository_folder, "03_data_insert", "helper_functions.R"))
 
 # Connect to AKVEG database ----
 
