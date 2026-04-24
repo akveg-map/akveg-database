@@ -490,3 +490,80 @@ join_soil_horizons_metadata <- function(df, lookup) {
     select(-nonmatrix_hue_code) |>
     rename(nonmatrix_hue_code = soil_hue_code)
 }
+
+# ===========================================================================
+# SQL INGESTION ----
+# ===========================================================================
+
+#' Build Reference Tables
+#' @description Creates database reference tables by splitting a SQL file into its individual statements and executing those statements. Running this function will potentially drop existing tables and replace them with empty ones.
+execute_sql_build <- function(database_connection, repository_folder, script_name) {
+  
+  message(paste("Executing build script:", script_name))
+  
+  # Define file path
+  build_path <- fs::path(repository_folder, "01_database_build", script_name)
+  
+  # Read in full SQL statement
+  full_sql <- readr::read_file(build_path)
+  
+  # Chunk the file into separate CREATE statements
+  ## Split by semicolon
+  sql_commands <- stringr::str_split(full_sql, ";(\\s*\\n|$)") %>%
+    purrr::flatten_chr() %>%
+    stringr::str_trim() %>%  ## Remove whitespaces
+    purrr::keep(~ grepl("CREATE|INSERT|COMMIT|DROP", .x, ignore.case = TRUE))
+  
+  total_chunks <- length(sql_commands)
+  
+  # Execute each command individually
+  # Use iwalk to produce visual counter message in console
+  purrr::iwalk(sql_commands, function(cmd, i) {
+    message(paste0("Chunk ", i, " of ", total_chunks, ": ", substr(cmd, 1, 40), "..."))
+    DBI::dbExecute(database_connection, cmd)
+  })
+  
+  message(paste("Finished script:", script_name))
+}
+
+#' Insert Reference Tables
+#' @description Inserts data into individual tables. Uses atomic loading to prevent partial data upload. This function assumes that the list element names match the database table names.
+upload_to_database <- function(database_connection, final_tables) {
+  
+  # Close any open transactions (e.g., resulting from transaction failures)
+  try(DBI::dbExecute(database_connection, "ROLLBACK;"), silent = TRUE)
+  
+  # Begin transaction
+  DBI::dbExecute(database_connection, "BEGIN;")
+  
+  tryCatch({
+    
+    # Obtain table names
+    table_list <- names(final_tables)
+    
+    # Iterate over tables in list and insert data in database
+    for (i in seq_along(table_list)) {
+      target_table <- table_list[i]
+      message(paste0("Step ", i, " of ", length(table_list), ": Inserting into ", target_table, "..."))
+      
+      DBI::dbWriteTable(
+        conn = database_connection,
+        name = target_table,
+        value = final_tables[[target_table]],
+        append = TRUE,
+        row.names = FALSE
+      )
+    }
+    
+    # Commit to database if no errors were encountered
+    DBI::dbExecute(database_connection, "COMMIT;")
+    message("--- Success! Data successfully migrated to the database. ---")
+  }, ## If one of the insertions failed, rollback changes (revert to original state)  and print out error message
+  error = function(e) {
+    dbExecute(database_connection, "ROLLBACK;")
+    message("--- DATA INSERT FAILURE")
+    message(e$message)
+    # Stop the script
+    stop("Migration failed. Database has been rolled back to empty tables.")
+  })
+}
