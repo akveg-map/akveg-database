@@ -35,11 +35,13 @@ taxonomy_file = path(data_folder, 'taxonomy.xlsx')
 unknown_file = path(data_folder, 'unknowns.xlsx')
 citation_file = path(data_folder, 'citations.xlsx')
 
-# Source functions
+# Source functions ----
 helpers <- new.env()
 source(path(repository_folder, "03_data_insert", "helper_functions.R"), local = helpers)
 clean_metadata <- helpers$clean_metadata
 join_source_table <- helpers$join_source_table
+execute_sql_build <- helpers$execute_sql_build
+upload_to_database <- helpers$upload_to_database
 
 # Connect to the AKVEG Database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
@@ -83,9 +85,6 @@ process_tables <- function(taxonomy_table,
   
   message(paste0("Processing table... ", table_name))
   
-  # Convert strings to functions
-  #join_logic <- match.fun(join_function)
-  
   # Get table schema from AKVEG database
   column_names <- dbListFields(database_connection, table_name)
   
@@ -96,6 +95,7 @@ process_tables <- function(taxonomy_table,
       value_name = table_name
     )
   
+  # Handle tables with single join statement
   if(is.data.frame(join_table)){
     df_processed <- 
       join_function(df = df_processed,
@@ -104,7 +104,9 @@ process_tables <- function(taxonomy_table,
   }
   
   df_processed = df_processed |> 
+    # Create sequential primary key (used later in the script)
     rowid_to_column(primary_key_id) |> 
+    # Ensure column names match database schema
     select(all_of(column_names))
 }
 
@@ -158,6 +160,7 @@ final_tables$taxon_all = taxonomy_data %>%
   select(taxon_code, taxon_name, taxon_author_id, taxon_status_id, taxon_accepted_code)
 
 # Remove extra fields
+## Script will break without these omissions
 final_tables$taxon_accepted = final_tables$taxon_accepted %>%
   select(-taxon_accepted)
 final_tables$taxon_hierarchy = final_tables$taxon_hierarchy %>%
@@ -165,77 +168,12 @@ final_tables$taxon_hierarchy = final_tables$taxon_hierarchy %>%
 
 # Execute SQL build and ingestion ----
 
-# 1. Run database build scripts
+# Run database build scripts
 ## This will drop existing metadata tables and create new (empty) ones
-build_scripts <- "01_Taxonomy.sql"
+execute_sql_build(database_connection, repository_folder, "01_Taxonomy.sql")
 
-for (script in build_scripts) {
-  message(paste("Executing build script:", script))
-  build_path <- path(repository_folder, "01_database_build", script)
-  
-  # Read in full file
-  full_sql <- read_file(build_path)
-  
-  # Chunk the file into separate CREATE statements
-  ## Split by semicolon
-  sql_commands <- str_split(full_sql, ";(\\s*\\n|$)") %>%
-    flatten_chr() %>%
-    str_trim() %>% ## Remove whitespaces
-    keep(~ grepl("CREATE|INSERT|COMMIT|DROP", .x, ignore.case = TRUE)) ## Ignore comments and non-commands
-  
-  total_chunks <- length(sql_commands)
-  
-  # Execute each command individually
-  # Use iwalk to produce visual counter message in console
-  iwalk(sql_commands, function(cmd, i) {
-    message(paste0("Chunk ", i, " of ", total_chunks, ": ", substr(cmd, 1, 40), "..."))
-    dbExecute(database_connection, cmd)
-  })
-  
-  message(paste("Finished script:", script))
-}
-
-# 2. Upload metadata tables to database
-## All warnings about transactions being in progress (or not) can be safely ignored
-
-# Close any open transactions (e.g., from transaction failure)
-try(dbExecute(database_connection, "ROLLBACK;"))
-
-# Begin transaction
-dbExecute(database_connection, "BEGIN;")
-
-tryCatch(
-  {
-    # Obtain table names
-    table_list <- names(final_tables)
-    
-    for (i in seq_along(table_list)) {
-      target_table <- table_list[i]
-      
-      message(paste0("Step ", i, " of ", length(table_list), ": Inserting into ", target_table, "..."))
-      
-      dbWriteTable(
-        conn = database_connection,
-        name = target_table,
-        value = final_tables[[target_table]],
-        append = TRUE,
-        row.names = FALSE
-      )
-    }
-    
-    # Commit to database if error-free
-    dbExecute(database_connection, "COMMIT;")
-    message("--- Success! All taxonomy tables successfully migrated to the database. ---")
-  },
-  error = function(e) {
-    # If a table fails, undo the entire transaction
-    dbExecute(database_connection, "ROLLBACK;")
-    message("--- DATA INSERT FAILURE")
-    message(e$message)
-    # Stop the script
-    stop("Migration failed. Database has been rolled back to empty tables.")
-  }
-)
+# Upload metadata tables to database
+upload_to_database(database_connection, final_tables)
 
 # Close database connection ----
 dbDisconnect(database_connection)
