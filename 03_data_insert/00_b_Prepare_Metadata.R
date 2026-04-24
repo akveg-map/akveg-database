@@ -2,27 +2,32 @@
 # ---------------------------------------------------------------------------
 # Prepare metadata and constraints for upload
 # Authors: Timm Nawrocki, Amanda Droghini, ACCS
-# Last Updated: 2026-03-26
+# Last Updated: 2026-04-23
 # Usage: Script should be executed in R 4.5.1+.
 # Description: Dynamically parses metadata and constraints from Excel into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
 
 # Import required libraries
-library(dplyr)
+library(DBI)
+library(dplyr, warn.conflicts = FALSE)
 library(fs)
 library(readr)
 library(readxl)
+library(RPostgres)
 library(stringr)
 library(purrr)
 library(tidyr)
 library(tibble)
 
-# Set directories
-root_folder <- "C:/ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database/Data"
-data_folder <- path(root_folder, "Tables_Metadata")
+# Set file and directory paths ----
+root_folder <- "C:/ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database"
+data_folder <- path(root_folder, "Data", "Tables_Metadata")
+repository_folder <- path_dir(path_real("."))
+authentication <- path(root_folder, "Credentials", "akveg_private_build", "authentication_akveg_private_build.csv")
 
-# Define output
-sql_metadata <- path(root_folder, "Data_Plots/sql_statements/00_b_Insert_Metadata.sql")
+# Connect to the AKVEG Database ----
+source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
+database_connection <- connect_database_postgresql(authentication)
 
 # Define naming exceptions for ID columns
 suffix_exceptions <- c(
@@ -41,6 +46,7 @@ suffix_exceptions <- c(
 dictionary_data <- read_excel(path(data_folder, "database_dictionary.xlsx"), sheet = "dictionary")
 schema_data <- read_excel(path(data_folder, "database_schema.xlsx"), sheet = "schema")
 org_data <- read_excel(path(data_folder, "organization.xlsx"), sheet = "organization")
+citations_data <- read_excel(path(data_folder, "project_citations.xlsx"))
 
 # Parse constraints
 constraint_tables <- dictionary_data %>%
@@ -101,6 +107,11 @@ database_dictionary_table <- dictionary_data %>%
   rowid_to_column("dictionary_id") %>%
   select(dictionary_id, field_id, data_attribute_id, data_attribute, definition)
 
+# Parse citations table
+citations_table <- citations_data |>
+  select(citation_short, citation_long, citation_url) |>
+  distinct() |> # Remove duplicates
+  arrange(citation_short)
 
 # Remove organization table in constraint_tables
 ## Use new organization_table instead
@@ -111,67 +122,94 @@ names(constraint_tables)[names(constraint_tables) == "plot_dimensions_m"] <- "pl
 names(constraint_tables)[names(constraint_tables) == "nonmatrix_feature"] <- "soil_nonmatrix_features"
 
 # Compile list of all metadata tables
+## Schema table must be ordered before database dictionary
 final_tables <- c(
   constraint_tables,
   list(
     organization = organization_table,
+    citations = citations_table,
     database_schema = database_schema_table,
     database_dictionary = database_dictionary_table
   )
 )
 
-# Write data to SQL file
-statement <- c(
-  "-- -*- coding: utf-8 -*-",
-  "-- ---------------------------------------------------------------------------",
-  "-- Insert metadata and constraints",
-  "-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science",
-  paste("-- Last Updated: ", Sys.Date()),
-  "-- Usage: Script should be executed in a PostgreSQL 16+ database.",
-  '-- Description: "Insert metadata and constraints" pushes data from the database dictionary and schema into the database server. The script "Build metadata and constraint tables" should be run prior to this script to start with empty, properly formatted tables.',
-  "-- ---------------------------------------------------------------------------",
-  "",
-  "-- Initialize transaction",
-  "START TRANSACTION;",
-  "",
-  "-- Insert data into constraint tables",
-  ""
-)
+# Execute SQL build and ingestion ----
 
-# Loop through all metadata tables
-for (table_name in names(final_tables)) {
-  df <- final_tables[[table_name]]
+# 1. Run database build scripts
+## This will drop existing metadata tables and create new (empty) ones
+build_scripts <- "02_Metadata.sql"
 
-  # Add apostrophes, coerce to string, and format NULL
-  df_sql <- df %>%
-    mutate(across(where(is.character), ~ paste0("'", str_replace_all(.x, "'", "''"), "'"))) %>% # Format character columns by adding apostrophes at the start/end of the string, convert single apostrophes to double apostrophes for SQL
-    mutate(across(everything(), ~ replace_na(as.character(.x), "NULL"))) %>% # Coerce all columns to string and replace NA with "NULL"
-    mutate(across(everything(), ~ ifelse(.x == "'NA'" | .x == "''", "NULL", .x)))
+for (script in build_scripts) {
+  message(paste("Executing build script:", script))
+  build_path <- path(repository_folder, "01_database_build", script)
 
-  # Add header
-  cols <- paste(names(df), collapse = ", ")
-  statement <- c(
-    statement,
-    paste0("INSERT INTO ", table_name, " (", cols, ") VALUES")
-  )
+  # Read in full file
+  full_sql <- read_file(build_path)
 
-  # Collapse data into character vector
-  rows <- df_sql %>%
-    unite("row", everything(), sep = ", ") %>%
-    mutate(row = paste0("  (", row, "),")) %>%
-    pull(row)
+  # Chunk the file into separate CREATE statements
+  ## Split by semicolon
+  sql_commands <- str_split(full_sql, ";(\\s*\\n|$)") %>%
+    flatten_chr() %>%
+    str_trim() %>% ## Remove whitespaces
+    keep(~ grepl("CREATE|INSERT|COMMIT|DROP", .x, ignore.case = TRUE)) ## Ignore comments and non-commands
 
-  # Replace final comma with semicolon
-  rows[length(rows)] <- str_replace(rows[length(rows)], ",$", ";")
+  total_chunks <- length(sql_commands)
 
-  statement <- c(statement, rows, "") # Add rows and a blank line for readability
+  # Execute each command individually
+  # Use iwalk to produce visual counter message in console
+  iwalk(sql_commands, function(cmd, i) {
+    message(paste0("Chunk ", i, " of ", total_chunks, ": ", substr(cmd, 1, 40), "..."))
+    dbExecute(database_connection, cmd)
+  })
+
+  message(paste("Finished script:", script))
 }
 
-statement <- c(
-  statement,
-  "-- Commit transaction",
-  "COMMIT TRANSACTION;"
+# 2. Upload metadata tables to database
+## All warnings about transactions being in progress (or not) can be safely ignored
+
+# Close any open transactions (e.g., from transaction failure)
+try(dbExecute(database_connection, "ROLLBACK;"))
+
+# Begin transaction
+dbExecute(database_connection, "BEGIN;")
+
+tryCatch(
+  {
+    # Obtain table names
+    table_list <- names(final_tables)
+
+    for (i in seq_along(table_list)) {
+      target_table <- table_list[i]
+
+      message(paste0("Step ", i, " of ", length(table_list), ": Inserting into ", target_table, "..."))
+
+      dbWriteTable(
+        conn = database_connection,
+        name = target_table,
+        value = final_tables[[target_table]],
+        append = TRUE,
+        row.names = FALSE
+      )
+    }
+
+    # Commit to database if error-free
+    dbExecute(database_connection, "COMMIT;")
+    message("--- Success! All metadata successfully migrated to the database. ---")
+  },
+  error = function(e) {
+    # If a table fails, undo the entire transaction
+    dbExecute(database_connection, "ROLLBACK;")
+    message("--- DATA INSERT FAILURE")
+    message(e$message)
+    # Stop the script
+    stop("Migration failed. Database has been rolled back to empty tables.")
+  }
 )
 
-# Write statement to SQL file
-write_lines(statement, sql_metadata)
+# Close database connection ----
+dbDisconnect(database_connection)
+message("Metadata build and migration complete.")
+
+# Clear workspace
+rm(list = ls())

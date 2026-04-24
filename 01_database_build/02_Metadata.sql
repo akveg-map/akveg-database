@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Build metadata and constraint tables
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2026-03-27
+-- Last Updated: 2026-04-23
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Build metadata and constraint tables" creates the empty tables for the metadata components of the AKVEG database, including the schema and data dictionary. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING METADATA TABLES.
 -- ---------------------------------------------------------------------------
@@ -12,6 +12,7 @@ START TRANSACTION;
 
 -- Drop metadata tables if they exist
 DROP TABLE IF EXISTS
+    citations,
     completion,
     cover_method,
     cover_type,
@@ -57,6 +58,13 @@ DROP TABLE IF EXISTS
 CASCADE;
 
 -- Create constraint tables
+
+CREATE TABLE citations (
+  citation_id serial PRIMARY KEY,
+  citation_short varchar(50) UNIQUE NOT NULL,
+  citation_long text UNIQUE NOT NULL,
+  citation_url text
+);
 
 CREATE TABLE completion (
     completion_id smallint PRIMARY KEY,

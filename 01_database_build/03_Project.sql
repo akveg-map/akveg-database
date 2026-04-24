@@ -1,8 +1,8 @@
 -- -*- coding: utf-8 -*-
 -- ---------------------------------------------------------------------------
 -- Build project tables
--- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2026-03-27
+-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
+-- Last Updated: 2026-04-23
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Build project tables" creates the empty tables for the vegetation survey and monitoring projects components of the AKVEG database. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING PROJECT TABLES.
 -- ---------------------------------------------------------------------------
@@ -13,7 +13,6 @@ START TRANSACTION;
 -- Drop project tables if they exist
 DROP TABLE IF EXISTS
     project,
-    citations,
     project_source,
     project_status,
     project_citations
@@ -30,21 +29,7 @@ CREATE TABLE project (
     year_start smallint NOT NULL,
     year_end smallint NOT NULL,
     project_description varchar(500) NOT NULL,
-    private boolean NOT NULL
-);
-
--- Create citations table
-CREATE TABLE citations (
-  citation_id smallint PRIMARY KEY,
-  citation_short varchar(50) UNIQUE NOT NULL,
-  citation_long text UNIQUE NOT NULL,
-  citation_url text
-);
-
--- Create project source table
-CREATE TABLE project_source (
-    project_source_id smallint PRIMARY KEY,
-    project_code varchar(30) NOT NULL REFERENCES project,
+    private boolean NOT NULL,
     source_type_id smallint NOT NULL REFERENCES source_type,
     source_collection_id smallint REFERENCES source_collection,
     published bool NOT NULL,
