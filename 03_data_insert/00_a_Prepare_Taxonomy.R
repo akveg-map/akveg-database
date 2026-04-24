@@ -40,7 +40,7 @@ unknown_file = path(data_folder,
 citation_file = path(data_folder,
                       'citations.xlsx')
 
-# Read taxonomy tables into dataframes
+# Read and merge taxonomy tables ----
 taxonomy_data = read_excel(taxonomy_file, sheet = 'taxonomy') %>%
   select(-code_manual, -org)
 unknown_data = read_excel(unknown_file, sheet = 'taxonomy')
@@ -48,6 +48,11 @@ citation_data = read_excel(citation_file, sheet = 'citations')
 
 # Merge taxonomy tables to single dataframe
 taxonomy_data = bind_rows(taxonomy_data, unknown_data)
+
+# Define accepted taxon status codes ----
+accepted_status = c('accepted', 'historical', 'taxonomy unresolved', 
+  'location unresolved', 'adjacent Yukon', 'adjacent BC', 
+  'adjacent Canada', 'ephemeral non-native')
 
 # Parse taxon author table
 author_table = taxonomy_data %>%
@@ -94,17 +99,8 @@ source_table = taxonomy_data %>%
 
 # Parse hierarchy table
 hierarchy_table = taxonomy_data %>%
-  filter(taxon_level == 'genus' |
-           taxon_level == 'unknown' |
-           taxon_level == 'functional group') %>%
-  filter(taxon_status == 'accepted' |
-           taxon_status == 'historical' |
-           taxon_status == 'taxonomy unresolved' |
-           taxon_status == 'location unresolved' |
-           taxon_status == 'adjacent Yukon' |
-           taxon_status == 'adjacent BC' |
-           taxon_status == 'adjacent Canada' |
-           taxon_status == 'ephemeral non-native') %>%
+  filter(taxon_level %in% c('genus', 'unknown', 'functional group')) %>%
+  filter(taxon_status %in% accepted_status) %>%
   distinct(taxon_accepted, .keep_all = TRUE) %>%
   left_join(family_table, by = 'taxon_family') %>%
   left_join(category_table, by = 'taxon_category') %>%
@@ -115,14 +111,7 @@ hierarchy_table = taxonomy_data %>%
 
 # Parse taxon accepted table
 accepted_table = taxonomy_data %>%
-  filter(taxon_status == 'accepted' |
-           taxon_status == 'historical' |
-           taxon_status == 'taxonomy unresolved' |
-           taxon_status == 'location unresolved' |
-           taxon_status == 'adjacent Yukon' |
-           taxon_status == 'adjacent BC' |
-           taxon_status == 'adjacent Canada' |
-           taxon_status == 'ephemeral non-native') %>%
+  filter(taxon_status %in% accepted_status) %>%
   separate(taxon_accepted, c('taxon_genus'), extra = 'drop', sep = '([ ])', remove = FALSE) %>%
   mutate(join_name = case_when(taxon_level == 'functional group' |
                                  taxon_level == 'unknown' ~ taxon_accepted,
