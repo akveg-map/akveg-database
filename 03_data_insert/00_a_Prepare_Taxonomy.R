@@ -8,6 +8,7 @@
 # ---------------------------------------------------------------------------
 
 # Import required libraries
+library(DBI)
 library(dplyr)
 library(fs)
 library(purrr)
