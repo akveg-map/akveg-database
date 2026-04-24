@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Prepare taxonomic data for upload
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-02-12
+# Last Updated: 2026-04-23
 # Usage: Script should be executed in R 4.5.1+.
 # Description: "Prepare taxonomic data for upload" parses taxonomy data into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
@@ -49,19 +49,11 @@ citation_data = read_excel(citation_file, sheet = 'citations')
 # Merge taxonomy tables to single dataframe
 taxonomy_data = bind_rows(taxonomy_data, unknown_data)
 
-# Export merged taxonomy table
-csv_taxonomy = path(data_folder, 'csv', 'taxonomy.csv')
-write_csv(taxonomy_data, file = csv_taxonomy)
-
 # Parse taxon author table
 author_table = taxonomy_data %>%
   distinct(taxon_author) %>%
   arrange(taxon_author) %>%
   rowid_to_column('taxon_author_id')
-
-# Export author table
-csv_author = path(data_folder, 'csv', 'taxon_author.csv')
-write_csv(author_table, file = csv_author)
 
 # Parse taxon category table
 category_table = taxonomy_data %>%
@@ -69,19 +61,11 @@ category_table = taxonomy_data %>%
   arrange(taxon_category) %>%
   rowid_to_column('taxon_category_id')
 
-# Export category table
-csv_category = path(data_folder, 'csv', 'taxon_category.csv')
-write_csv(category_table, file = csv_category)
-
 # Parse taxon family table
 family_table = taxonomy_data %>%
   distinct(taxon_family) %>%
   arrange(taxon_family) %>%
   rowid_to_column('taxon_family_id')
-
-# Export family table
-csv_family = path(data_folder, 'csv', 'taxon_family.csv')
-write_csv(family_table, file = csv_family)
 
 # Parse growth habit table
 habit_table = taxonomy_data %>%
@@ -89,19 +73,11 @@ habit_table = taxonomy_data %>%
   arrange(taxon_habit) %>%
   rowid_to_column('taxon_habit_id')
 
-# Export growth habit table
-csv_habit = path(data_folder, 'csv', 'taxon_habit.csv')
-write_csv(habit_table, file = csv_habit)
-
 # Parse taxonomic status table
 status_table = taxonomy_data %>%
   distinct(taxon_status) %>%
   arrange(taxon_status) %>%
   rowid_to_column('taxon_status_id')
-
-# Export taxonomic status table
-csv_status = path(data_folder, 'csv', 'taxon_status.csv')
-write_csv(status_table, file = csv_status)
 
 # Parse taxonomic level table
 level_table = taxonomy_data %>%
@@ -109,20 +85,12 @@ level_table = taxonomy_data %>%
   arrange(taxon_level) %>%
   rowid_to_column('taxon_level_id')
 
-# Export taxonomic level table
-csv_level = path(data_folder, 'csv', 'taxon_level.csv')
-write_csv(level_table, file = csv_level)
-
 # Parse taxonomic source table
 source_table = taxonomy_data %>%
   distinct(taxon_source) %>%
   arrange(taxon_source) %>%
   left_join(citation_data, by = 'taxon_source') %>%
   rowid_to_column('taxon_source_id')
-
-# Export taxonomic source table
-csv_source = path(data_folder, 'csv', 'taxon_source.csv')
-write_csv(source_table, file = csv_source)
 
 # Parse hierarchy table
 hierarchy_table = taxonomy_data %>%
@@ -144,10 +112,6 @@ hierarchy_table = taxonomy_data %>%
   rename(taxon_genus_code = taxon_code) %>%
   arrange(taxon_genus_code) %>%
   select(taxon_genus_code, taxon_genus, taxon_family_id, taxon_category_id)
-
-# Export hierarchy table
-csv_hierarchy = path(data_folder, 'csv', 'taxon_hierarchy.csv')
-write_csv(hierarchy_table, file = csv_hierarchy)
 
 # Parse taxon accepted table
 accepted_table = taxonomy_data %>%
@@ -172,20 +136,12 @@ accepted_table = taxonomy_data %>%
   select(taxon_accepted_code, taxon_accepted, taxon_genus_code, taxon_source_id, taxon_link,
          taxon_level_id, taxon_habit_id, taxon_native, taxon_non_native)
 
-# Export taxon accepted table
-csv_accepted = path(data_folder, 'csv', 'taxon_accepted.csv')
-write_csv(accepted_table, file = csv_accepted)
-
 # Parse taxon table
 taxon_table = taxonomy_data %>%
   left_join(author_table, by = 'taxon_author') %>%
   left_join(status_table, by = 'taxon_status') %>%
   left_join(accepted_table, by = 'taxon_accepted') %>%
   select(taxon_code, taxon_name, taxon_author_id, taxon_status_id, taxon_accepted_code)
-
-# Export taxon table
-csv_taxon = path(data_folder, 'csv', 'taxon_all.csv')
-write_csv(taxon_table, file = csv_taxon)
 
 # Remove extra fields
 accepted_table = accepted_table %>%
