@@ -8,7 +8,7 @@
 #' @date 2026-04-22
 #
 # ===========================================================================
-# 00. GLOBAL HELPERS ----
+# GLOBAL HELPERS ----
 # ===========================================================================
 
 #' Find Files And Warn If Missing
@@ -63,6 +63,24 @@ rename_columns <- function(df) {
       matrix_hue_code = "matrix_hue",
       nonmatrix_hue_code = "nonmatrix_hue"
     )))
+}
+
+# ===========================================================================
+# 00. METADATA ----
+# ===========================================================================
+#' Clean Metadata
+#' @description Removes duplicate values and arranges column alphabetically.
+#' @param df A data frame of pre-processed taxonomy data.
+clean_metadata <- function(df, value_name) {
+  df |>
+    distinct(.data[[value_name]]) |> 
+    arrange(.data[[value_name]])
+}
+
+#' Join Taxon Source Table
+join_source_table <- function(df, value_name, join_table) {
+df |> 
+  left_join(join_table, by = value_name)
 }
 
 # ===========================================================================
