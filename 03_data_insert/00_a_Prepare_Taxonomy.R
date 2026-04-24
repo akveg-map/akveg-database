@@ -171,7 +171,8 @@ final_tables$taxon_hierarchy = final_tables$taxon_hierarchy %>%
 
 # Run database build scripts
 ## This will drop existing metadata tables and create new (empty) ones
-execute_sql_build(database_connection, repository_folder, "01_Taxonomy.sql")
+build_script <- "01_Taxonomy.sql"
+execute_sql_build(database_connection, repository_folder, build_script)
 
 # Upload metadata tables to database
 upload_to_database(database_connection, final_tables)
