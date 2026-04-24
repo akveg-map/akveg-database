@@ -10,35 +10,40 @@
 # Import required libraries
 library(dplyr)
 library(fs)
+library(purrr)
 library(readr)
 library(readxl)
+library(RPostgres)
 library(stringr)
 library(tibble)
 library(tidyr)
 
-# Set root directory
+# Define file and directory paths ----
 drive = 'C:'
-root_folder = 'ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database/Data'
+root_folder = 'ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database'
 
 # Define input folders
-data_folder = path(drive,
-                    root_folder,
-                    'Tables_Taxonomy')
-repository_folder = path(drive,
-                         'ACCS_Work/Repositories/akveg-database')
-output_folder = path(drive, root_folder, 'Data_Plots', 'sql_statements')
+data_folder = path(drive, root_folder, 'Data', 'Tables_Taxonomy')
+repository_folder = path(drive, 'ACCS_Work/Repositories/akveg-database')
 
-# Designate output sql file
-sql_taxonomy = path(output_folder,
-                    '00_a_Insert_Taxonomy.sql')
+# Define SQL authentication file
+authentication <- path(drive, root_folder, "Credentials", "akveg_private_build",
+                       "authentication_akveg_private_build.csv")
 
 # Identify taxonomy tables
-taxonomy_file = path(data_folder,
-                      'taxonomy.xlsx')
-unknown_file = path(data_folder,
-                     'unknowns.xlsx')
-citation_file = path(data_folder,
-                      'citations.xlsx')
+taxonomy_file = path(data_folder, 'taxonomy.xlsx')
+unknown_file = path(data_folder, 'unknowns.xlsx')
+citation_file = path(data_folder, 'citations.xlsx')
+
+# Source functions
+helpers <- new.env()
+source(path(repository_folder, "03_data_insert", "helper_functions.R"), local = helpers)
+clean_metadata <- helpers$clean_metadata
+join_source_table <- helpers$join_source_table
+
+# Connect to the AKVEG Database ----
+source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
+database_connection <- connect_database_postgresql(authentication)
 
 # Read and merge taxonomy tables ----
 taxonomy_data = read_excel(taxonomy_file, sheet = 'taxonomy') %>%
@@ -54,316 +59,187 @@ accepted_status = c('accepted', 'historical', 'taxonomy unresolved',
   'location unresolved', 'adjacent Yukon', 'adjacent BC', 
   'adjacent Canada', 'ephemeral non-native')
 
-# Parse taxon author table
-author_table = taxonomy_data %>%
-  distinct(taxon_author) %>%
-  arrange(taxon_author) %>%
-  rowid_to_column('taxon_author_id')
+# Parse simple metadata tables ----
 
-# Parse taxon category table
-category_table = taxonomy_data %>%
-  distinct(taxon_category) %>%
-  arrange(taxon_category) %>%
-  rowid_to_column('taxon_category_id')
+# Create tribble to hold table information
+config_table <- tribble(
+  ~table_name, ~primary_key_id, ~join_function, ~join_table,
+  "taxon_author", "taxon_author_id", identity, NA,
+  "taxon_category", "taxon_category_id", identity, NA,
+  "taxon_family", "taxon_family_id", identity, NA,
+  "taxon_habit", "taxon_habit_id", identity, NA,
+  "taxon_status", "taxon_status_id", identity, NA,
+  "taxon_level", "taxon_level_id", identity, NA,
+  "taxon_source", "taxon_source_id", join_source_table, citation_data
+)
+# Create function for table processing
+process_tables <- function(taxonomy_table, 
+                           table_name,
+                           primary_key_id,
+                           clean_function,
+                           join_function,
+                           join_table,
+                           database_connection, ...) {
+  
+  message(paste0("Processing table... ", table_name))
+  
+  # Convert strings to functions
+  #join_logic <- match.fun(join_function)
+  
+  # Get table schema from AKVEG database
+  column_names <- dbListFields(database_connection, table_name)
+  
+  # Process individual tables
+  df_processed <- 
+    clean_function(
+      df = taxonomy_table, 
+      value_name = table_name
+    )
+  
+  if(is.data.frame(join_table)){
+    df_processed <- 
+      join_function(df = df_processed,
+                    value_name = table_name,
+                    join_table = join_table)
+  }
+  
+  df_processed = df_processed |> 
+    rowid_to_column(primary_key_id) |> 
+    select(all_of(column_names))
+}
 
-# Parse taxon family table
-family_table = taxonomy_data %>%
-  distinct(taxon_family) %>%
-  arrange(taxon_family) %>%
-  rowid_to_column('taxon_family_id')
+# Iterate through every row in the config table and apply process_tables function
+final_tables <- pmap(config_table, 
+                           ~process_tables (table_name = ..1,
+                                            primary_key_id = ..2,
+                                            join_function = ..3,
+                                            join_table = ..4,
+                                            database_connection = database_connection,
+                                            taxonomy_table = taxonomy_data,
+                                            clean_function = clean_metadata)) |> 
+  set_names(config_table$table_name)
 
-# Parse growth habit table
-habit_table = taxonomy_data %>%
-  distinct(taxon_habit) %>%
-  arrange(taxon_habit) %>%
-  rowid_to_column('taxon_habit_id')
-
-# Parse taxonomic status table
-status_table = taxonomy_data %>%
-  distinct(taxon_status) %>%
-  arrange(taxon_status) %>%
-  rowid_to_column('taxon_status_id')
-
-# Parse taxonomic level table
-level_table = taxonomy_data %>%
-  distinct(taxon_level) %>%
-  arrange(taxon_level) %>%
-  rowid_to_column('taxon_level_id')
-
-# Parse taxonomic source table
-source_table = taxonomy_data %>%
-  distinct(taxon_source) %>%
-  arrange(taxon_source) %>%
-  left_join(citation_data, by = 'taxon_source') %>%
-  rowid_to_column('taxon_source_id')
+# Parse complex tables ----
 
 # Parse hierarchy table
-hierarchy_table = taxonomy_data %>%
+final_tables$taxon_hierarchy <- taxonomy_data %>%
   filter(taxon_level %in% c('genus', 'unknown', 'functional group')) %>%
   filter(taxon_status %in% accepted_status) %>%
   distinct(taxon_accepted, .keep_all = TRUE) %>%
-  left_join(family_table, by = 'taxon_family') %>%
-  left_join(category_table, by = 'taxon_category') %>%
+  left_join(final_tables$taxon_family, by = 'taxon_family') %>%
+  left_join(final_tables$taxon_category, by = 'taxon_category') %>%
   rename(taxon_genus = taxon_accepted) %>%
   rename(taxon_genus_code = taxon_code) %>%
   arrange(taxon_genus_code) %>%
   select(taxon_genus_code, taxon_genus, taxon_family_id, taxon_category_id)
 
 # Parse taxon accepted table
-accepted_table = taxonomy_data %>%
+final_tables$taxon_accepted <- taxonomy_data %>%
   filter(taxon_status %in% accepted_status) %>%
   separate(taxon_accepted, c('taxon_genus'), extra = 'drop', sep = '([ ])', remove = FALSE) %>%
   mutate(join_name = case_when(taxon_level == 'functional group' |
                                  taxon_level == 'unknown' ~ taxon_accepted,
                                TRUE ~ taxon_genus)) %>%
-  left_join(hierarchy_table, by = c('join_name' = 'taxon_genus')) %>%
-  left_join(source_table, by = 'taxon_source') %>%
-  left_join(level_table, by = 'taxon_level') %>%
-  left_join(habit_table, by = 'taxon_habit') %>%
+  left_join(final_tables$taxon_hierarchy, by = c('join_name' = 'taxon_genus')) %>%
+  left_join(final_tables$taxon_source, by = 'taxon_source') %>%
+  left_join(final_tables$taxon_level, by = 'taxon_level') %>%
+  left_join(final_tables$taxon_habit, by = 'taxon_habit') %>%
   arrange(taxon_accepted) %>%
   rename(taxon_accepted_code = taxon_code) %>%
+  select(-taxon_name) |> 
   select(taxon_accepted_code, taxon_accepted, taxon_genus_code, taxon_source_id, taxon_link,
          taxon_level_id, taxon_habit_id, taxon_native, taxon_non_native)
 
-# Parse taxon table
-taxon_table = taxonomy_data %>%
-  left_join(author_table, by = 'taxon_author') %>%
-  left_join(status_table, by = 'taxon_status') %>%
-  left_join(accepted_table, by = 'taxon_accepted') %>%
+# Parse taxon all table
+final_tables$taxon_all = taxonomy_data %>%
+  left_join(final_tables$taxon_author, by = 'taxon_author') %>%
+  left_join(final_tables$taxon_status, by = 'taxon_status') %>%
+  left_join(final_tables$taxon_accepted, by = 'taxon_accepted') |> 
   select(taxon_code, taxon_name, taxon_author_id, taxon_status_id, taxon_accepted_code)
 
 # Remove extra fields
-accepted_table = accepted_table %>%
+final_tables$taxon_accepted = final_tables$taxon_accepted %>%
   select(-taxon_accepted)
-hierarchy_table = hierarchy_table %>%
+final_tables$taxon_hierarchy = final_tables$taxon_hierarchy %>%
   select(-taxon_genus)
 
-#### WRITE DATA TO SQL FILE
+# Execute SQL build and ingestion ----
 
-# Write statement header
-statement = c(
-  '-- -*- coding: utf-8 -*-',
-  '-- ---------------------------------------------------------------------------',
-  '-- Insert taxonomy data',
-  '-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science',
-  paste('-- Last Updated: ', Sys.Date()),
-  '-- Usage: Script should be executed in a PostgreSQL 16+ database.',
-  '-- Description: "Insert taxonomy data" pushes data from the taxonomy editing tables into the database server. The script "Build taxonomy tables" should be run prior to this script to start with empty, properly formatted tables.',
-  '-- ---------------------------------------------------------------------------',
-  '',
-  '-- Initialize transaction',
-  'START TRANSACTION;',
-  ''
-  )
+# 1. Run database build scripts
+## This will drop existing metadata tables and create new (empty) ones
+build_scripts <- "01_Taxonomy.sql"
 
-# Add author statement
-statement = c(statement,
-              '-- Insert data into taxon author table',
-              'INSERT INTO taxon_author (taxon_author_id, taxon_author) VALUES'
-              )
-author_sql = author_table %>%
-  mutate_if(is.character,
-            str_replace_all, pattern = '\'', replacement = '\'\'') %>%
-  mutate(taxon_author = paste('\'', taxon_author, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep =''))
-author_sql[nrow(author_sql),] = paste(str_sub(author_sql[nrow(author_sql),],
-                                              start = 1,
-                                              end = -2),
-                                      ';',
-                                      sep = '')
-for (line in author_sql) {
-  statement = c(statement, line)
+for (script in build_scripts) {
+  message(paste("Executing build script:", script))
+  build_path <- path(repository_folder, "01_database_build", script)
+  
+  # Read in full file
+  full_sql <- read_file(build_path)
+  
+  # Chunk the file into separate CREATE statements
+  ## Split by semicolon
+  sql_commands <- str_split(full_sql, ";(\\s*\\n|$)") %>%
+    flatten_chr() %>%
+    str_trim() %>% ## Remove whitespaces
+    keep(~ grepl("CREATE|INSERT|COMMIT|DROP", .x, ignore.case = TRUE)) ## Ignore comments and non-commands
+  
+  total_chunks <- length(sql_commands)
+  
+  # Execute each command individually
+  # Use iwalk to produce visual counter message in console
+  iwalk(sql_commands, function(cmd, i) {
+    message(paste0("Chunk ", i, " of ", total_chunks, ": ", substr(cmd, 1, 40), "..."))
+    dbExecute(database_connection, cmd)
+  })
+  
+  message(paste("Finished script:", script))
 }
 
-# Add category statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon category table',
-              'INSERT INTO taxon_category (taxon_category_id, taxon_category) VALUES'
-              )
-category_sql = category_table %>%
-  mutate(taxon_category = paste('\'', taxon_category, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-category_sql[nrow(category_sql),] = paste(str_sub(category_sql[nrow(category_sql),],
-                                              start = 1,
-                                              end = -2),
-                                          ';',
-                                          sep = '')
-for (line in category_sql) {
-  statement = c(statement, line)
-}
+# 2. Upload metadata tables to database
+## All warnings about transactions being in progress (or not) can be safely ignored
 
-# Add family statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon family table',
-              'INSERT INTO taxon_family (taxon_family_id, taxon_family) VALUES'
-              )
-family_sql = family_table %>%
-  mutate(taxon_family = paste('\'', taxon_family, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-family_sql[nrow(family_sql),] = paste(str_sub(family_sql[nrow(family_sql),],
-                                                  start = 1,
-                                                  end = -2),
-                                      ';',
-                                      sep = '')
-for (line in family_sql) {
-  statement = c(statement, line)
-}
+# Close any open transactions (e.g., from transaction failure)
+try(dbExecute(database_connection, "ROLLBACK;"))
 
-# Add habit statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon habit table',
-              'INSERT INTO taxon_habit (taxon_habit_id, taxon_habit) VALUES'
+# Begin transaction
+dbExecute(database_connection, "BEGIN;")
+
+tryCatch(
+  {
+    # Obtain table names
+    table_list <- names(final_tables)
+    
+    for (i in seq_along(table_list)) {
+      target_table <- table_list[i]
+      
+      message(paste0("Step ", i, " of ", length(table_list), ": Inserting into ", target_table, "..."))
+      
+      dbWriteTable(
+        conn = database_connection,
+        name = target_table,
+        value = final_tables[[target_table]],
+        append = TRUE,
+        row.names = FALSE
+      )
+    }
+    
+    # Commit to database if error-free
+    dbExecute(database_connection, "COMMIT;")
+    message("--- Success! All taxonomy tables successfully migrated to the database. ---")
+  },
+  error = function(e) {
+    # If a table fails, undo the entire transaction
+    dbExecute(database_connection, "ROLLBACK;")
+    message("--- DATA INSERT FAILURE")
+    message(e$message)
+    # Stop the script
+    stop("Migration failed. Database has been rolled back to empty tables.")
+  }
 )
-habit_sql = habit_table %>%
-  mutate(taxon_habit = paste('\'', taxon_habit, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-habit_sql[nrow(habit_sql),] = paste(str_sub(habit_sql[nrow(habit_sql),],
-                                              start = 1,
-                                              end = -2),
-                                      ';',
-                                      sep = '')
-for (line in habit_sql) {
-  statement = c(statement, line)
-}
 
-# Add taxon status statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon status table',
-              'INSERT INTO taxon_status (taxon_status_id, taxon_status) VALUES'
-)
-status_sql = status_table %>%
-  mutate(taxon_status = paste('\'', taxon_status, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-status_sql[nrow(status_sql),] = paste(str_sub(status_sql[nrow(status_sql),],
-                                            start = 1,
-                                            end = -2),
-                                    ';',
-                                    sep = '')
-for (line in status_sql) {
-  statement = c(statement, line)
-}
-
-# Add taxon level statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon level table',
-              'INSERT INTO taxon_level (taxon_level_id, taxon_level) VALUES'
-)
-level_sql = level_table %>%
-  mutate(taxon_level = paste('\'', taxon_level, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-level_sql[nrow(level_sql),] = paste(str_sub(level_sql[nrow(level_sql),],
-                                              start = 1,
-                                              end = -2),
-                                      ';',
-                                      sep = '')
-for (line in level_sql) {
-  statement = c(statement, line)
-}
-
-# Add taxon source statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon source table',
-              'INSERT INTO taxon_source (taxon_source_id, taxon_source, taxon_citation) VALUES'
-)
-source_sql = source_table %>%
-  mutate_if(is.character,
-            str_replace_all, pattern = '\'', replacement = '\'\'') %>%
-  mutate(taxon_source = paste('\'', taxon_source, '\'', sep = '')) %>%
-  mutate(taxon_citation = paste('\'', taxon_citation, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-source_sql[nrow(source_sql),] = paste(str_sub(source_sql[nrow(source_sql),],
-                                            start = 1,
-                                            end = -2),
-                                    ';',
-                                    sep = '')
-for (line in source_sql) {
-  statement = c(statement, line)
-}
-
-# Add hierarchy statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon hierarchy table',
-              'INSERT INTO taxon_hierarchy (taxon_genus_code, taxon_family_id, taxon_category_id) VALUES'
-)
-hierarchy_sql = hierarchy_table %>%
-  mutate(taxon_genus_code = paste('\'', taxon_genus_code, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-hierarchy_sql[nrow(hierarchy_sql),] = paste(str_sub(hierarchy_sql[nrow(hierarchy_sql),],
-                                            start = 1,
-                                            end = -2),
-                                    ';',
-                                    sep = '')
-for (line in hierarchy_sql) {
-  statement = c(statement, line)
-}
-
-# Add taxon accepted statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon accepted table',
-              'INSERT INTO taxon_accepted (taxon_accepted_code, taxon_genus_code, taxon_source_id, taxon_link, taxon_level_id, taxon_habit_id, taxon_native, taxon_non_native) VALUES'
-)
-accepted_sql = accepted_table %>%
-  mutate_if(is.character,
-            str_replace_all, pattern = '\'', replacement = '\'\'') %>%
-  mutate(taxon_accepted_code = paste('\'', taxon_accepted_code, '\'', sep = '')) %>%
-  mutate(taxon_genus_code = paste('\'', taxon_genus_code, '\'', sep = '')) %>%
-  mutate(taxon_link = paste('\'', taxon_link, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-accepted_sql[nrow(accepted_sql),] = paste(str_sub(accepted_sql[nrow(accepted_sql),],
-                                                    start = 1,
-                                                    end = -2),
-                                            ';',
-                                            sep = '')
-for (line in accepted_sql) {
-  statement = c(statement, line)
-}
-
-# Add taxon statement
-statement = c(statement,
-              '',
-              '-- Insert data into taxon all table',
-              'INSERT INTO taxon_all (taxon_code, taxon_name, taxon_author_id, taxon_status_id, taxon_accepted_code) VALUES'
-)
-taxon_sql = taxon_table %>%
-  mutate(taxon_name = paste('\'', taxon_name, '\'', sep = '')) %>%
-  mutate(taxon_code = paste('\'', taxon_code, '\'', sep = '')) %>%
-  mutate(taxon_accepted_code = paste('\'', taxon_accepted_code, '\'', sep = '')) %>%
-  unite(sql, sep = ', ', remove = TRUE) %>%
-  mutate(sql = paste('(', sql, '),', sep = ''))
-taxon_sql[nrow(taxon_sql),] = paste(str_sub(taxon_sql[nrow(taxon_sql),],
-                                                  start = 1,
-                                                  end = -2),
-                                          ';',
-                                          sep = '')
-for (line in taxon_sql) {
-  statement = c(statement, line)
-}
-
-# Finalize statement
-statement = c(statement,
-              '',
-              '-- Commit transaction',
-              'COMMIT TRANSACTION;')
-
-# Write statement to SQL file
-write_lines(statement, sql_taxonomy)
+# Close database connection ----
+dbDisconnect(database_connection)
+message("Taxonomy build and migration complete.")
 
 # Clear workspace
 rm(list=ls())
