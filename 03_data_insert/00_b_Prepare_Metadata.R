@@ -22,7 +22,7 @@ library(tibble)
 # Set file and directory paths ----
 root_folder <- "C:/ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database"
 data_folder <- path(root_folder, "Data", "Tables_Metadata")
-repository_folder <- path_dir(path_real("."))
+repository_folder = path(drive, 'ACCS_Work/Repositories/akveg-database')
 authentication <- path(root_folder, "Credentials", "akveg_private_build", "authentication_akveg_private_build.csv")
 
 # Connect to the AKVEG Database ----
