@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Perform QC check for Vegetation Cover table
+# Correct errors in Vegetation Cover table
 # Author: Amanda Droghini
 # Last Updated: 2026-03-18
 # Usage: Execute in Python 3.13+.
-# Description: "Perform QC check for Vegetation Cover table" identifies and corrects
-# data entry errors in the Vegetation Cover of the AKVEG Database.
+# Description: "Correct errors in Vegetation Cover table" identifies and corrects
+# data entry errors in the Vegetation Cover table of the AKVEG Database.
 # ---------------------------------------------------------------------------
 
 # Import packages
