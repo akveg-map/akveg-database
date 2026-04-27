@@ -11,5 +11,4 @@ shrub_structure,11_shrubstructure.*csv,shrub_structure.csv,11_Insert_ShrubStruct
 environment,12_environment.*csv,environment.csv,12_Insert_Environment.sql,clean_environment_data,join_environment_metadata,environment_id,FALSE,TRUE
 soil_metrics,13_soilmetrics.*csv,soil_metrics.csv,13_Insert_SoilMetrics.sql,clean_soil_metrics_data,join_soil_metrics_metadata,soil_metric_id,FALSE,TRUE
 soil_horizons,14_soilhorizons.*csv,soil_horizons.csv,14_Insert_SoilHorizons.sql,clean_soil_horizons_data,join_soil_horizons_metadata,soil_horizon_id,FALSE,TRUE
-citations,NA,citations.csv,15_Insert_Citations.sql,identity ,identity,NA,FALSE,FALSE
-project_citations,NA,project_citations.csv,16_Insert_Project_Citations.sql,identity ,identity,NA,FALSE,FALSE
+project_citations,NA,project_citations.csv,15_Insert_Project_Citations.sql,identity ,identity,NA,FALSE,FALSE
