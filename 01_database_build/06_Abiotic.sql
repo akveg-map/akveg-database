@@ -1,8 +1,8 @@
 -- -*- coding: utf-8 -*-
 -- ---------------------------------------------------------------------------
 -- Build abiotic tables
--- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2026-01-24
+-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
+-- Last Updated: 2026-04-27
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Build abiotic tables" creates the empty tables for the abiotic components of the AKVEG database. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING ABIOTIC TABLES.
 -- ---------------------------------------------------------------------------
@@ -14,18 +14,6 @@ START TRANSACTION;
 DROP TABLE IF EXISTS
     abiotic_top_cover,
     ground_cover;
-
--- Create function for constraining abiotic element type
-CREATE OR REPLACE FUNCTION check_abiotic_element(p_code varchar)
-RETURNS boolean AS $$
-BEGIN
-    RETURN EXISTS (
-        SELECT 1 FROM ground_element
-        WHERE ground_element_code = p_code
-          AND element_type IN ('abiotic', 'both')
-    );
-END;
-$$ LANGUAGE plpgsql;
 
 -- Create abiotic top cover table
 CREATE TABLE abiotic_top_cover (
