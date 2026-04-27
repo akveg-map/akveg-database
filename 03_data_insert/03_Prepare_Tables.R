@@ -29,7 +29,7 @@ repository_folder <- path(drive, "ACCS_Work/Repositories/akveg-database")
 authentication <- path(drive, root_folder, "Credentials", "akveg_private_build",
                        "authentication_akveg_private_build.csv")
 metadata_input <- path(repository_folder, "03_data_insert", "config", "tables_metadata.csv")
-citations_input <- path(root_folder, "Data", "Tables_Metadata", "project_citations.xlsx")
+citations_input <- path(drive, root_folder, "Data", "Tables_Metadata", "project_citations.xlsx")
 
 # Source functions ----
 helpers <- new.env()
@@ -44,7 +44,8 @@ database_connection <- connect_database_postgresql(authentication)
 # Read in data ----
 config_table <- read_csv(metadata_input, col_select = c("table_name", 
                                                         "combined_table_csv", "serial_key_id"))
-citations_original <- read_excel()
+citations_original <- read_excel(citations_input) |> select(project_code, citation_short)
+
 # Prepare individual tables ---
 build_list <- function(table_name, combined_table_csv,
                                    serial_key_id, database_connection) {
@@ -92,10 +93,25 @@ walk(build_scripts, execute_sql_build,
      database_connection = database_connection, 
      repository_folder = repository_folder)
 
-# Upload data tables to database
+# Prepare project_citations junction table ----
+
+# Get citations table
+db_citations <- dbGetQuery(database_connection, "SELECT citation_id, citation_short FROM citations")
+
+# Retrieve citation id
+citations_junction <- citations_original |> 
+  left_join(db_citations, by="citation_short") |> 
+  select(project_code, citation_id) |> 
+  distinct()
+
+# Ensure there are no null values
+print(colSums(is.na(citations_junction))) 
+
+# Add to data tables list
+final_tables$project_citations <- citations_junction
+
+# Upload data to SQL database ---
 upload_to_database(database_connection, final_tables)
-
-
 
 # Close database connection
 dbDisconnect(database_connection)
