@@ -48,5 +48,4 @@ project_errors = project_data.loc[
     | (project_data.completion_id == 2) & (project_data.year_end != -999)
 ]
 
-# Export correct table
-project_correct.to_csv(output_csv, index=False)
+# No corrected file to export
