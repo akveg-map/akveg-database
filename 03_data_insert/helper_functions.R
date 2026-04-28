@@ -495,9 +495,13 @@ join_soil_horizons_metadata <- function(df, lookup) {
 # SQL INGESTION ----
 # ===========================================================================
 
-#' Build Reference Tables
+
+#' Build SQL Tables
 #' @description Creates database reference tables by splitting a SQL file into its individual statements and executing those statements. Running this function will potentially drop existing tables and replace them with empty ones.
 execute_sql_build <- function(database_connection, repository_folder, script_name) {
+  
+  # Close any open transactions (e.g., resulting from transaction failures)
+  try(DBI::dbExecute(database_connection, "ROLLBACK;"), silent = TRUE)
   
   message(paste("Executing build script:", script_name))
   
@@ -508,23 +512,36 @@ execute_sql_build <- function(database_connection, repository_folder, script_nam
   full_sql <- readr::read_file(build_path)
   
   # Chunk the file into separate CREATE statements
-  ## Split by semicolon
-  sql_commands <- stringr::str_split(full_sql, ";(\\s*\\n|$)") %>%
+  # Split by semicolon only if the semicolon is followed by a newline and a major SQL keyword
+  sql_commands <- stringr::str_split(
+    full_sql, 
+    ";\\s*\\n(?=\\s*(CREATE|ALTER|START|COMMIT|DROP|INSERT|DELETE|UPDATE|--))"
+  ) %>%
     purrr::flatten_chr() %>%
-    stringr::str_trim() %>%  ## Remove whitespaces
-    purrr::keep(~ grepl("CREATE|INSERT|COMMIT|DROP", .x, ignore.case = TRUE))
+    stringr::str_trim() %>%
+    purrr::keep(~ .x != "") |> 
+    paste0(";") # Re-add the semicolon to the end of each chunk
   
   total_chunks <- length(sql_commands)
   
   # Execute each command individually
   # Use iwalk to produce visual counter message in console
-  purrr::iwalk(sql_commands, function(cmd, i) {
-    message(paste0("Chunk ", i, " of ", total_chunks, ": ", substr(cmd, 1, 40), "..."))
-    DBI::dbExecute(database_connection, cmd)
+  # Wrap in tryCatch to initiate rollback if any part of the transaction fails
+  tryCatch({
+    purrr::iwalk(sql_commands, function(cmd, i) {
+      message(paste0("Chunk ", i, " of ", total_chunks, ": ", substr(cmd, 1, 40), "..."))
+      DBI::dbExecute(database_connection, cmd)
+      })
+    message(paste("Finished script:", script_name))
+}, error = function(e) {
+    dbExecute(database_connection, "ROLLBACK;")
+    message("--- DATA INSERT FAILURE")
+    message(e$message)
+    # Stop the script
+    stop("Migration failed. Database has been rolled back to empty tables.")
   })
-  
-  message(paste("Finished script:", script_name))
 }
+
 
 #' Insert Data into Tables
 #' @description Inserts data into individual tables. Uses atomic loading to prevent partial data upload. This function assumes that the list element names match the database table names.
