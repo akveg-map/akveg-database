@@ -68,6 +68,16 @@ build_list <- function(table_name, combined_table_csv,
   } else {
     df <- read_csv(processed_path, show_col_types = FALSE)
   }
+  
+  # Enforce integer data type if entire column only contains integers and NAs
+  df <- df %>%
+    mutate(across(where(is.numeric), ~ {
+      if (all(.x == floor(.x), na.rm = TRUE)) {
+        as.integer(.x)
+      } else {
+        .x # Leave as numeric
+      }
+    }))
 
   # Ensure the dataframe only contains the columns in the database
   df |> 
