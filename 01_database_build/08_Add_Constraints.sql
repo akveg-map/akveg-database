@@ -18,7 +18,7 @@ BEGIN
         SELECT 1 FROM ground_element
         WHERE ground_element_code = p_code
           AND element_type IN ('abiotic', 'both')
-    );
+        );
 END;
 $$ LANGUAGE plpgsql;
 
