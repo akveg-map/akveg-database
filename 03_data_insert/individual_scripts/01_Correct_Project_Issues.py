@@ -2,12 +2,11 @@
 # ---------------------------------------------------------------------------
 # Perform QC checks for Project table
 # Author: Amanda Droghini
-# Last Updated: 2026-02-18
+# Last Updated: 2026-04-28
 # Usage: Execute in Python 3.13+.
 # Description: "Perform QC checks for Project table" queries the AKVEG database to identify
-# data entry errors in the Project table of the AKVEG Database. The output is a CSV file that lists site codes that
-# should be dropped from the database because they are lacking cover data or because their coordinate or date values
-# are out of bounds.
+# data entry errors in the Project table of the AKVEG Database. The output is a CSV file with corrected entries for
+# the errors identified.
 # ---------------------------------------------------------------------------
 
 # Import packages
@@ -48,23 +47,6 @@ project_errors = project_data.loc[
     (project_data.completion_id == 1) & (project_data.year_end == -999)
     | (project_data.completion_id == 2) & (project_data.year_end != -999)
 ]
-
-# Correct errors in Project table
-project_correct = project_data.assign(
-    completion_id=np.where(
-        (project_data["project_code"] == "accs_nelchina_2023"),
-        1,
-        project_data["completion_id"],
-    ),
-)
-
-# Repeat Quality Control checks
-print(
-    project_correct.loc[
-        (project_correct.completion_id == 1) & (project_correct.year_end == -999)
-        | (project_correct.completion_id == 2) & (project_correct.year_end != -999)
-    ]
-)
 
 # Export correct table
 project_correct.to_csv(output_csv, index=False)
