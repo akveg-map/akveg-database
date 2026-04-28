@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Define check constraints
 -- Author: Amanda Droghini, Alaska Center for Conservation Science
--- Last Updated: 2026-04-27
+-- Last Updated: 2026-04-28
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Define check constraints" alters existing tables by defining and adding a check constraint to validate inserted data. This script must be run after the INSERT scripts to function properly.
 -- ---------------------------------------------------------------------------
@@ -27,9 +27,18 @@ ALTER TABLE abiotic_top_cover
     ADD CONSTRAINT check_abiotic_element_type
     CHECK (check_abiotic_element(abiotic_element_code));
 
--- Remove constraint to avoid issues with export file
+-- Add constraint to project table and validate records
+ALTER TABLE project
+    ADD CONSTRAINT check_completion_date
+        CHECK ((completion_id = 1 AND year_end != -999) OR
+               (completion_id = 2 AND year_end = -999));
+
+-- Remove constraints to avoid issues with export file
 ALTER TABLE abiotic_top_cover
     DROP CONSTRAINT check_abiotic_element_type;
+
+ALTER TABLE project
+    DROP CONSTRAINT check_completion_date;
 
 -- Commit transaction
 COMMIT TRANSACTION;
