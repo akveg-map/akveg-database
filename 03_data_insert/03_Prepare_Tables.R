@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Prepare data for upload
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-04-22
+# Last Updated: 2026-04-27
 # Usage: Script should be executed in R 4.5.1+.
 # Description: "Prepare data for upload" parses the aggregate tables into SQL INSERT statements that can be used to add data to the AKVEG database.
 # ---------------------------------------------------------------------------
@@ -92,9 +92,6 @@ final_tables <- pmap(config_table, build_list,
 # Execute SQL build ----
 ## This will drop existing metadata tables and create new (empty) ones
 
-# Close any open transactions (e.g., resulting from transaction failures)
-try(DBI::dbExecute(database_connection, "ROLLBACK;"), silent = TRUE)
-
 # Define build scripts
 build_scripts <- c("03_Project.sql", "04_Site.sql", "05_Vegetation.sql", "06_Abiotic.sql", "07_Environment.sql")
 
@@ -123,8 +120,14 @@ final_tables$project_citations <- citations_junction
 # Upload data to SQL database ---
 upload_to_database(database_connection, final_tables)
 
+# Add check constraints ----
+constraint_script <- "08_Add_Constraints.sql"
+execute_sql_build(database_connection, repository_folder, script_name = constraint_script)
+
 # Close database connection
 dbDisconnect(database_connection)
+message("Data insertion and check constraints complete.")
 
 # Clear workspace
 rm(list = ls())
+
