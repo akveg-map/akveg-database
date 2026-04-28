@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Build project tables
 -- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
--- Last Updated: 2026-04-23
+-- Last Updated: 2026-04-28
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Build project tables" creates the empty tables for the vegetation survey and monitoring projects components of the AKVEG database. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING PROJECT TABLES.
 -- ---------------------------------------------------------------------------
@@ -13,7 +13,6 @@ START TRANSACTION;
 -- Drop project tables if they exist
 DROP TABLE IF EXISTS
     project,
-    project_source,
     project_status,
     project_citations
 CASCADE;
