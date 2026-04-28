@@ -11,6 +11,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.8.1] - 2026-04-28
+
+* **Added provenance tracking to the `project` table.** New fields indicate how a project was acquired 
+  (`source_type_id`), publication status and download URL (`published`, `download_url`), the original 
+  database for secondary sources (`source_collection_id`), contact name for direct transfers (`source_contact_id`), and 
+  the `acquisition_date`.
+* **Added bibliographic citations**. Added a `citations` table and a `project_citations` junction table to store 
+  metadata for reports, datasets, and other primary sources associated with each project.
+
 ## [2.8.0] - 2026-03-18
 
 ### Added
