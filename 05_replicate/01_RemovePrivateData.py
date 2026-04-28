@@ -27,6 +27,7 @@ authentication_file = os.path.join(credential_folder, 'akveg_public_build/authen
 
 # Define table list
 table_list = ['soil_horizons', 'soil_metrics', 'environment', 'shrub_structure', 'tree_structure',
+              'structural_group_cover', 'whole_tussock_cover',
               'ground_cover', 'abiotic_top_cover', 'vegetation_cover', 'site_visit']
 
 # Create initial database connection
