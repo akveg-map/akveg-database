@@ -2,8 +2,8 @@
 # ---------------------------------------------------------------------------
 # Remove private data from AKVEG Database
 # Author: Timm Nawrocki
-# Last Updated: 2026-02-04
-# Usage: Execute in Python 3.10+.
+# Last Updated: 2026-04-28
+# Usage: Execute in Python 3.13+.
 # Description: "Remove private data from AKVEG Database" retracts private data from all data tables to create a fully public version of the database.
 # ---------------------------------------------------------------------------
 
@@ -52,7 +52,8 @@ site_visit_remove = query_to_dataframe(database_connection, site_visit_query)
 site_list = site_remove['site_code'].tolist()
 site_visit_list = site_visit_remove['site_visit_code'].tolist()
 
-database_connection.close()
+# Create cursor
+cursor = database_connection.cursor()
 
 #### REMOVE DATA FROM CORE TABLES
 ####------------------------------
@@ -61,76 +62,56 @@ database_connection.close()
 for table in table_list:
     iteration_start = time.time()
     print(f'Removing private data from {table}...')
-    # Create a connection to the AKVEG Database
-    database_connection = connect_database_postgresql(authentication_file)
 
-    # Delete private data
-    cursor = database_connection.cursor()
-    delete_private_data = f'''DELETE FROM {table}
-    WHERE site_visit_code IN ({str(site_visit_list)[1:-1]});'''
+    # Execute deletion
+    delete_private_data = f"DELETE FROM {table} WHERE site_visit_code IN ({str(site_visit_list)[1:-1]});"
     cursor.execute(delete_private_data)
-
-    # Close connection
-    database_connection.commit()
-    cursor.close()
-    database_connection.close()
     end_timing(iteration_start)
+
+# Commit all deletes
+database_connection.commit()
 
 #### REMOVE DATA FROM SITE TABLE
 ####------------------------------
 
-# Remove private data from site
 iteration_start = time.time()
 print(f'Removing private data from site...')
-# Create a connection to the AKVEG Database
-database_connection = connect_database_postgresql(authentication_file)
 
-# Delete private data
-cursor = database_connection.cursor()
-delete_private_data = f'''DELETE FROM site
-WHERE site_code IN ({str(site_list)[1:-1]});'''
+delete_private_data = f"DELETE FROM site WHERE site_code IN ({str(site_list)[1:-1]});"
 cursor.execute(delete_private_data)
 
-# Close connection
-database_connection.commit()
-cursor.close()
-database_connection.close()
 end_timing(iteration_start)
+
+# Commit deletes
+database_connection.commit()
 
 #### REMOVE DATA FROM PROJECT TABLE
 ####------------------------------
-
-
-# Remove private data from project
-iteration_start = time.time()
-print(f'Removing private data from project...')
-# Create a connection to the AKVEG Database
-database_connection = connect_database_postgresql(authentication_file)
 
 # Obtain private project codes
 project_query = '''SELECT project_code FROM project
 WHERE project.private IS TRUE'''
 
-# Query database for private sites and site visits
+# Query database for private codes
 project_remove = query_to_dataframe(database_connection, project_query)
-
-# Convert query results to lists
 project_list = project_remove['project_code'].tolist()
 
+# Remove private data from project tables
+print(f'Removing private data from project citations and project tables...')
+iteration_start = time.time()
+
 # Delete private data from project_citations table
-cursor = database_connection.cursor()
-delete_private_data = f'''DELETE FROM project_citations
-WHERE project_code IN ({str(project_list)[1:-1]});'''
+delete_private_data = f"DELETE FROM project_citations WHERE project_code IN ({str(project_list)[1:-1]});"
 cursor.execute(delete_private_data)
 
-# Delete private data in project table
-cursor = database_connection.cursor()
-delete_private_data = f'''DELETE FROM project
-WHERE private IS TRUE;'''
+# Delete private data from project table
+delete_private_data = f"DELETE FROM project WHERE private IS TRUE;"
 cursor.execute(delete_private_data)
+
+# Commit deletions
+database_connection.commit()
+end_timing(iteration_start)
 
 # Close connection
-database_connection.commit()
 cursor.close()
 database_connection.close()
-end_timing(iteration_start)
