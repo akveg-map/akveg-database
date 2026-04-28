@@ -526,7 +526,7 @@ execute_sql_build <- function(database_connection, repository_folder, script_nam
   message(paste("Finished script:", script_name))
 }
 
-#' Insert Reference Tables
+#' Insert Data into Tables
 #' @description Inserts data into individual tables. Uses atomic loading to prevent partial data upload. This function assumes that the list element names match the database table names.
 upload_to_database <- function(database_connection, final_tables) {
   
