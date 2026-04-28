@@ -99,13 +99,30 @@ end_timing(iteration_start)
 #### REMOVE DATA FROM PROJECT TABLE
 ####------------------------------
 
+
 # Remove private data from project
 iteration_start = time.time()
 print(f'Removing private data from project...')
 # Create a connection to the AKVEG Database
 database_connection = connect_database_postgresql(authentication_file)
 
-# Delete private data
+# Obtain private project codes
+project_query = '''SELECT project_code FROM project
+WHERE project.private IS TRUE'''
+
+# Query database for private sites and site visits
+project_remove = query_to_dataframe(database_connection, project_query)
+
+# Convert query results to lists
+project_list = project_remove['project_code'].tolist()
+
+# Delete private data from project_citations table
+cursor = database_connection.cursor()
+delete_private_data = f'''DELETE FROM project_citations
+WHERE project_code IN ({str(project_list)[1:-1]});'''
+cursor.execute(delete_private_data)
+
+# Delete private data in project table
 cursor = database_connection.cursor()
 delete_private_data = f'''DELETE FROM project
 WHERE private IS TRUE;'''
