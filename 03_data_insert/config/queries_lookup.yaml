@@ -9,6 +9,7 @@ queries:
   # Project metadata tables
   source_collection: 'SELECT * FROM source_collection'
   source_type: 'SELECT * FROM source_type'
+  citations: 'SELECT * FROM citations'
   
   # Site table
   perspective: 'SELECT * FROM perspective'
