@@ -2,12 +2,13 @@
 # ---------------------------------------------------------------------------
 # Prepare data for upload
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-04-27
+# Last Updated: 2026-05-01
 # Usage: Script should be executed in R 4.5.1+.
 # Description: "Prepare data for upload" parses the aggregate tables into SQL INSERT statements that can be used to add data to the AKVEG database.
 # ---------------------------------------------------------------------------
 
 # Import required libraries ----
+library(DBI)
 library(dplyr, warn.conflicts = FALSE)
 library(fs)
 library(glue)
@@ -29,7 +30,7 @@ repository_folder <- path(drive, "ACCS_Work/Repositories/akveg-database")
 authentication <- path(drive, root_folder, "Credentials", "akveg_private_build",
                        "authentication_akveg_private_build.csv")
 metadata_input <- path(repository_folder, "03_data_insert", "config", "tables_metadata.csv")
-citations_input <- path(drive, root_folder, "Data", "Tables_Metadata", "project_citations.xlsx")
+citations_input <- path(drive, root_folder, "Data", "Tables_Metadata", "project_source.xlsx")
 
 # Source functions ----
 helpers <- new.env()
@@ -44,7 +45,7 @@ database_connection <- connect_database_postgresql(authentication)
 # Read in data ----
 config_table <- read_csv(metadata_input, col_select = c("table_name", 
                                                         "combined_table_csv", "serial_key_id"))
-citations_original <- read_excel(citations_input) |> select(project_code, citation_short)
+citations_original <- read_excel(citations_input, sheet = "project_citations") |> select(project_code, citation_short)
 
 # Prepare individual tables ---
 build_list <- function(table_name, combined_table_csv,
@@ -130,4 +131,3 @@ message("Data insertion and check constraints complete.")
 
 # Clear workspace
 rm(list = ls())
-
