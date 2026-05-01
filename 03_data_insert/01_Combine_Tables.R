@@ -68,7 +68,7 @@ config_table <- read_csv(metadata_input,
 ) |>
   filter(include_combine) # Drop files that aren't used in this script
 # 4. Read project source data
-source_original <- read_excel(source_input)
+source_original <- read_excel(source_input, sheet = "project_source")
 
 # Process project source table
 source_processed <- join_source_metadata(source_original, lookup_data)

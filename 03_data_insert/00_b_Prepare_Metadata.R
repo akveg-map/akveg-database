@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Prepare metadata and constraints for upload
 # Authors: Timm Nawrocki, Amanda Droghini, ACCS
-# Last Updated: 2026-04-23
+# Last Updated: 2026-05-01
 # Usage: Script should be executed in R 4.5.1+.
 # Description: Dynamically parses metadata and constraints from Excel into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ suffix_exceptions <- c(
 dictionary_data <- read_excel(path(data_folder, "database_dictionary.xlsx"), sheet = "dictionary")
 schema_data <- read_excel(path(data_folder, "database_schema.xlsx"), sheet = "schema")
 org_data <- read_excel(path(data_folder, "organization.xlsx"), sheet = "organization")
-citations_data <- read_excel(path(data_folder, "project_citations.xlsx"))
+citations_data <- read_excel(path(data_folder, "project_source.xlsx", sheet = "project_citations"))
 
 # Parse constraints
 constraint_tables <- dictionary_data %>%
