@@ -72,6 +72,7 @@ source_original <- read_excel(source_input, sheet = "project_source")
 
 # Process project source table
 source_processed <- join_source_metadata(source_original, lookup_data)
+print(source_processed |> filter(citation_short != "NULL" & is.na(citation_id))) ## Ensure all citations have a match in the citations table
 
 # Create function for table processing
 process_tables <- function(input_pattern, table_name, warn_if_missing, clean_function,
