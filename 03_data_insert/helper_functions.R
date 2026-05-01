@@ -107,6 +107,7 @@ join_source_metadata <- function(df, lookup) {
     mutate(source_type = str_to_lower(source_type)) |>
     left_join(lookup_data$source_type, by = "source_type") |>
     left_join(lookup_data$personnel, by = c("source_contact" = "personnel")) |>
+    left_join(lookup$citations, by = "citation_short") |> 
     left_join(lookup_data$source_collection, by = "source_collection") |>
     rename(source_contact_id = personnel_id)
 }
