@@ -52,7 +52,7 @@ suffix_exceptions <- c(
 dictionary_data <- read_excel(path(data_folder, "database_dictionary.xlsx"), sheet = "dictionary")
 schema_data <- read_excel(path(data_folder, "database_schema.xlsx"), sheet = "schema")
 org_data <- read_excel(path(data_folder, "organization.xlsx"), sheet = "organization")
-citations_data <- read_excel(path(data_folder, "project_source.xlsx", sheet = "project_citations"))
+citations_data <- read_excel(path(data_folder, "project_source.xlsx"), sheet = "project_citations")
 
 # Parse constraints
 constraint_tables <- dictionary_data %>%
@@ -118,6 +118,12 @@ citations_table <- citations_data |>
   select(citation_short, citation_long, citation_url) |>
   distinct() |> # Remove duplicates
   arrange(citation_short)
+
+# Ensure all Author-Year citations are unique
+print(citations_table |> 
+  group_by(citation_short) |> 
+  filter(n()>1) |> 
+  summarize(n=n()))
 
 # Remove organization table in constraint_tables
 ## Use new organization_table instead
