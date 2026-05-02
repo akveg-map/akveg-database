@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Build site and site visit tables
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2026-02-18
+-- Last Updated: 2026-05-01
 -- Usage: Script should be executed in a PostgreSQL 16+ database.
 -- Description: "Build site tables" creates the empty tables for the site components of the AKVEG database. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING SITE TABLE.
 -- ---------------------------------------------------------------------------
@@ -42,9 +42,9 @@ CREATE TABLE site_visit (
     scope_lichen_id smallint NOT NULL REFERENCES scope,
     observe_date date NOT NULL CONSTRAINT year_range CHECK (EXTRACT(YEAR FROM observe_date) BETWEEN 1975 AND EXTRACT(YEAR FROM CURRENT_DATE)),
     veg_observer_id smallint NOT NULL REFERENCES personnel,
-    veg_recorder_id smallint REFERENCES personnel,
-    env_observer_id smallint REFERENCES personnel,
-    soils_observer_id smallint REFERENCES personnel,
+    veg_recorder_id smallint NOT NULL REFERENCES personnel,
+    env_observer_id smallint NOT NULL REFERENCES personnel,
+    soils_observer_id smallint NOT NULL REFERENCES personnel,
     structural_class_code varchar(10) NOT NULL REFERENCES structural_class,
     homogeneous boolean NOT NULL
 );
