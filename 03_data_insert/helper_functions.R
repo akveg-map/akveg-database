@@ -5,7 +5,7 @@
 #' transition datasets from the v1.0 to v2.0 AKVEG database schema. It is designed to be sourced
 #' by `01_Combine_Tables.R` and used within a `pmap` workflow.
 #' @author Amanda Droghini
-#' @date 2026-04-22
+#' @date 2026-05-01
 #
 # ===========================================================================
 # GLOBAL HELPERS ----
@@ -173,7 +173,7 @@ clean_visit_data <- function(df) {
       # Correct personnel names
       across(
         c(veg_observer, veg_recorder, env_observer, soils_observer),
-        \(x) case_match(x, !!!name_fixes, .default = x)
+        \(x) replace_values(x, !!!name_fixes)
       ),
       veg_recorder = if_else(project_code == "accs_ribdon_2019" &
         is.na(veg_recorder), "Timm Nawrocki",
