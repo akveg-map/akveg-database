@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # "Format Project Table for BLM AIM Various 2023 data"
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2025-10-28
+# Last Updated: 2026-05-01
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: "Format Project Table for BLM AIM Various 2023 data" enters and formats project-level information for
 # ingestion into the AKVEG Database. The script depends on the output from the 44_aim_various_2023_00_extract_data.py
@@ -96,7 +96,7 @@ lazy_project = (
         .alias("funder"),
         pl.lit("finished")
         .alias("completion"),
-        pl.lit("TRUE")
+        pl.lit("FALSE")
         .alias("private")
     ])
 )
