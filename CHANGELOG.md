@@ -11,16 +11,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## Unreleased
+## [2.9.0] - 2026-05-06
 
 ### Fixed
-* In the `project` table, replaced `download_url` with `citation_id`, which references 
-  the `citations` table. This ensures that citations in the `project` table are linked to formal 
-  bibliographic references. 
-* Sensitive species have been deleted from the `vegetation_cover` table for all BLM AIM sites (public version only).
+* **Enforced referential integrity for citations in the `project` table.** Replaced `download_url` with 
+  `citation_id`, which  references the `citations` table. This ensures that citations in the `project` table are 
+  linked to formal bibliographic references. 
+* **Updated LANDFIRE 2016 citation in `citations` table**.
+* **Redacted sensitive species from the `vegetation_cover` table**. This redaction applies only to BLM AIM sites in
+  the public version of the database. 38 records were redacted.
 
 ### Added
-* The following project codes (all related to BLM AIM 2022-2023) are now public. 
+* The following project codes (all related to BLM AIM 2022-2023) are now public:
   * aim_central_yukon_fo_2022
   * aim_central_yukon_fo_2023
   * aim_eastern_interior_fo_2022
