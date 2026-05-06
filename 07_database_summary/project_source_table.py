@@ -45,12 +45,6 @@ source_final = (project_table
                   .select("citation_short", "citation_long", "citation_url")
                   .filter(pl.col("citation_short").is_not_null())
                   .unique()
-                  .with_columns(pl.when(pl.col("citation_short") == "LANDFIRE 2016")
-                                         .then(pl.lit(
-                                               "https://landfire.gov/reference/lfrdb/lfrdb_data"))
-                                         .otherwise(pl.col("citation_url"))
-                                         .alias("citation_url")
-                                )
                 .with_columns(pl.concat_str(pl.col("citation_long"),
                                             pl.col("citation_url"),
                                             separator=" ")
