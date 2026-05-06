@@ -35,12 +35,44 @@ with open(project_input, 'r') as file:
 # Connect to the AKVEG Database
 akveg_db_connection = connect_database_postgresql(akveg_credentials)
 
-# Query project and citations table
+# Create cursor
+cursor = akveg_db_connection.cursor()
+
+# Query project table
 project_table = query_to_dataframe(akveg_db_connection, project_query)
 project_table = pl.from_pandas(project_table)
 
-# Format project source table (Table 1)
-project_final_table = (project_table.lazy()
+# --- Get Table 1 references ---
+unique_sources = (project_table
+                  .select("source_citation")
+                  .filter(pl.col("source_citation").is_not_null())
+                  .unique()
+                  .to_series()
+                  .to_list())
+
+# Create placeholders for SQL query
+query_placeholders = ",".join(["%s"] * len(unique_sources))
+
+# Construct the query string
+query_sources = (f"SELECT citation_short, citation_long, citation_url FROM citations WHERE citation_short IN "
+                 f"({query_placeholders})")
+
+# Execute query
+cursor.execute(query_sources, unique_sources)
+records = cursor.fetchall()
+column_names = [desc[0] for desc in cursor.description]
+source_table = pl.DataFrame(records, schema=column_names, orient="row")
+
+# Update URL for LANDFIRE reference (use web page instead of direct download link)
+source_final = source_table.with_columns(pl.when(pl.col("citation_short") == "LANDFIRE 2016")
+                                         .then(pl.lit(
+                                               "https://landfire.gov/reference/lfrdb/lfrdb_data"))
+                                         .otherwise(pl.col("citation_url"))
+                                         .alias("citation_url")
+                                         )
+
+# --- Create Table 1 --- #
+project_final = (project_table.lazy()
                  .with_columns(
                                # Change year end for ongoing projects to reflect last year of data in AKVEG
                                pl.when(pl.col("project_code") == "yukon_biophysical_2020")
@@ -81,9 +113,10 @@ project_final_table = (project_table.lazy()
                  .collect()
                  )
 
-#
+
 # Export table
-project_final_table.write_csv(project_output)
+project_final.write_csv(project_output)
 
 # Close the database connection
+cursor.close()
 akveg_db_connection.close()
