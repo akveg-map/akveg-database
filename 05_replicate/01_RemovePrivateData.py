@@ -2,9 +2,9 @@
 # ---------------------------------------------------------------------------
 # Remove private data from AKVEG Database
 # Author: Timm Nawrocki, Amanda Droghini
-# Last Updated: 2026-05-01
+# Last Updated: 2026-05-06
 # Usage: Execute in Python 3.13+.
-# Description: "Remove private data from AKVEG Database" retracts private data from all data tables to create a fully public version of the database.
+# Description: "Remove private data from AKVEG Database" retracts private data from all data tables to create a public version of the database.
 # ---------------------------------------------------------------------------
 
 # Import packages
@@ -25,7 +25,8 @@ repository_folder = os.path.join(drive, 'ACCS_Work', 'Repositories', 'akveg-data
 
 # Define input files
 authentication_file = os.path.join(credential_folder, 'akveg_public_build/authentication_akveg_public_build.csv')
-sensitive_file = os.path.join(drive, root_folder, 'Data', 'Tables_Taxonomy', 'Updates', 'RarePlant_Dataset_Apr2026.xlsx')
+sensitive_file = os.path.join(drive, root_folder, 'Data', 'Tables_Taxonomy', 'sensitive_species',
+                              'RarePlant_Dataset_Apr2026.xlsx')
 
 # Create initial database connection
 database_connection = connect_database_postgresql(authentication_file)
@@ -67,13 +68,13 @@ sensitive_species = ((pl.read_excel(sensitive_file, sheet_name="Species", column
                      .select(pl.concat_list(["taxon_code", "taxon_accepted_code"]).list.explode().unique())
                      .collect())
 
-sensitive_species_list = sensitive_species["taxon_code"].to_list()
+sensitive_list = sensitive_species["taxon_code"].to_list()
 
 # -------------------------------- #
 # --- IDENTIFY SITES TO REDACT --- #
 # -------------------------------- #
 
-# Identify site visit, site, and project codes associated with private projects
+# Extract identifiers associated with private projects
 site_query = '''
 SELECT site_code FROM site 
 LEFT JOIN project ON site.establishing_project_code = project.project_code
@@ -152,49 +153,57 @@ key_to_column = {
 # --- REMOVE DATA FROM TABLES --- #
 # ------------------------------- #
 
-# Iterate through the tables to clean
-for key, tables in tables_to_clean.items():
+try:
+    # Iterate through the tables to clean
+    for key, tables in tables_to_clean.items():
 
-    # Skip empty query results
-    if not query_results[key]:
-        print(f"No records to redact for {key}, skipping...")
-        continue
+        # Skip empty query results
+        if not query_results[key]:
+            print(f"No records to redact for {key}, skipping...")
+            continue
 
-    # Generate placeholders once for the current list length
-    placeholders = ",".join(["%s"] * len(query_results[key]))
+        # Generate placeholders once for the current list length
+        placeholders = ",".join(["%s"] * len(query_results[key]))
 
-    for table in tables:
-        iteration_start = time.time()
-        print(f"Removing private data from {table}...")
+        for table in tables:
+            iteration_start = time.time()
+            print(f"Removing private data from {table}...")
 
-        # Define the column name based on key type
-        id_column = key_to_column[key]
+            # Define the column name based on key type
+            id_column = key_to_column[key]
 
-        if key == "sensitive_visit_codes":
-            # Generate placeholders for sensitive species list
-            species_placeholders = ",".join(["%s"] * len(sensitive_species_list))
+            if key == "sensitive_visit_codes":
+                # Generate placeholders for sensitive species list
+                species_placeholders = ",".join(["%s"] * len(sensitive_list))
 
-            # Define query to delete only sensitive species
-            redact_species_data = f"""
-            DELETE FROM {table} 
-            WHERE site_visit_code IN ({placeholders}) 
-            AND code_adjudicated IN ({species_placeholders});
-            """
+                # Define query to delete only sensitive species
+                redact_species_data = f"""
+                DELETE FROM {table} 
+                WHERE site_visit_code IN ({placeholders}) 
+                AND code_adjudicated IN ({species_placeholders});
+                """
 
-            # Flatten parameters into a single tuple/list
-            params = query_results[key] + sensitive_species_list
-            cursor.execute(redact_species_data, params)
-            end_timing(iteration_start)
+                # Flatten parameters into a single tuple/list
+                params = query_results[key] + sensitive_list
+                cursor.execute(redact_species_data, params)
+                end_timing(iteration_start)
 
-        else:
-            delete_private_data = f"DELETE FROM {table} WHERE {id_column} IN ({placeholders});"
-            cursor.execute(delete_private_data, query_results[key])
-            end_timing(iteration_start)
+            else:
+                delete_private_data = f"DELETE FROM {table} WHERE {id_column} IN ({placeholders});"
+                cursor.execute(delete_private_data, query_results[key])
+                end_timing(iteration_start)
 
+    # Commit deletions
+    database_connection.commit()
+    print("All deletions have been committed successfully.")
 
-# Commit all deletions
-database_connection.commit()
+except Exception as e:
+    # Roll back changes if an error occurs
+    database_connection.rollback()
+    print(f"An error occurred: {e}. Changes have been rolled back.")
 
-# Close connection
-cursor.close()
-database_connection.close()
+finally:
+    # Close connection
+    cursor.close()
+    database_connection.close()
+    print("Database connection closed.")
