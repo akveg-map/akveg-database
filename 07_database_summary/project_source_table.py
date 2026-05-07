@@ -27,8 +27,8 @@ akveg_credentials = (credential_folder / "akveg_private_read" / "authentication_
 project_input = repository_folder / "queries" / "01_project.sql"
 
 # Define outputs
-project_output =  manuscript_folder / 'project_table.csv'
-source_output = manuscript_folder / 'source_table.csv'
+project_output =  manuscript_folder / 'table_projects.csv'
+source_output = manuscript_folder / 'table_project_citations.csv'
 
 # Connect to the AKVEG Database
 akveg_db_connection = connect_database_postgresql(akveg_credentials)
