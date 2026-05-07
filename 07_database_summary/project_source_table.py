@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create project table
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-05-06
+# Last Updated: 2026-05-07
 # Usage: Execute in Python 3.13+.
 # Description: "Create project source table" formats the project and citations tables in the AKVEG Database to
 # produce Table 1 (Droghini et al., in prep.) and associated bibliographic references.
@@ -21,6 +21,7 @@ project_folder = root / 'OneDrive - University of Alaska' /'ACCS_Teams' /'Vegeta
 repository_folder = root / 'Repositories' / 'akveg-database'
 credential_folder = project_folder / "Credentials"
 manuscript_folder = root / 'Projects' / 'AKVEG_Database' / 'Manuscript' / 'Tables'
+
 # Define inputs
 akveg_credentials = (credential_folder / "akveg_private_read" / "authentication_akveg_private_read.csv")
 project_input = repository_folder / "queries" / "01_project.sql"
@@ -74,10 +75,10 @@ project_final = (project_table.lazy()
     .alias("temporal_extent"),
     # Add private caveat to NRCS project
     pl.when(pl.col("private"))
-    .then(pl.concat_str(pl.col("project_code"), pl.lit("(private dataset)"),
+    .then(pl.concat_str(pl.col("project_name"), pl.lit("(private dataset)"),
                                                    separator=" "))
-    .otherwise(pl.col("project_code"))
-    .alias("project_code"),
+    .otherwise(pl.col("project_name"))
+    .alias("project_name"),
     # Combine source_type and Author-Year citation columns
     pl.when(pl.col("citation_short").is_null())
     .then(pl.col("source_type"))
