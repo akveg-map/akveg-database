@@ -12,7 +12,6 @@
 import polars as pl
 from pathlib import Path
 from akutils import connect_database_postgresql
-from akutils import query_to_dataframe
 
 # Define directories
 drive = Path('C:/')
@@ -33,7 +32,9 @@ akveg_db_connection = connect_database_postgresql(akveg_credentials)
 # Create cursor
 cursor = akveg_db_connection.cursor()
 
-# Get unique number of records for all data tables
+# --- Get number of records for all data tables --- #
+
+# Define data tables
 table_list = ['project', 'site', 'site_visit', 'vegetation_cover', 'abiotic_top_cover', 'ground_cover',
                 'structural_group_cover', 'shrub_structure',
                 'tree_structure',
@@ -50,7 +51,9 @@ cursor.execute(full_query)
 records = cursor.fetchall()
 counts_df = pl.DataFrame(records, schema=["table_name", "row_count"], orient="row")
 
-# Export tables
+# Export count table
 counts_df.write_csv(counts_output)
 
 # Close database connection
+cursor.close()
+akveg_db_connection.close()
