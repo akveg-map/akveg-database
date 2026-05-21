@@ -4,7 +4,7 @@
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
 # Last Updated: 2026-05-21
 # Usage: Must be executed in a R 4.6.0+ installation.
-# Description: "Map spatial distribution of site visits" creates a map figure for publication that shows the spatial distribution of sites in AKVEG, inclusive of private data.
+# Description: "Map spatial distribution of sites" creates a map figure for publication that shows the spatial distribution of sites in AKVEG, inclusive of private data.
 # ---------------------------------------------------------------------------
 
 # Import required libraries ----
