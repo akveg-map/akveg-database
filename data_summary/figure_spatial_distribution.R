@@ -138,11 +138,16 @@ map_plot = ggplot() +
                         override.aes = list(size = 5))
     )
 
+# Obtain summary statistics ----
+
 # Calculate percentage of sites that are in Alaska
 sites_in_alaska = lengths(st_intersects(site_data_sf, alaska_data)) > 0
 pct_in_alaska = mean(sites_in_alaska) * 100
 
-# Export plot
+# Calculate number of sites by survey perspective
+sites_by_perspective = table(site_data_sf$perspective)
+
+# Export plot ----
 ggsave(figure_output,
        plot = map_plot,
        device = 'jpeg',
