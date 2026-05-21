@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Summarize data in AKVEG
+# Plot temporal distribution of data in AKVEG
 # Author: Amanda Droghini, Alaska Center for Conservation Science
 # Last Updated: 2026-05-07
 # Usage: Execute in Python 3.13+.
-# Description: "Summarize data in AKVEG" extracts summary statistics for data in the private AKVEG Database. This
-# information is used in the Data Overview section of the AKVEG Database manuscript (Droghini et al., in prep.).
+# Description: "Plot temporal distribution of data" produces a figure of the temporal distribution of site visits in
+# the AKVEG Database, binned into 5-year intervals.
 # ---------------------------------------------------------------------------
 
 # Import libraries
