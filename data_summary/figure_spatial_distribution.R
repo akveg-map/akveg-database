@@ -41,7 +41,7 @@ credentials_input = path(credentials_folder, 'authentication_akveg_private_read.
 query_input = path(repository_folder, "queries", "02_site.sql")
 
 # Define output files
-figure_output = path(output_folder, 'figure_sites_distribution.jpg')
+figure_output = path(output_folder, 'figure_spatial_distribution.jpg')
 
 # Connect to database
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
