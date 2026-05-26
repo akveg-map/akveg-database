@@ -85,22 +85,25 @@ visit_date_df = (visit_date_df.with_columns(pl.col("observe_date").dt.year().ali
                                )
                  )
 
-# Calculate total number of site visits per bin
-year_data = visit_date_df.group_by('year_interval').len(name="record_count")
+# Calculate total number of site visits per time bin and perspective
+year_data = visit_date_df.group_by('year_interval', 'perspective').len(name="record_count")
 
 # Define sort order for plotting
 interval_order = ["Pre-2000", "2000-2004", "2005-2009", "2010-2014", "2015-2019", "2020-2024", "2025-2029"]
 
-# Create year-range plot
+# Create year-range plot with clustered bars for each perspective
 year_plot = px.bar(
     year_data,
     x='year_interval',
     y='record_count',
-    color='year_interval',
-    color_discrete_sequence=px.colors.sequential.Viridis,
+    color='perspective',
+    barmode='group',
+    pattern_shape='perspective',  # Represent different perspectives with patterns
+    pattern_shape_sequence=['', '/'],
+    color_discrete_sequence=['#404040', '#bababa'],
     category_orders={"year_interval": interval_order},
     template="plotly_white",
-    labels={"year_interval": "Year Interval", "record_count": "Number of Site Visits"}
+    labels={"year_interval": "Year Interval", "record_count": "Number of Site Visits", "perspective": "Perspective"}
 )
 
 # Add black outlines around bars
@@ -110,13 +113,21 @@ year_plot.update_traces(marker_line_color='black', marker_line_width=1)
 ## Use thousands separator
 year_plot.update_traces(texttemplate='%{y:,.0f}', textposition='outside')
 
-# Update y-axis to use thousands separator
+# Add final touches to plot formatting
 year_plot.update_layout(
-    yaxis_tickformat=','
+    yaxis_tickformat=',',  # Update y-axis to use thousands separator
+    font=dict(
+        family="Arial",
+        size=20
+    ),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.05,  # Slightly higher to clear the top margin/labels if needed
+        xanchor="center",
+        x=0.5
+    )
 )
-
-# Remove the legend
-year_plot.update_layout(showlegend=False)
 
 # Show plot
 year_plot.show()
@@ -126,7 +137,7 @@ year_plot.show()
 counts_df.write_csv(counts_output)
 
 # Export year range plot to PNG
-pio.write_image(year_plot, plot_output, width=1000, height=700, scale=2)
+pio.write_image(year_plot, plot_output, width=1300, height=800, scale=3)
 
 # --- Close DB connection ---
 cursor.close()
