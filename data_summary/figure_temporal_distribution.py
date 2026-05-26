@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Plot temporal distribution of data in AKVEG
+# Produce tables and figures for publication
 # Author: Amanda Droghini, Alaska Center for Conservation Science
 # Last Updated: 2026-05-26
 # Usage: Execute in Python 3.13+.
-# Description: "Plot temporal distribution of data" produces a figure of the temporal distribution of site visits in
-# the AKVEG Database, binned into 5-year intervals.
+# Description: "Produce tables and figures for publication" produces the following results in the AKEVG Database
+# Manuscript (Droghini et al. 2026): (1) a table with the number of records in each of AKVEG's 13 data tables; (2) a
+# clustered bar graph of the temporal distribution of site visits in the AKVEG Database, binned into 5-year intervals
+# and classified by survey perspective (aerial vs. ground); and (3) a clustered bar graph of the number of site
+# visits in AKVEG, classified by taxonomic group (vascular, bryophyte, lichen) and taxonomic scope.
 # ---------------------------------------------------------------------------
 
 # Import libraries
@@ -79,8 +82,11 @@ visit_df = pl.from_pandas(visit_df)
 
 # Bin data by 5-year intervals
 ## Except for pre-2000 data, which accounts for less than 2% of the total records
-visit_df = (visit_df.with_columns(pl.col("observe_date").dt.year().alias("observe_year")
-                                            )
+visit_df = (visit_df.with_columns(pl.col("observe_date").dt.year()
+                                  .alias("observe_year"),
+                                  pl.col("perspective").str.replace_many({"aerial": "Aerial",
+                                                                          "ground": "Ground"})
+                                  )
                  .with_columns(pl.when(pl.col("observe_year") < 2000)
                                .then(pl.lit("Pre-2000"))
                                # Format all other years as 5-year intervals
@@ -110,7 +116,9 @@ year_plot = px.bar(
     color_discrete_sequence=['#404040', '#bababa'],
     category_orders={"year_interval": interval_order},
     template="plotly_white",
-    labels={"year_interval": "Year Interval", "record_count": "Number of Site Visits", "perspective": "Perspective"}
+    labels={"year_interval": "Year Interval",
+            "record_count": "Number of Site Visits"
+            }
 )
 
 # Add black outlines around bars
@@ -132,7 +140,8 @@ year_plot.update_layout(
         yanchor="bottom",
         y=1.05,
         xanchor="center",
-        x=0.5
+        x=0.5,
+        title_text=None
     )
 )
 
@@ -152,12 +161,12 @@ scope_data = (visit_df.select(["site_visit_code", "vascular", "bryophyte", "lich
                        variable_name="taxon_group",
                        value_name="scope_type")
               .with_columns(pl.col("scope_type").str.replace_many(scope_mapping)
-                            .alias("scope_type_reclass")
+                            .alias("scope_reclass")
                             )
               )
 
 # Calculate total number of site visits per scope type
-scope_data = scope_data.group_by('taxon_group', 'scope_type_reclass').len(name="record_count")
+scope_data = scope_data.group_by('taxon_group', 'scope_reclass').len(name="record_count")
 
 # Define sort order
 taxon_order = ["vascular", "bryophyte", "lichen"]
@@ -168,15 +177,23 @@ scope_plot = px.bar(
     scope_data,
     x='taxon_group',
     y='record_count',
-    color='scope_type_reclass',
+    color='scope_reclass',
     barmode='group',
-    pattern_shape='scope_type_reclass',
+    pattern_shape='scope_reclass',
     pattern_shape_sequence=['', '/', '\\', '.'],
     color_discrete_sequence=['#252525', '#636363', '#b0b0b0', '#f0f0f0'],
     category_orders={"taxon_group": taxon_order,
-                     "scope_type_reclass": scope_order},
+                     "scope_reclass": scope_order},
     template="plotly_white",
-    labels={"taxon_group": "Taxonomic Group", "record_count": "Number of Site Visits", "scope_type": "Taxonomic Scope"}
+    labels={"taxon_group": "Taxonomic Group",
+            "record_count": "Number of Site Visits"}
+)
+
+# Update x-axis labels
+scope_plot.update_xaxes(
+    tickmode='array',
+    tickvals=['vascular', 'bryophyte', 'lichen'],
+    ticktext=['Vascular Plants', 'Bryophytes', 'Lichens']
 )
 
 # Add same aesthetic modifications as year_plot
@@ -193,7 +210,8 @@ scope_plot.update_layout(
         yanchor="bottom",
         y=1.05,
         xanchor="center",
-        x=0.5
+        x=0.5,
+        title_text=None
     )
 )
 
