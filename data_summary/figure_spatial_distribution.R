@@ -4,7 +4,7 @@
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
 # Last Updated: 2026-05-26
 # Usage: Must be executed in a R 4.6.0+ installation.
-# Description: "Map spatial distribution of sites" creates a map figure for publication that shows the spatial distribution of sites in AKVEG, inclusive of private data.
+# Description: "Map spatial distribution of sites" creates a map figure for publication that shows the spatial distribution of sites in AKVEG, inclusive of private data, classified according to cover method.
 # ---------------------------------------------------------------------------
 
 # Import required libraries ----
@@ -54,11 +54,11 @@ site_data = dbGetQuery(database_connection, query_file)
 # Re-classify cover methods
 site_data <- site_data |> 
   mutate(cover_method_reclass = case_when(cover_method %in% c("braun-blanquet visual estimate", 
-                                                              "custom classification visual estimate") ~ "cover class",
+                                                              "custom classification visual estimate") ~ "Cover Class",
                                           cover_method %in% c("line-point intercept", 
-                                                              "grid-point intercept") ~ "point intercept",
+                                                              "grid-point intercept") ~ "Point Intercept",
                                           cover_method %in% c("semi-quantitative visual estimate", 
-                                                              "subplot transect visual estimate") ~ "visual estimate"))
+                                                              "subplot transect visual estimate") ~ "Visual Estimate"))
 # Create map plot ----
 
 # Read input data
@@ -80,9 +80,9 @@ alaska_data = st_read(alaska_input) |> st_union()  # Dissolve into a single poly
 
 # Define custom fill colors
 custom_colors = c(
-  'visual estimate' = '#0072B2',
-  'point intercept' = '#E69F00',
-  'cover class' = '#D81B60'
+  'Visual Estimate' = '#0072B2',
+  'Point Intercept' = '#E69F00',
+  'Cover Class' = '#D81B60'
 )
 
 # Define bounding box polygons
@@ -106,20 +106,27 @@ y_limits = y_limits + c(-buffer_dist, buffer_dist)
 # Create map of AKVEG plot data
 map_plot = ggplot() +
   geom_sf(data = ocean_data, color = NA, fill = '#BEE8FF', alpha = 0.3) +
-  geom_sf(data = russia_data, color = 'black', fill = 'lightgray', linewidth = 0.2, alpha = 0.5) +
-  geom_sf(data = na_data, color = 'black', fill = 'lightgray', linewidth = 0.2, alpha = 0.5) +
-  geom_sf(data = alaska_data, color = 'black', fill = 'white', linewidth = 0) +
+  geom_sf(data = russia_data, color = 'black', 
+          fill = 'lightgray', linewidth = 0.2, alpha = 0.5) +
+  geom_sf(data = na_data, color = 'black', 
+          fill = 'lightgray', linewidth = 0.2, alpha = 0.5) +
+  geom_sf(data = alaska_data, color = 'black', 
+          fill = 'white', linewidth = 0) +
   geom_sf(data = river_data, color = '#BFD9F2', linewidth = 1) +
-  geom_sf(data = russia_data, color = 'white', fill = NA, linewidth = 1.2) +
-  geom_sf(data = russia_data, color = 'black', fill = NA, linewidth = 0.2) +
-  geom_sf(data = na_data, color = 'white', fill = NA, linewidth = 1.2) +
-  geom_sf(data = na_data, color = 'black', fill = NA, linewidth = 0.2) +
+  geom_sf(data = russia_data, color = 'white', 
+          fill = NA, linewidth = 1.2) +
+  geom_sf(data = russia_data, color = 'black', 
+          fill = NA, linewidth = 0.2) +
+  geom_sf(data = na_data, color = 'white', 
+          fill = NA, linewidth = 1.2) +
+  geom_sf(data = na_data, color = 'black', 
+          fill = NA, linewidth = 0.2) +
   geom_sf(data = site_data_sf,
           aes(fill = cover_method_reclass),
           color = 'black',
           linewidth = 0.3,
           pch = 21,
-          size = 2) +
+          size = 1.8) +
   scale_fill_manual(values = custom_colors) +
   coord_sf(
     crs = st_crs(3338),
@@ -138,7 +145,8 @@ map_plot = ggplot() +
     legend.title = element_blank(),
     legend.position = 'top',
     legend.margin = margin(t = 10),
-    plot.title = element_text(size = 20)
+    plot.title = element_text(size = 20),
+    text = element_text(family="sans")
   ) +
   guides(
     fill = guide_legend(direction = "horizontal",
