@@ -128,6 +128,11 @@ year_plot.update_traces(marker_line_color='black', marker_line_width=1)
 ## Use thousands separator
 year_plot.update_traces(texttemplate='%{y:,.0f}', textposition='outside')
 
+# Drop x-axis title
+year_plot.update_xaxes(
+    title=None
+)
+
 # Add final touches to plot formatting
 year_plot.update_layout(
     yaxis_tickformat=',',  # Update y-axis to use thousands separator
@@ -189,8 +194,9 @@ scope_plot = px.bar(
             "record_count": "Number of Site Visits"}
 )
 
-# Update x-axis labels
+# Update x-axis labels and drop title
 scope_plot.update_xaxes(
+    title=None,
     tickmode='array',
     tickvals=['vascular', 'bryophyte', 'lichen'],
     ticktext=['Vascular Plants', 'Bryophytes', 'Lichens']
