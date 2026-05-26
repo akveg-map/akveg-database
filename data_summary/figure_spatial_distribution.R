@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Map spatial distribution of sites
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-05-21
+# Last Updated: 2026-05-26
 # Usage: Must be executed in a R 4.6.0+ installation.
 # Description: "Map spatial distribution of sites" creates a map figure for publication that shows the spatial distribution of sites in AKVEG, inclusive of private data.
 # ---------------------------------------------------------------------------
@@ -51,6 +51,14 @@ database_connection <- connect_database_postgresql(credentials_input)
 query_file <- read_file(query_input)
 site_data = dbGetQuery(database_connection, query_file)
 
+# Re-classify cover methods
+site_data <- site_data |> 
+  mutate(cover_method_reclass = case_when(cover_method %in% c("braun-blanquet visual estimate", 
+                                                              "custom classification visual estimate") ~ "cover class",
+                                          cover_method %in% c("line-point intercept", 
+                                                              "grid-point intercept") ~ "point intercept",
+                                          cover_method %in% c("semi-quantitative visual estimate", 
+                                                              "subplot transect visual estimate") ~ "visual estimate"))
 # Create map plot ----
 
 # Read input data
@@ -72,8 +80,9 @@ alaska_data = st_read(alaska_input) |> st_union()  # Dissolve into a single poly
 
 # Define custom fill colors
 custom_colors = c(
-  'ground' = '#0072B2',
-  'aerial' = '#E69F00'
+  'visual estimate' = '#0072B2',
+  'point intercept' = '#E69F00',
+  'cover class' = '#D81B60'
 )
 
 # Define bounding box polygons
@@ -106,14 +115,12 @@ map_plot = ggplot() +
   geom_sf(data = na_data, color = 'white', fill = NA, linewidth = 1.2) +
   geom_sf(data = na_data, color = 'black', fill = NA, linewidth = 0.2) +
   geom_sf(data = site_data_sf,
-          aes(fill = perspective),
+          aes(fill = cover_method_reclass),
           color = 'black',
           linewidth = 0.3,
           pch = 21,
           size = 2) +
-  scale_fill_manual(values = custom_colors,
-                    labels = c("aerial" = "Aerial", 
-                               "ground" = "Ground")) +
+  scale_fill_manual(values = custom_colors) +
   coord_sf(
     crs = st_crs(3338),
     xlim = x_limits,
@@ -131,7 +138,7 @@ map_plot = ggplot() +
     legend.title = element_blank(),
     legend.position = 'top',
     legend.margin = margin(t = 10),
-    plot.title = element_text(size = 20),
+    plot.title = element_text(size = 20)
   ) +
   guides(
     fill = guide_legend(direction = "horizontal",
@@ -144,8 +151,8 @@ map_plot = ggplot() +
 sites_in_alaska = lengths(st_intersects(site_data_sf, alaska_data)) > 0
 pct_in_alaska = mean(sites_in_alaska) * 100
 
-# Calculate number of sites by survey perspective
-sites_by_perspective = table(site_data_sf$perspective)
+# Calculate number of sites by survey method
+sites_by_method = table(site_data_sf$cover_method)
 
 # Export plot ----
 ggsave(figure_output,
