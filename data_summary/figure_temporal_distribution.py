@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Plot temporal distribution of data in AKVEG
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-05-07
+# Last Updated: 2026-05-26
 # Usage: Execute in Python 3.13+.
 # Description: "Plot temporal distribution of data" produces a figure of the temporal distribution of site visits in
 # the AKVEG Database, binned into 5-year intervals.
@@ -59,7 +59,14 @@ counts_df = pl.DataFrame(records, schema=["table_name", "row_count"], orient="ro
 # --- Plot temporal range of data --- #
 
 # Query site visit table
-visit_date_query = f"SELECT site_visit_code, observe_date FROM site_visit"
+visit_date_query = f"""
+SELECT site_visit_code, 
+observe_date, 
+perspective.perspective 
+FROM site_visit 
+LEFT JOIN site ON site_visit.site_code = site.site_code 
+LEFT JOIN perspective ON site.perspective_id = perspective.perspective_id
+"""
 visit_date_df = query_to_dataframe(akveg_db_connection, visit_date_query)
 visit_date_df = pl.from_pandas(visit_date_df)
 
