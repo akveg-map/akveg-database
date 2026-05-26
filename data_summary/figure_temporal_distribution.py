@@ -90,7 +90,7 @@ visit_df = (visit_df.with_columns(pl.col("observe_date").dt.year()
                  .with_columns(pl.when(pl.col("observe_year") < 2000)
                                .then(pl.lit("Pre-2000"))
                                # Format all other years as 5-year intervals
-                               .otherwise(pl.format("{}-{}",
+                               .otherwise(pl.format("{}–{}",
                                                     (pl.col("observe_year") // 5) * 5,
                                                     (pl.col("observe_year") // 5) * 5 + 4)
                                           )
@@ -102,7 +102,7 @@ visit_df = (visit_df.with_columns(pl.col("observe_date").dt.year()
 year_data = visit_df.group_by('year_interval', 'perspective').len(name="record_count")
 
 # Define sort order for plotting
-interval_order = ["Pre-2000", "2000-2004", "2005-2009", "2010-2014", "2015-2019", "2020-2024", "2025-2029"]
+interval_order = ["Pre-2000", "2000–2004", "2005–2009", "2010–2014", "2015–2019", "2020–2024", "2025–2029"]
 
 # Create year plot with clustered bars for each perspective
 year_plot = px.bar(
