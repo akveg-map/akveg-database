@@ -62,10 +62,16 @@ counts_df = pl.DataFrame(records, schema=["table_name", "row_count"], orient="ro
 visit_date_query = f"""
 SELECT site_visit_code, 
 observe_date, 
-perspective.perspective 
+perspective.perspective,
+scope_vascular.scope AS scope_vascular,
+scope_bryophyte.scope AS scope_bryophyte,
+scope_lichen.scope AS scope_lichen
 FROM site_visit 
 LEFT JOIN site ON site_visit.site_code = site.site_code 
 LEFT JOIN perspective ON site.perspective_id = perspective.perspective_id
+LEFT JOIN scope AS scope_vascular ON site_visit.scope_vascular_id = scope_vascular.scope_id
+LEFT JOIN scope AS scope_bryophyte ON site_visit.scope_bryophyte_id = scope_bryophyte.scope_id
+LEFT JOIN scope AS scope_lichen ON site_visit.scope_lichen_id = scope_lichen.scope_id
 """
 visit_date_df = query_to_dataframe(akveg_db_connection, visit_date_query)
 visit_date_df = pl.from_pandas(visit_date_df)
@@ -123,7 +129,7 @@ year_plot.update_layout(
     legend=dict(
         orientation="h",
         yanchor="bottom",
-        y=1.05,  # Slightly higher to clear the top margin/labels if needed
+        y=1.05,
         xanchor="center",
         x=0.5
     )
