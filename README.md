@@ -64,11 +64,11 @@ If you would like to contribute a dataset, consult the [Become a contributor](ht
 
 The U.S. Fish & Wildlife Service, Bureau of Land Management, National Park Service, U.S. Forest Service, Alaska Department of Fish & Game, and Alaska Department of Natural Resources provided funding in support of the development of the AKVEG Database.
 
-### Usage Requirements
+### How to Cite
 
-Citing the database is not required to use the data as all data are public. Where a citation is sensible, we would appreciate you citing the AKVEG Database as follows:
+Citing the database is not required as all data are public. Where a citation is sensible, we would appreciate you citing the AKVEG Database as follows:
 
-Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2025. Alaska Vegetation (AKVEG) Database: Standardized, multi-project field and classification data for Alaska. Alaska Geospatial Council, Vegetation Working Group. Available: [https://akveg.uaa.alaska.edu](https://akveg.uaa.alaska.edu). Data downloaded on [date of query].
+Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2026. Alaska Vegetation (AKVEG) Database: Standardized, multi-project field and classification data for Alaska. Alaska Geospatial Council, Vegetation Working Group. Available: [https://www.akveg.org](https://www.akveg.org). Data downloaded on [date of query].
 
 ### License ⚖️
 
