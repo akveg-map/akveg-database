@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Produce tables and figures for publication
+# Produce bar graphs for publication
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-05-26
+# Last Updated: 2026-05-27
 # Usage: Execute in Python 3.13+.
-# Description: "Produce tables and figures for publication" produces the following results in the AKEVG Database
-# Manuscript (Droghini et al. 2026): (1) a table with the number of records in each of AKVEG's 13 data tables; (2) a
-# clustered bar graph of the temporal distribution of site visits in the AKVEG Database, binned into 5-year intervals
-# and classified by survey perspective (aerial vs. ground); and (3) a clustered bar graph of the number of site
-# visits in AKVEG, classified by taxonomic group (vascular, bryophyte, lichen) and taxonomic scope.
+# Description: "Produce bar graphs for publication" produces two clustered bar graphs summarizing aspects of the data
+# in the AKVEG Database: (1) temporal distribution of site visits, binned into 5-year intervals
+# and classified by survey perspective (aerial vs. ground); and (2) number of site visits classified by
+# taxonomic group (vascular, bryophyte, lichen) and taxonomic scope.
 # ---------------------------------------------------------------------------
 
 # Import libraries
@@ -31,38 +30,13 @@ manuscript_folder = root / 'Projects' / 'AKVEG_Database' / 'Manuscript'
 akveg_credentials = (credential_folder / "akveg_private_read" / "authentication_akveg_private_read.csv")
 
 # Define outputs
-counts_output =  manuscript_folder / 'Tables' / 'table_record_counts.csv'
 year_output = manuscript_folder / 'Figures' / 'figure_temporal_extent.png'
 scope_output = manuscript_folder / 'Figures' / 'figure_taxon_scope.png'
 
 # Connect to the AKVEG Database
 akveg_db_connection = connect_database_postgresql(akveg_credentials)
 
-# Create cursor
-cursor = akveg_db_connection.cursor()
-
-# --- Get number of records for all data tables --- #
-
-# Define data tables
-table_list = ['project', 'site', 'site_visit', 'vegetation_cover', 'abiotic_top_cover', 'ground_cover',
-                'structural_group_cover', 'shrub_structure',
-                'tree_structure',
-                'environment', 'soil_metrics', 'soil_horizons']
-
-# Build query segments
-queries = [f"SELECT '{t}' as table_name, COUNT(*) FROM {t}" for t in table_list]
-
-# Join segments with UNION ALL
-full_query = "\nUNION ALL\n".join(queries)
-
-# Execute query and store results in a dataframe
-cursor.execute(full_query)
-records = cursor.fetchall()
-counts_df = pl.DataFrame(records, schema=["table_name", "row_count"], orient="row")
-
-# --- Plot temporal range of data --- #
-
-# Query site visit table
+# --- Query site visit table ---
 visit_query = f"""
 SELECT site_visit_code, 
 observe_date, 
@@ -80,8 +54,9 @@ LEFT JOIN scope AS scope_lichen ON site_visit.scope_lichen_id = scope_lichen.sco
 visit_df = query_to_dataframe(akveg_db_connection, visit_query)
 visit_df = pl.from_pandas(visit_df)
 
-# Bin data by 5-year intervals
-## Except for pre-2000 data, which accounts for less than 2% of the total records
+# --- Plot temporal range of data ---
+# Bin data into 5-year intervals
+# Except for pre-2000 data, which accounts for less than 2% of the total records
 visit_df = (visit_df.with_columns(pl.col("observe_date").dt.year()
                                   .alias("observe_year"),
                                   pl.col("perspective").str.replace_many({"aerial": "Aerial",
@@ -150,7 +125,8 @@ year_plot.update_layout(
     )
 )
 
-# Prepare data for taxonomic scope plot
+# --- Plot taxonomic scope of data ---
+# Prepare data
 scope_mapping = {
     "exhaustive": "Exhaustive",
     "partial": "Partial",
@@ -221,18 +197,13 @@ scope_plot.update_layout(
     )
 )
 
-# Show plots
+# --- Show plots ---
 year_plot.show()
 scope_plot.show()
 
-# --- Export outputs ---
-# Export count table
-counts_df.write_csv(counts_output)
-
-# Export plots to PNG
+# --- Export plots to PNG ---
 pio.write_image(year_plot, year_output, width=1300, height=800, scale=3)
 pio.write_image(scope_plot, scope_output, width=1300, height=800, scale=3)
 
 # --- Close DB connection ---
-cursor.close()
 akveg_db_connection.close()
