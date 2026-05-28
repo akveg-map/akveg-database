@@ -54,14 +54,42 @@ connect_args = {
     "sslkey": ssl_key
 }
 
-# Create database engine and Metadata
+# Create database engine
 engine = sa.create_engine(db_url, connect_args=connect_args)
-metadata = sa.MetaData()
 
 # --- Get schema ---
-# Reflect schema and get table names
 insp = sa.inspect(engine)
-table_names = insp.get_table_names()
 
-metadata.reflect(bind=engine)
+# Extract schema metadata from all tables
+all_columns = insp.get_multi_columns()
+all_pks = insp.get_multi_pk_constraint()
+all_fks = insp.get_multi_foreign_keys()
+
+# --- Get column descriptions ---
+# Info is stored in the database_schema table
+
+# --- Create README tables ---
+# Loop through all tables and columns
+for table_key, columns in all_columns.items():
+    # Unpack tuple (schema_name is 'None' - public - for akveg)
+    schema_name, table_name = table_key
+    # Extract primary key data and column name
+    pk_data = all_pks.get(table_key, {})
+    pk_cols = pk_data.get('constrained_columns', [])
+
+    # Extract foreign key data and column names
+    fk_data = all_fks.get(table_key, [])
+    fk_cols = [col for fk in fk_data for col in fk['referred_columns']]
+
+    print(f"### Table: {table_name}")
+    print("| Column Name | Description | Type | Primary Key | Foreign Key |")
+    print("| --- | --- | --- | --- | --- |")
+
+    for col in columns:
+        col_name = col['name']
+        col_type = str(col['type'])
+        is_pk = "Yes" if col_name in pk_cols else "No"
+        is_fk = "Yes" if col_name in fk_cols else "No"
+
+        print(f"| {col_name} | {col_type} | {is_pk} | {is_fk} |")
 
