@@ -67,6 +67,14 @@ all_fks = insp.get_multi_foreign_keys()
 
 # --- Get column descriptions ---
 # Info is stored in the database_schema table
+query_schema = f"""
+SELECT schema_table.schema_table, field, field_description
+FROM database_schema
+LEFT JOIN schema_table on schema_table.schema_table_id = database_schema.schema_table_id
+"""
+
+# Pass the engine directly to the connection parameter
+schema_df = pl.read_database(query=query_schema, connection=engine)
 
 # --- Create README tables ---
 # Loop through all tables and columns
@@ -86,10 +94,17 @@ for table_key, columns in all_columns.items():
     print("| --- | --- | --- | --- | --- |")
 
     for col in columns:
+        print(f"Looking up: Table={table_name}, Column={col_name}")
         col_name = col['name']
         col_type = str(col['type'])
         is_pk = "Yes" if col_name in pk_cols else "No"
         is_fk = "Yes" if col_name in fk_cols else "No"
+        col_desc = (schema_df.filter(
+            (pl.col("schema_table") == table_name) &
+            (pl.col("field") == col_name)
+        ).select(pl.col("field_description"))
+                    .item()
+                    )
 
-        print(f"| {col_name} | {col_type} | {is_pk} | {is_fk} |")
+        print(f"| {col_name} | {col_desc} | {col_type} | {is_pk} | {is_fk} |")
 
