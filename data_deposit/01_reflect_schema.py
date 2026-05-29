@@ -12,6 +12,7 @@
 import polars as pl
 import sqlalchemy as sa
 from pathlib import Path
+from utils import check_schema_fields
 
 # Define directories
 drive = Path('C:/')
@@ -21,7 +22,7 @@ credential_folder = (root / 'OneDrive - University of Alaska' /'ACCS_Teams' /'Ve
 repository_folder = root / 'Repositories' / 'akveg-database'
 
 # Define input
-credential_file = (credential_folder / "akveg_private_read" / "authentication_akveg_private_read.csv")
+credential_file = (credential_folder / "akveg_public_read" / "authentication_akveg_public_read.csv")
 
 # Define outputs
 ###
@@ -57,54 +58,25 @@ connect_args = {
 # Create database engine
 engine = sa.create_engine(db_url, connect_args=connect_args)
 
-# --- Get schema ---
+# --- Verify schema ---
 insp = sa.inspect(engine)
 
 # Extract schema metadata from all tables
-all_columns = insp.get_multi_columns()
-all_pks = insp.get_multi_pk_constraint()
-all_fks = insp.get_multi_foreign_keys()
+schema_columns = insp.get_multi_columns()
 
-# --- Get column descriptions ---
-# Info is stored in the database_schema table
+# Read in database_schema table
 query_schema = f"""
-SELECT schema_table.schema_table, field, field_description
+SELECT database_schema.*, schema_table.schema_table, data_type.data_type
 FROM database_schema
 LEFT JOIN schema_table on schema_table.schema_table_id = database_schema.schema_table_id
+LEFT JOIN data_type on data_type.data_type_id = database_schema.data_type_id
 """
 
-# Pass the engine directly to the connection parameter
 schema_df = pl.read_database(query=query_schema, connection=engine)
 
-# --- Create README tables ---
-# Loop through all tables and columns
-for table_key, columns in all_columns.items():
-    # Unpack tuple (schema_name is 'None' - public - for akveg)
-    schema_name, table_name = table_key
-    # Extract primary key data and column name
-    pk_data = all_pks.get(table_key, {})
-    pk_cols = pk_data.get('constrained_columns', [])
+# Verify completeness of database_schema table
+check_schema_fields(schema_df, schema_columns)
 
-    # Extract foreign key data and column names
-    fk_data = all_fks.get(table_key, [])
-    fk_cols = [col for fk in fk_data for col in fk['referred_columns']]
+# --- Export database tables ---
 
-    print(f"### Table: {table_name}")
-    print("| Column Name | Description | Type | Primary Key | Foreign Key |")
-    print("| --- | --- | --- | --- | --- |")
-
-    for col in columns:
-        print(f"Looking up: Table={table_name}, Column={col_name}")
-        col_name = col['name']
-        col_type = str(col['type'])
-        is_pk = "Yes" if col_name in pk_cols else "No"
-        is_fk = "Yes" if col_name in fk_cols else "No"
-        col_desc = (schema_df.filter(
-            (pl.col("schema_table") == table_name) &
-            (pl.col("field") == col_name)
-        ).select(pl.col("field_description"))
-                    .item()
-                    )
-
-        print(f"| {col_name} | {col_desc} | {col_type} | {is_pk} | {is_fk} |")
-
+# Organize tables by folder
