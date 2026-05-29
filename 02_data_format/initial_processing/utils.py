@@ -6,7 +6,7 @@
 # ---------------------------------------------------------------------------
 
 """
-This module provides a collection of utility functions to support the processing and ingestion of datasets into the
+This module provides utility functions for processing and ingestion of datasets into the
 AKVEG Database.
 
 Functions include:
