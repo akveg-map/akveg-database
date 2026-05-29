@@ -2,14 +2,14 @@
 # ---------------------------------------------------------------------------
 # Prepare taxonomic data for upload
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-04-23
-# Usage: Script should be executed in R 4.5.1+.
+# Last Updated: 2026-05-29
+# Usage: Script should be executed in R 4.6.0+.
 # Description: "Prepare taxonomic data for upload" parses taxonomy data into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
 
 # Import required libraries
 library(DBI)
-library(dplyr)
+library(dplyr, warn.conflicts = FALSE)
 library(fs)
 library(purrr)
 library(readr)
