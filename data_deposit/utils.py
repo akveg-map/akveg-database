@@ -10,11 +10,14 @@ This module provides utility functions for preparing the depositing of the AKVEG
 
 Functions include:
 1. check_schema_fields: Verify that all fields exist in the database_schema table.
+2. map_sql_tables: Maps all tables created in SQL build scripts to the names of folders they will be exported to.
 """
 
 # Import packages
-from typing import Tuple, List
 import polars as pl
+import re as re
+from typing import Tuple, List, Dict
+from pathlib import WindowsPath
 
 # --- Function 1 ---
 def check_schema_fields(
@@ -68,9 +71,8 @@ def check_schema_fields(
                 # following checks are missing
 
             # --- Check 3: Are foreign key fields linked to another table? ---
-            is_key_true = row.get("is_key")
-            is_foreign_key = "Foreign key" in str(row.get("field_description"))
-            if is_key_true and is_foreign_key and row.get("link_table_id") is None:
+            is_foreign_key = row.get("is_foreign_key")
+            if is_foreign_key and row.get("link_table_id") is None:
                 missing_fields.append((table_name, col_name, "is_foreign_key is true, but link_table_id is NULL"))
 
             # --- Check 4: Do varchars fields have a field_length? ---
@@ -87,3 +89,52 @@ def check_schema_fields(
             print(f"| {table} | {column} | {reason} |")
 
     return missing_fields
+
+# --- Function 2 ---
+def map_sql_tables(
+        folder_path: WindowsPath,
+) -> Dict[str, str]:
+    """
+    Scans a directory for SQL files, extracts the names of all tables being created, and maps them to the name of the
+    folder they will be exported to.
+    """
+
+    # Create empty dictionary for storing results
+    folder_dictionary = dict()
+
+    # List all SQL files in directory
+    file_list = [f for f in folder_path.glob("*.sql") if f.is_file()]
+
+    # Loop through each SQL file
+    for file in file_list:
+
+        file_stem = file.stem.lower()
+
+        with open(file, 'r', encoding='utf-8') as sql_file:
+            sql_query = sql_file.read()
+
+        # Define regex pattern for CREATE TABLE
+        ## Couch table name ([a-z_]+ in parentheses to create capture
+        regex_pattern = r'\nCREATE TABLE ([a-z_]+) \(\n'
+
+        # Extract table names from SQL script
+        table_names = re.findall(regex_pattern, sql_query)
+
+        # Skip SQL files that do not create any tables (e.g., files that create roles)
+        if len(table_names) == 0:
+            continue
+
+        # Create key-value pair for each table
+        for table in table_names:
+            if "taxon" in table:
+                folder_dictionary[table] = "reference_tables/taxonomy"
+            elif "schema" in table or "dictionary" in table:
+                folder_dictionary[table] = "documentation"
+            elif "metadata" in file_stem:
+                folder_dictionary[table] = "reference_tables/field_lookups"
+            if "project_citations" in table:
+                folder_dictionary[table] = "reference_tables/field_lookups"
+            else:
+                folder_dictionary[table] = "data_tables"
+
+    return folder_dictionary
