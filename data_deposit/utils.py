@@ -132,7 +132,7 @@ def map_sql_tables(
                 folder_dictionary[table] = "documentation"
             elif "metadata" in file_stem:
                 folder_dictionary[table] = "reference_tables/field_lookups"
-            if "project_citations" in table:
+            elif "project_citations" in table:
                 folder_dictionary[table] = "reference_tables/field_lookups"
             else:
                 folder_dictionary[table] = "data_tables"
