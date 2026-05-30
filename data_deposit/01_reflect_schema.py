@@ -1,27 +1,29 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Write README for data deposit
+# Extract database tables
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-05-27
+# Last Updated: 2026-05-29
 # Usage: Execute in Python 3.13+.
-# Description: "Write README for data deposit" extracts data and schema from the AKVEG Database, and formats it into
-# a README file to accompany a deposit in a data repository.
+# Description: "Extract database tables" verifies completeness of the database schema metadata, and extracts all
+# tables in the AKVEG Database.
 # ---------------------------------------------------------------------------
 
 # Import libraries
 import polars as pl
 import sqlalchemy as sa
+from collections import Counter, defaultdict
 from pathlib import Path
-from utils import check_schema_fields
+from utils import *
+
 
 # Define directories
 drive = Path('C:/')
 root = drive / 'ACCS_Work'
 credential_folder = (root / 'OneDrive - University of Alaska' /'ACCS_Teams' /'Vegetation' / 'AKVEG_Database' /
                      "Credentials")
-repository_folder = root / 'Repositories' / 'akveg-database'
+sql_build_folder = root / 'Repositories' / 'akveg-database' / '01_database_build'
 
-# Define input
+# Define inputs
 credential_file = (credential_folder / "akveg_public_read" / "authentication_akveg_public_read.csv")
 
 # Define outputs
@@ -79,4 +81,11 @@ check_schema_fields(schema_df, schema_columns)
 
 # --- Export database tables ---
 
-# Organize tables by folder
+# Map each SQL table to the name of the folder it will be exported to
+folder_dictionary = map_sql_tables(sql_build_folder)
+
+# Ensure number of files in which folder matches expectations.
+folder_counts = Counter(folder_dictionary.values())
+print(folder_counts)
+
+# Close database connection
