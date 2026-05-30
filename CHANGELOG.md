@@ -11,6 +11,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.9.1] - 2026-05-29
+
+### Added
+* **Updated fields in `database_schema` table.** Split `is_key` field into `is_primary_key` and `is_foreign_key` to 
+  clarify key type.
+
+### Removed
+* **Dropped `project_status` table.** Table did not contain any records.
+
 ## [2.9.0] - 2026-05-06
 
 ### Fixed
