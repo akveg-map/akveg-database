@@ -7,7 +7,7 @@
 -- Description: "Query database dictionary" queries the database dictionary table, joining foreign key fields with their respective reference tables.
 -- ---------------------------------------------------------------------------
 
--- Compile database schema
+-- Compile database dictionary
 SELECT database_schema.field as field
      , database_dictionary.data_attribute as data_attribute
      , database_dictionary.definition as definition
