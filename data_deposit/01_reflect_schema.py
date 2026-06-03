@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Extract database tables
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-05-29
+# Last Updated: 2026-06-02
 # Usage: Execute in Python 3.13+.
 # Description: "Extract database tables" verifies completeness of the database schema metadata, and extracts all
 # tables in the AKVEG Database.
@@ -21,11 +21,12 @@ root = drive / 'ACCS_Work'
 credential_folder = (root / 'OneDrive - University of Alaska' /'ACCS_Teams' /'Vegetation' / 'AKVEG_Database' /
                      "Credentials")
 sql_build_folder = root / 'Repositories' / 'akveg-database' / '01_database_build'
+output_folder = root / 'Projects' / 'AKVEG_Database' / 'Data_Deposit' / 'v2_9_1'  # Current version
 
 # Define inputs
 credential_file = (credential_folder / "akveg_public_read" / "authentication_akveg_public_read.csv")
 
-# Define outputs
+# Define output folder
 ###
 
 # Read in data
@@ -87,4 +88,26 @@ folder_dictionary = map_sql_tables(sql_build_folder)
 folder_counts = Counter(folder_dictionary.values())
 print(folder_counts)
 
-# Close database connection
+# Export tables in defined sub-folders
+with engine.connect() as conn:
+    for table, subfolder in folder_dictionary.items():
+
+        # Define output path
+        target_dir = output_folder / subfolder
+        target_dir.mkdir(parents=True, exist_ok=True)  # Create folders if they don't exist
+        output_path = target_dir / f"{table}.csv"
+
+        print(f"Exporting {table}...")
+
+        # Query table from database
+        query = f"SELECT * FROM {table}"
+        df = pl.read_database(query=query, connection=conn, infer_schema_length=None)   # Do not infer schema length
+        # to avoid problems from tables that have a lot of NULLs
+
+        # Export as CSV
+        df.write_csv(output_path)
+
+    print("Export complete.")
+
+# Close engine connection
+engine.dispose()
