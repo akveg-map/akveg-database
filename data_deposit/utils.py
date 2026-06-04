@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-05-29
+# Last Updated: 2026-06-03
 # ---------------------------------------------------------------------------
 
 """
@@ -128,7 +128,7 @@ def map_sql_tables(
         for table in table_names:
             if "taxon" in table:
                 folder_dictionary[table] = "reference_tables/taxonomy"
-            elif "schema" in table or "dictionary" in table:
+            elif "schema" in table or "dictionary" in table or "data_type" in table:
                 folder_dictionary[table] = "documentation"
             elif "metadata" in file_stem:
                 folder_dictionary[table] = "reference_tables/field_lookups"
