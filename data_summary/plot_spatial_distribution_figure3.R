@@ -145,7 +145,6 @@ map_plot = ggplot() +
     legend.title = element_blank(),
     legend.position = 'top',
     legend.margin = margin(t = 10),
-    plot.title = element_text(size = 20),
     text = element_text(family="sans")
   ) +
   guides(
