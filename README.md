@@ -5,19 +5,21 @@
 # Alaska Vegetation Database
 
 The Alaska Vegetation (AKVEG) Database is a cloud-based, PostgreSQL database that contains harmonized field observation data on vegetation cover,
-environmental site characteristics, and soils metrics for over 44,000 plots in Alaska and adjacent Canada.
+environmental site characteristics, and soils metrics for over 44,000 plots in Alaska and adjacent Canada. 
 
-![Screenshot from the AKVEG Docs website](assets/flowchart.svg)
+Data in AKVEG span five decades, four bioclimatic zones, and two nations, making it one of the most comprehensive field vegetation databases in northwest North America.
+
+![Spatial distribution of plots in AKVEG](assets/map_akveg_plots.png)
 
 ## About the Project 🌿
 
-The AKVEG Database is a collaborative effort that seeks to provide scientists and natural resource managers with easy-to-use, harmonized data on vegetation cover and associated environmental characteristics. Prior to being added to the AKVEG Database, all datasets are standardized to a common schema. Qualitative values are re-classified, measurement units are standardized, and scientific names are reconciled to a taxonomic standard. The data in AKVEG are therefore analysis-ready: they follow a common format, have been cleaned to correct or omit errors, and share the same constrained values. Data in AKVEG span five decades (1975-2025), four bioclimatics zones, and two nations, making it one of the most comprehensive field vegetation databases in northwest North America.
+The AKVEG Database provides researchers and land managers with easy-to-use, harmonized data on vegetation cover and associated environmental characteristics. Prior to being added to the AKVEG Database, all datasets are cleaned and standardized to a common schema: qualitative values are re-classified, measurement units are standardized, and scientific names are reconciled to a taxonomic standard.
 
 The AKVEG Database contains:
 
 - Site- and date-specific observations of vegetation and related environmental characteristics.
+- Methodological metadata for all datasets, allowing users to evaluate whether a specific dataset or site is appropriate for their application.
 - A taxonomic standard to reconcile taxon names and concepts applied in Alaska and adjacent Canada.
-- A versioned set of vegetation types officially accepted in [USNVC](https://usnvc.org/), along with additional provisional types for Alaska _(under development)_.
 
 The AKVEG Database supports a variety of projects related to conservation, vegetation ecology, wildlife ecology, and land use planning. Data in AKVEG have been used to:
 
