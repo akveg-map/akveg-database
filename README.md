@@ -33,7 +33,7 @@ The AKVEG Database supports a variety of projects related to conservation, veget
 The AKVEG Database is built in PostgreSQL and hosted on a cloud server that can be queried in numerous ways. This repository provides example scripts to query the database in Python and R.
 
 You will need server credentials to query the database. You can request server credentials by filling out a
-[Database Access Form](https://akveg.uaa.alaska.edu/request-access/). The database is public and
+[Database Access Form](https://akveg.org/request-database-access/). The database is public and
 free to use; the purpose of the server credentials is to prevent excessive loads on the server and for us to know
 how many people are connecting.
 
