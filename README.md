@@ -54,7 +54,7 @@ Changes related to datasets and the database schema are recorded in the [CHANGEL
 
 ## Contributing 🤝
 
-If you've spotted an error in the database, [open a new issue](https://github.com/accs-uaa/akveg-database-public/issues). Please review existing issues before opening a new ticket to avoid duplicates. If your issue already exists, add a comment - This helps us prioritize issues that are most relevant to our users.
+If you've spotted an error in the database, [open a new issue](https://github.com/accs-uaa/akveg-database-public/issues). Please review existing issues before opening a new ticket to avoid duplicates. If your issue already exists, add a comment to help us prioritize issues that are most relevant to our users.
 
 If you would like to contribute a dataset, consult the [Become a contributor](https://docs.akveg.org/docs/database/contribute/) section of our documentation.
 
@@ -63,19 +63,22 @@ If you would like to contribute a dataset, consult the [Become a contributor](ht
 ### Built With 🛠️
 
 - PostgreSQL 17
-- R 4.5.1
+- R 4.6.0
 - Python 3.13
-- Hugo 0.147.8
 
 ### Support 🫶
 
-The U.S. Fish & Wildlife Service, Bureau of Land Management, National Park Service, U.S. Forest Service, Alaska Department of Fish & Game, and Alaska Department of Natural Resources provided funding in support of the development of the AKVEG Database.
+AKVEG is a collaborative effort supported by several agencies and institutions. The U.S. Fish & Wildlife Service, Bureau of Land Management, National Park Service, U.S. Forest Service, Alaska Department of Fish & Game, Alaska Department of Natural Resources, Department of Navy, and University of Alaska Anchorage provided funding for the AKVEG Database.
 
-### How to Cite
+### Citation
 
-Citing the database is not required as all data are public. Where a citation is sensible, we would appreciate you citing the AKVEG Database as follows:
+If you use these scripts to process data for your research, you can cite this software repository:
 
-Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2026. Alaska Vegetation (AKVEG) Database: Standardized, multi-project field and classification data for Alaska. Alaska Geospatial Council, Vegetation Working Group. Available: [https://www.akveg.org](https://www.akveg.org). Data downloaded on [date of query].
+> Droghini, A., and T.W. Nawrocki. 2026. The AKVEG Database Code Repository (v1.0.0). Zenodo.
+
+If you use data from the AKVEG Database, you can cite the database itself:
+
+> Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2026. Alaska Vegetation (AKVEG) Database: Harmonized, multi-project vegetation field data for Alaska. Alaska Geospatial Council, Vegetation Working Group. Available: [https://www.akveg.org](https://www.akveg.org). Data downloaded on [date of query].
 
 ### License ⚖️
 
@@ -83,8 +86,8 @@ This project is provided under the GNU General Public License v3.0. It is free t
 
 ### Authors
 
-- **Timm Nawrocki** - _Alaska Center for Conservation Science, University of Alaska Anchorage_
 - **Amanda Droghini** - _Alaska Center for Conservation Science, University of Alaska Anchorage_
+- **Timm W. Nawrocki** - _Alaska Center for Conservation Science, University of Alaska Anchorage_
 
 ### Contact 📧
 
