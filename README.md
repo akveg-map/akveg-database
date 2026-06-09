@@ -47,30 +47,29 @@ Once you have obtained the server credentials, the [Getting Started tutorial](ht
 
 ## Update Schedule 🗓️
 
-The AKVEG Database is updated at least once a quarter. If
-you need a static version of the data, you can export your query results to a CSV file.
+The AKVEG Database is updated at least once a quarter. If you need a static version of the data, you can export your query results to a CSV file.
 
 Changes related to datasets and the database schema are recorded in the [CHANGELOG](CHANGELOG.md), while changes related to the taxonomic standard are documented in a separate [TAXONOMY CHANGELOG](CHANGELOG_TAXONOMY.md).
 
 ## Contributing 🤝
 
-If you've spotted an error in the database, [open a new issue](https://github.com/accs-uaa/akveg-database-public/issues). Please review existing issues before opening a new ticket to avoid duplicates. If your issue already exists, add a comment to help us prioritize issues that are most relevant to our users.
+If you've spotted an error in the database, [open a new issue](https://github.com/accs-uaa/akveg-database-public/issues). Please review existing issues before opening a new one to avoid duplicates. If your issue already exists, add a comment to help us prioritize issues that are most relevant to our users.
 
 If you would like to contribute a dataset, consult the [Become a contributor](https://docs.akveg.org/docs/database/contribute/) section of our documentation.
 
-## Credits
-
-### Built With 🛠️
+## Built With 🛠️
 
 - PostgreSQL 17
 - R 4.6.0
 - Python 3.13
 
-### Support 🫶
+## License ⚖️
 
-AKVEG is a collaborative effort supported by several agencies and institutions. The U.S. Fish & Wildlife Service, Bureau of Land Management, National Park Service, U.S. Forest Service, Alaska Department of Fish & Game, Alaska Department of Natural Resources, Department of Navy, and University of Alaska Anchorage provided funding for the AKVEG Database.
+This repository contains only the scripts used to build the AKVEG Database. It does not include the data themselves.
 
-### Citation
+All scripts and configuration files in this repository are licensed under the [MIT License](LICENSE). You are free to copy, modify, distribute, and use this software, including for private and commercial purposes. If you wish to re-distribute this code, please include the original copyright notice and permission notice in your code package.
+
+## Citation
 
 If you use these scripts to process data for your research, you can cite this software repository:
 
@@ -80,18 +79,16 @@ If you use data from the AKVEG Database, you can cite the database itself:
 
 > Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2026. Alaska Vegetation (AKVEG) Database: Harmonized, multi-project vegetation field data for Alaska. Alaska Geospatial Council, Vegetation Working Group. Available: [https://www.akveg.org](https://www.akveg.org). Data downloaded on [date of query].
 
-### License ⚖️
+## Acknowledgments 🫶
 
-This repository contains only the scripts used to build the AKVEG Database. It does not include the data themselves.
+AKVEG is a collaborative effort supported by several agencies and institutions. The U.S. Fish & Wildlife Service, Bureau of Land Management, National Park Service, U.S. Forest Service, Alaska Department of Fish & Game, Alaska Department of Natural Resources, Department of Navy, and University of Alaska Anchorage provided funding for the AKVEG Database.
 
-All scripts and configuration files in this repository are licensed under the [MIT License](LICENSE). You are free to copy, modify, distribute, and use this software, including for private and commercial purposes, as long as the copyright notice and permission notice are packaged alongside any distributions of the code.
-
-### Authors
+## Authors
 
 - **Amanda Droghini** - _Alaska Center for Conservation Science, University of Alaska Anchorage_
 - **Timm W. Nawrocki** - _Alaska Center for Conservation Science, University of Alaska Anchorage_
 
-### Contact 📧
+## Contact 📧
 
 - **Project Maintainer**: Amanda Droghini
 - **Email**: adroghini (at) alaska (dot) edu
