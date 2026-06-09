@@ -51,13 +51,28 @@ The AKVEG Database is updated at least once a quarter. If you need a static vers
 
 Changes related to datasets and the database schema are recorded in the [CHANGELOG](CHANGELOG.md), while changes related to the taxonomic standard are documented in a separate [TAXONOMY CHANGELOG](CHANGELOG_TAXONOMY.md).
 
+## Navigating the Repository 📂
+
+This repository is organized into the following folders:
+
+*   `01_database_build/`: Core SQL scripts that establish the relational schema and constraints for the AKVEG Database.
+*   `02_data_format/`: R and Python scripts used to clean, standardize, and format raw datasets into the common AKVEG schema. 
+    *   The main processing scripts are in the `initial_processing/` folder. Within this folder, scripts are organized by an internal dataset ID and numbered sequentially by execution order. This sequence follows the table numbering used in the Alaska Vegetation Working Group's *[Minimum Standards Version 1.1](https://agc-vegetation-soa-dnr.hub.arcgis.com/)*: Scripts with `01_` format the Project table, `02_` format the Site table, etc. The sequence may skip a number if a dataset lacks data to populate a specific table or if the data for that table have not been processed yet.  
+    *   The `taxonomic_updates/` subfolder houses the scripts for updating the taxonomic standard. The date of the update is appended to the file name to facilitate matching the script to the changes in the [TAXONOMY CHANGELOG](CHANGELOG_TAXONOMY.md).
+*   `03_data_insert/`: R and Python scripts that compile the processed datasets, apply post-hoc corrections, and insert the compiled tables into the private staging database.
+*   `04_replicate/`: Tools for replicating the private staging database into three deployment environments: private production, public staging, and public production. Includes a step-by-step Markdown guide for creating database backups and duplicating environments in Google Cloud SQL, and a Python script that removes private data from the public staging database. To ensure no private data appears in the public production environment, this script must be run before the public staging database is replicated to the final, public production environment.
+*   `assets/`: Repository media assets, including the AKVEG Database project logo and a map illustrating the spatial distribution of the vegetation plots.
+*   `manuscript/`: Supplementary code used to generate figures and tables in the accompanying Data Descriptor paper, as well as code to export the database tables into CSV files for deposition in a data repository.
+*   `pull_functions/`: Shared helper functions in R and Python that support both the processing pipeline and the `user_tools/` example scripts. The functions manage database authentication and translate database queries into standard R and Python dataframes. For Python users, these tools can be installed via the [akveg-utils repository](https://github.com/akveg-map/akutils).
+*   `user_tools/`: Example R and Python scripts that illustrate how to connect to the cloud-hosted database (`connection_examples/`), and SQL scripts (`queries/`) that perform table joins so users can obtain human-readable values rather than foreign key IDs. The SQL scripts are numbered according to the same table numbering convention as the scripts in the `initial_processing/` folder, but do not need to be executed sequentially.
+
 ## Built With 🛠️
 
 - Python 3.13.12
 - R 4.6.0
 - PostgreSQL 17.9
 
-Exact package versions for Python and R are documented in this repository.
+Exact package versions for Python and R are documented in the environment files included in this repository.
 
 ### Python Environment
 Python dependencies are managed via Conda/Miniforge and are provided in `environment.yml`.
