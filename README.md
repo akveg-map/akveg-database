@@ -82,7 +82,9 @@ If you use data from the AKVEG Database, you can cite the database itself:
 
 ### License ⚖️
 
-This project is provided under the GNU General Public License v3.0. It is free to use and modify in part or in whole.
+This repository contains only the scripts used to build the AKVEG Database. It does not include the data themselves.
+
+All scripts and configuration files in this repository are licensed under the [MIT License](LICENSE). You are free to copy, modify, distribute, and use this software, including for private and commercial purposes, as long as the copyright notice and permission notice are packaged alongside any distributions of the code.
 
 ### Authors
 
