@@ -53,7 +53,7 @@ site_formatted$plot_dimensions <- site_formatted$plot_dimensions %>%
                     " radius"="",
                     "No Data"="unknown",
                     "NULL"="unknown",
-                    "x"="×"))
+                    "x"="?"))
 
 unique(site_formatted$plot_dimensions)
 
