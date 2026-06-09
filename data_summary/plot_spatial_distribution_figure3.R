@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Map spatial distribution of sites
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-05-26
+# Last Updated: 2026-06-08
 # Usage: Must be executed in a R 4.6.0+ installation.
 # Description: "Map spatial distribution of sites" creates a map figure for publication that shows the spatial distribution of sites in AKVEG, inclusive of private data, classified according to cover method.
 # ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ credentials_input = path(credentials_folder, 'authentication_akveg_private_read.
 query_input = path(repository_folder, "queries", "02_site.sql")
 
 # Define output files
-figure_output = path(output_folder, 'figure_spatial_distribution.jpg')
+figure_output = path(output_folder, 'figure_spatial_distribution.png')
 
 # Connect to database
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
@@ -165,7 +165,7 @@ sites_by_method = table(site_data_sf$cover_method)
 # Export plot ----
 ggsave(figure_output,
        plot = map_plot,
-       device = 'jpeg',
+       device = 'png',
        path = NULL,
        scale = 2,
        width = 6.5,
