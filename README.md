@@ -59,9 +59,24 @@ If you would like to contribute a dataset, consult the [Become a contributor](ht
 
 ## Built With 🛠️
 
-- PostgreSQL 17
+- Python 3.13.12
 - R 4.6.0
-- Python 3.13
+- PostgreSQL 17.9
+
+Exact package versions for Python and R are documented in this repository.
+
+### Python Environment
+Python dependencies are managed via Conda/Miniforge and are provided in `environment.yml`.
+
+To replicate, run `conda env create -f environment.yml`
+
+### R Environment
+R dependencies are tracked via `renv`. They are provided in the `renv.lock` file.
+
+To replicate, install the `renv` package in R, set your working directory to this repository's root folder, and run `renv::restore()`.
+
+### SQL Environment
+SQL scripts were executed in a PostgreSQL 17.9 on a Google Cloud SQL instance. No extensions are required.
 
 ## License ⚖️
 
