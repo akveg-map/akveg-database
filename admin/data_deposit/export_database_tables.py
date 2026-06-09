@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Extract database tables
+# Export database tables
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-06-02
+# Last Updated: 2026-06-09
 # Usage: Execute in Python 3.13+.
-# Description: "Extract database tables" verifies completeness of the database schema metadata, and extracts all
-# tables in the AKVEG Database.
+# Description: "Export database tables" verifies completeness of the database schema metadata and assigns a folder
+# name to each table in the AKVEG Database, before exporting all tables in the AKVEG Database to CSVs in their
+# assigned folders.
 # ---------------------------------------------------------------------------
 
 # Import libraries
