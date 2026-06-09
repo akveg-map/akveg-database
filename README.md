@@ -51,12 +51,6 @@ The AKVEG Database is updated at least once a quarter. If you need a static vers
 
 Changes related to datasets and the database schema are recorded in the [CHANGELOG](CHANGELOG.md), while changes related to the taxonomic standard are documented in a separate [TAXONOMY CHANGELOG](CHANGELOG_TAXONOMY.md).
 
-## Contributing 🤝
-
-If you've spotted an error in the database, [open a new issue](https://github.com/accs-uaa/akveg-database-public/issues). Please review existing issues before opening a new one to avoid duplicates. If your issue already exists, add a comment to help us prioritize issues that are most relevant to our users.
-
-If you would like to contribute a dataset, consult the [Become a contributor](https://docs.akveg.org/docs/database/contribute/) section of our documentation.
-
 ## Built With 🛠️
 
 - Python 3.13.12
@@ -93,6 +87,12 @@ If you use these scripts to process data for your research, you can cite this so
 If you use data from the AKVEG Database, you can cite the database itself:
 
 > Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2026. Alaska Vegetation (AKVEG) Database: Harmonized, multi-project vegetation field data for Alaska. Alaska Geospatial Council, Vegetation Working Group. Available: [https://www.akveg.org](https://www.akveg.org). Data downloaded on [date of query].
+
+## Contributing 🤝
+
+If you've spotted an error in the database, [open a new issue](https://github.com/accs-uaa/akveg-database-public/issues). Please review existing issues before opening a new one to avoid duplicates. If your issue already exists, add a comment to help us prioritize issues that are most relevant to our users.
+
+If you would like to contribute a dataset, consult the [Become a contributor](https://docs.akveg.org/docs/database/contribute/) section of our documentation.
 
 ## Acknowledgments 🫶
 
