@@ -1,27 +1,30 @@
+<div align="left">
+  <img src="assets/akveg_logo.png" width="300" style="margin-bottom: -20px;" alt="AKVEG logo with text: Alaska Vegetation Map">
+</div>
+
 # Alaska Vegetation Database
 
-The Alaska Vegetation (AKVEG) Database is a cloud-based, PostgreSQL database that contains comprehensive vegetation,
-environmental, and soils data for over 34,000 plots across Alaska and the western Yukon.
+The Alaska Vegetation (AKVEG) Database is a cloud-based, PostgreSQL database that contains harmonized field observation data on vegetation cover,
+environmental site characteristics, and soils metrics for over 44,000 plots in Alaska and adjacent Canada.
 
 ![Screenshot from the AKVEG Docs website](assets/flowchart.svg)
 
 ## About the Project 🌿
 
-The AKVEG Database is a collaborative effort that seeks to provide scientists and natural resource managers with easy-to-use, standardized data on vegetation and associated environmental characteristics. Prior to being added to the AKVEG Database, all datasets are standardized and taxonomically reconciled. The data in the AKVEG Database are therefore analysis-ready: they follow a common format, have been cleaned to correct or omit errors, and share the same constrained values.
+The AKVEG Database is a collaborative effort that seeks to provide scientists and natural resource managers with easy-to-use, harmonized data on vegetation cover and associated environmental characteristics. Prior to being added to the AKVEG Database, all datasets are standardized to a common schema. Qualitative values are re-classified, measurement units are standardized, and scientific names are reconciled to a taxonomic standard. The data in AKVEG are therefore analysis-ready: they follow a common format, have been cleaned to correct or omit errors, and share the same constrained values. Data in AKVEG span five decades (1975-2025), four bioclimatics zones, and two nations, making it one of the most comprehensive field vegetation databases in northwest North America.
 
 The AKVEG Database contains:
 
-- A taxonomic standard to reconcile taxon names and concepts applied in Alaska and adjacent Canada
-- Site- and date-specific observations of vegetation and related environmental characteristics covering four biomes (Arctic, boreal, temperate, and northern subpolar oceanic) in Alaska and adjacent Canada
-- A versioned set of vegetation types officially accepted in [USNVC](https://usnvc.org/), along with additional provisional types for Alaska _(under development)_
+- Site- and date-specific observations of vegetation and related environmental characteristics.
+- A taxonomic standard to reconcile taxon names and concepts applied in Alaska and adjacent Canada.
+- A versioned set of vegetation types officially accepted in [USNVC](https://usnvc.org/), along with additional provisional types for Alaska _(under development)_.
 
-The AKVEG Database supports a variety of projects related to conservation, vegetation ecology, wildlife ecology, and land use planning. Some of the goals of this project are to:
+The AKVEG Database supports a variety of projects related to conservation, vegetation ecology, wildlife ecology, and land use planning. Data in AKVEG have been used to:
 
-- Provide basic biodiversity data for the region.
-- Support the development of high-resolution vegetation and land cover maps.
-- Support vegetation classification efforts.
-- Extends the value of field data beyond the area and purpose of the original data collection effort.
-- Preserve legacy data and enable its compatibility with newly collected data.
+- Provide biodiversity data for the region.
+- Develop [ecologically detailed vegetation maps](https://www.akveg.org/maps).
+- Update vegetation classification schemes.
+- Predict [important wildlife habitat](https://doi.org/10.1002/ecs2.70069).
 
 ## Getting Started 🖥️
 
@@ -42,7 +45,7 @@ Once you have obtained the server credentials, the [Getting Started tutorial](ht
 
 ## Update Schedule 🗓️
 
-The AKVEG Database is updated at least once a quarter. Changes are recorded in our [CHANGELOG](CHANGELOG.md). If 
+The AKVEG Database is updated at least once a quarter. Changes are recorded in our [CHANGELOG](CHANGELOG.md). If
 you need a static version of the data, you can export your query results to a CSV file.
 
 ## Contributing 🤝
@@ -81,6 +84,6 @@ This project is provided under the GNU General Public License v3.0. It is free t
 
 ### Contact 📧
 
-* **Project Maintainer**: Amanda Droghini 
-* **Email**: adroghini (at) alaska (dot) edu
-* **GitHub**: [@adroghini](https://github.com/adroghini)
+- **Project Maintainer**: Amanda Droghini
+- **Email**: adroghini (at) alaska (dot) edu
+- **GitHub**: [@adroghini](https://github.com/adroghini)
