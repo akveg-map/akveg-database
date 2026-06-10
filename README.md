@@ -97,7 +97,7 @@ All scripts and configuration files in this repository are licensed under the [M
 
 If you use these scripts to process data for your research, you can cite this software repository:
 
-> Droghini, A., and T.W. Nawrocki. 2026. The AKVEG Database Code Repository (v1.0.0). Zenodo.
+> Droghini, A., and T.W. Nawrocki. 2026. AKVEG Database Code Repository (v2.9.1). Zenodo. https://doi.org/10.5281/zenodo.2590670
 
 If you use data from the AKVEG Database, you can cite the database itself:
 
