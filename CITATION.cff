@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Droghini"
+    given-names: "Amanda"
+    orcid: "https://orcid.org/0000-0001-6692-2348"
+  - family-names: "Nawrocki"
+    given-names: "Timm W."
+    orcid: "https://orcid.org/0000-0003-3674-3976"
+title: "Code Repository for the AKVEG Database: Harmonized vegetation field observations from Alaska and adjacent Canada"
+version: 2.9.1
+doi: 10.5281/zenodo.2590670
+date-released: 2026-06-10
+url: "https://github.com/akveg-map/akveg-database"
