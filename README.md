@@ -2,10 +2,11 @@
   <img src="assets/akveg_logo.png" width="300" style="margin-bottom: -20px;" alt="AKVEG logo with text: Alaska Vegetation Map">
 </div>
 
-# Alaska Vegetation Database
+# Code Repository for the AKVEG Database
 
-The Alaska Vegetation (AKVEG) Database is a cloud-based, PostgreSQL database that contains harmonized field observation data on vegetation cover,
-environmental site characteristics, and soils metrics for over 44,000 plots in Alaska and adjacent Canada. 
+## Harmonized vegetation field observations from Alaska and adjacent Canada
+
+The Alaska Vegetation (AKVEG) Database is a cloud-based, PostgreSQL database that contains harmonized field observation data on vegetation cover, environmental site characteristics, and soils metrics for over 44,000 plots in Alaska and adjacent Canada. 
 
 Data in AKVEG span five decades, four bioclimatic zones, and two nations, making it one of the most comprehensive field vegetation databases in northwest North America.
 
@@ -97,15 +98,15 @@ All scripts and configuration files in this repository are licensed under the [M
 
 If you use these scripts to process data for your research, you can cite this software repository:
 
-> Droghini, A., and T.W. Nawrocki. 2026. AKVEG Database Code Repository (v2.9.1). Zenodo. https://doi.org/10.5281/zenodo.2590670
+> Droghini, A., and T.W. Nawrocki. 2026. Code Repository for the AKVEG Database: Harmonized vegetation field observations from Alaska and adjacent Canada (v2.9.1). Zenodo. https://doi.org/10.5281/zenodo.2590670.
 
-If you use data from the AKVEG Database, you can cite the database itself:
+If you use data from the AKVEG Database, please cite the database itself. The version number can be found in this repository's [CHANGELOG](CHANGELOG.md).
 
-> Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2026. Alaska Vegetation (AKVEG) Database: Harmonized, multi-project vegetation field data for Alaska. Alaska Geospatial Council, Vegetation Working Group. Available: [https://www.akveg.org](https://www.akveg.org). Data downloaded on [date of query].
+> Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2026. Alaska Vegetation (AKVEG) Database: Harmonized vegetation field observations from Alaska and adjacent Canada [insert version number]. Alaska Geospatial Council, Vegetation Working Group. Available: [https://www.akveg.org](https://www.akveg.org). Data downloaded on [date of query].
 
 ## Contributing 🤝
 
-If you've spotted an error in the database, [open a new issue](https://github.com/accs-uaa/akveg-database-public/issues). Please review existing issues before opening a new one to avoid duplicates. If your issue already exists, add a comment to help us prioritize issues that are most relevant to our users.
+If you've spotted an error in the database, [open a new issue](https://github.com/accs-uaa/akveg-database-public/issues). Please review existing issues beforehand to avoid duplication. If your issue already exists, add a comment to help us prioritize issues that are most relevant to our users.
 
 If you would like to contribute a dataset, consult the [Become a contributor](https://docs.akveg.org/docs/database/contribute/) section of our documentation.
 
