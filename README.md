@@ -40,7 +40,7 @@ how many people are connecting.
 
 ## Documentation 📚
 
-The reference for the AKVEG Database can be accessed at [docs.akveg.org](https://docs.akveg.org/).
+The reference for the AKVEG Database can be accessed via the [AKVEG Database Documentation site](https://docs.akveg.org/).
 
 Our online documentation includes a detailed guide for connecting to, understanding, and exploring the AKVEG Database.
 
