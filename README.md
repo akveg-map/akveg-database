@@ -111,7 +111,7 @@ If you would like to contribute a dataset, consult the [Become a contributor](ht
 
 ## Acknowledgments 🫶
 
-AKVEG is a collaborative effort supported by several agencies and institutions. The U.S. Fish & Wildlife Service, Bureau of Land Management, National Park Service, U.S. Forest Service, Alaska Department of Fish & Game, Alaska Department of Natural Resources, Department of Navy, and University of Alaska Anchorage provided funding for the AKVEG Database.
+The AKVEG Database is supported by the U.S. Fish and Wildlife Service and the Bureau of Land Management. We are grateful to all the organizations and scientists who contributed the datasets processed by the scripts in this repository. This work would not be possible without them. The full list of data contributors can be found in the `projects` table of the AKVEG Database.
 
 ## Authors
 
