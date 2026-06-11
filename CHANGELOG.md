@@ -11,6 +11,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.9.2] - 2026-06-10 
+
+### Administrative 
+
+- **Increment patch number for Zenodo hotfix:** This version is identical to `v2.9.1`. A new version was minted to resolve a webhook sync issue between GitHub and Zenodo. 
+
 ## [2.9.1] - 2026-05-29
 
 ### Added
