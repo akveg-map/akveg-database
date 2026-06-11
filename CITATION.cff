@@ -8,7 +8,7 @@ authors:
     given-names: "Timm W."
     orcid: "https://orcid.org/0000-0003-3674-3976"
 title: "Code Repository for the AKVEG Database: Harmonized vegetation field observations from Alaska and adjacent Canada"
-version: 2.9.1
-doi: 10.5281/zenodo.2590670
+version: 2.9.2
+doi: 10.5281/zenodo.20635288
 date-released: 2026-06-10
 url: "https://github.com/akveg-map/akveg-database"

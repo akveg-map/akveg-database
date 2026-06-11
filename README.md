@@ -95,7 +95,7 @@ All scripts and configuration files in this repository are licensed under the [M
 
 If you use these scripts to process data for your research, you can cite this software repository:
 
-> Droghini, A., and T.W. Nawrocki. 2026. Code Repository for the AKVEG Database: Harmonized vegetation field observations from Alaska and adjacent Canada (v2.9.1). Zenodo. https://doi.org/10.5281/zenodo.2590670.
+> Droghini, A., and T.W. Nawrocki. 2026. Code Repository for the AKVEG Database: Harmonized vegetation field observations from Alaska and adjacent Canada (v2.9.2). Zenodo. https://doi.org/10.5281/zenodo.20635288.
 
 If you use data from the AKVEG Database, please cite the database itself. The version number can be found in this repository's [CHANGELOG](CHANGELOG.md).
 
