@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-02-05
+# Last Updated: 2026-06-15
 # ---------------------------------------------------------------------------
 
 """
@@ -71,12 +71,24 @@ for file in Path(TEMPLATE_DIR).glob('[0-9][0-9]_*'):
     TEMPLATE_MAP[file_code]=file
 
 # Define schema for specific template tables
-# If table is not listed, use default Polarst ype
+# If table is not listed, uses default Polars type
 SCHEMA_OVERRIDES = {
-        "project": {"year_start": pl.Int64, "year_end": pl.Int64},
+        "project": {"year_start": pl.Int64,
+                    "year_end": pl.Int64
+                    },
         "site": {"latitude_dd": pl.Decimal(precision=19, scale=16),
-                     "longitude_dd": pl.Decimal(precision=19, scale=16),
-                     "h_error_m": pl.Decimal(precision=6, scale=2)}
+                 "longitude_dd": pl.Decimal(precision=19, scale=16),
+                 "h_error_m": pl.Decimal(precision=6, scale=2)
+                 },
+        "environment": {"disturbance_time_y": pl.Int64,
+                        "depth_water_cm": pl.Decimal(precision=4, scale=1),
+                        "depth_moss_duff_cm": pl.Decimal(precision=4, scale=1),
+                        "depth_restrictive_layer_cm": pl.Decimal(precision=4, scale=1),
+                        "microrelief_cm": pl.Decimal(precision=4, scale=1),
+                        "surface_water": pl.Boolean,
+                        "cryoturbation": pl.Boolean,
+                        "depth_15_percent_coarse_fragments_cm": pl.Decimal(precision=4, scale=1)
+                        }
 }
 
 # --- Function 1 ---
