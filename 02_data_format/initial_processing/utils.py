@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-06-15
+# Last Updated: 2026-06-16
 # ---------------------------------------------------------------------------
 
 """
@@ -553,32 +553,45 @@ def get_valid_values(
     Returns:
         A set of constrained values.
     """
-    # --- Validate input ---
+
+    # Validate file path input
     if not os.path.exists(credential_file):
         print(f"ERROR: Database credential file not found at: {credential_file}")
         return None
 
-    # 1. Connect to database
+    # Connect to the AKVEG Database
     akveg_db_connection = connect_database_postgresql(credential_file)
 
-    # --- Validate database connection ---
+    # Validate connection
     if akveg_db_connection is None:
         print("ERROR: Could not establish database connection.")
         return None
 
-    # 2. If field name is not supplied, try using table name
-    if field_name is None:
-        field_name = table_name
-
     try:
-        # 3. Query database for foreign key values
-        query_valid_values = sql.SQL("SELECT {field} FROM {table}").format(
-            field=sql.Identifier(field_name),
-            table=sql.Identifier(table_name)
-        )
+        # Query database for foreign key values
+        if table_name == 'database_dictionary':
+            query_valid_values = (sql.SQL("SELECT field, data_attribute FROM database_dictionary LEFT JOIN "
+                                         "database_schema ON database_schema.field_id = database_dictionary.field_id "
+                                         "WHERE field = {field}")
+                                  .format(field=sql.Literal(field_name)
+                                          )
+                                  )
+            # Identify which column holds the values
+            target_column = "data_attribute"
 
+        else:
+            query_valid_values = (sql.SQL("SELECT {field} FROM {table}")
+                                  .format(field=sql.Identifier(field_name),
+                                          table=sql.Identifier(table_name)
+                                          )
+                                  )
+
+            # Identify which column holds the values
+            target_column = field_name
+
+        # Execute query and extract values as a Set
         values_original = query_to_dataframe(akveg_db_connection, query_valid_values.as_string(akveg_db_connection))
-        values_set = set(pl.from_pandas(values_original)[field_name].unique())
+        values_set = set(pl.from_pandas(values_original)[target_column].unique())
 
         return values_set
 
@@ -587,7 +600,7 @@ def get_valid_values(
         return None
 
     finally:
-        # 4. Close the database connection
+        # Close the database connection
         akveg_db_connection.close()
 
 # --- Function 9 ---
