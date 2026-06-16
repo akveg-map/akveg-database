@@ -590,3 +590,34 @@ def get_valid_values(
         # 4. Close the database connection
         akveg_db_connection.close()
 
+# --- Function 9 ---
+def fill_missing_columns(data_df: pl.DataFrame,
+                         template_df: pl.DataFrame) -> pl.DataFrame:
+
+    # Identify columns missing from dataframe
+    missing_cols = [col for col in template_df.columns if col not in data_df.columns]
+
+    # Create expression and cast to appropriate data type
+    missing_exprs = [
+        pl.lit(None).cast(template_df.schema[col]).alias(col)
+        for col in missing_cols
+    ]
+
+    # Add missing columns to match the template
+    extended_df = data_df.with_columns(missing_exprs)
+
+    # Build fill_null expressions based on template schema
+    fill_exprs = []
+    for col, dtype in template_df.schema.items():
+
+        if dtype == pl.String:
+            fill_exprs.append(pl.col(col).fill_null(pl.lit("NULL")))
+
+        elif dtype == pl.Int64 or isinstance(dtype, pl.Decimal):
+            fill_exprs.append(pl.col(col).fill_null(pl.lit(-999).cast(dtype)))
+        else:
+            # Keep all other data types as is
+            fill_exprs.append(pl.col(col))
+
+    # Apply expressions and return only columns in template
+    return extended_df.select(fill_exprs)
