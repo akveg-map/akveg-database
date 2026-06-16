@@ -35,7 +35,7 @@ from akutils import connect_database_postgresql
 from akutils import query_to_dataframe
 from typing import Union, Literal, List, Tuple
 from pathlib import Path
-from psycopg2 import sql
+from psycopg2 import sql, extensions
 from plotly.graph_objects import Figure
 from pyproj import CRS
 
@@ -537,35 +537,21 @@ def add_missing_elements(
 
 # --- Function 8 ---
 def get_valid_values(
+        db_connection: extensions.connection,
         table_name: str,
-        field_name: str = None,
-        credential_file: str = CREDENTIAL_FILE,
+        field_name: str = None
 ) -> Union[set, None]:
     """
     Queries the AKVEG Database to retrieve a list of valid values from a reference table.
 
     Args:
-        credential_file: A string and valid file path that contains the credentials for authenticating to the AKVEG
-        Database.
+        db_connection: A valid database connection to the AKVEG Database.
         table_name: Name of reference table.
         field_name: The column name in the reference table that has the constrained values.
 
     Returns:
         A set of constrained values.
     """
-
-    # Validate file path input
-    if not os.path.exists(credential_file):
-        print(f"ERROR: Database credential file not found at: {credential_file}")
-        return None
-
-    # Connect to the AKVEG Database
-    akveg_db_connection = connect_database_postgresql(credential_file)
-
-    # Validate connection
-    if akveg_db_connection is None:
-        print("ERROR: Could not establish database connection.")
-        return None
 
     try:
         # Query database for foreign key values
@@ -590,7 +576,7 @@ def get_valid_values(
             target_column = field_name
 
         # Execute query and extract values as a Set
-        values_original = query_to_dataframe(akveg_db_connection, query_valid_values.as_string(akveg_db_connection))
+        values_original = query_to_dataframe(db_connection, query_valid_values.as_string(db_connection))
         values_set = set(pl.from_pandas(values_original)[target_column].unique())
 
         return values_set
@@ -598,10 +584,6 @@ def get_valid_values(
     except Exception as e:
         print(f"An error occurred during query or processing: {e}")
         return None
-
-    finally:
-        # Close the database connection
-        akveg_db_connection.close()
 
 # --- Function 9 ---
 def fill_missing_columns(data_df: pl.DataFrame,
