@@ -93,6 +93,11 @@ SCHEMA_OVERRIDES = {
                         }
 }
 
+# Define mapping dictionary that links column names in data tables (keys) to field names in database dictionary (values)
+AKVEG_FIELD_ALIASES = {"moisture_regime": "moisture",
+                      "dominant_texture_40_cm": "soil_texture"
+                      }
+
 # --- Function 1 ---
 def get_template(
         template_code: str
