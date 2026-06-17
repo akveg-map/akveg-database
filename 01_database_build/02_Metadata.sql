@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Build metadata and constraint tables
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2026-05-29
+-- Last Updated: 2026-06-16
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Build metadata and constraint tables" creates the empty tables for the metadata components of the AKVEG database, including the schema and data dictionary. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING METADATA TABLES.
 -- ---------------------------------------------------------------------------
@@ -51,7 +51,6 @@ DROP TABLE IF EXISTS
     soil_horizon_type,
     soil_horizon_suffix,
     soil_hue,
-    source_collection,
     source_type,
     structural_class,
     structural_group
@@ -240,11 +239,6 @@ CREATE TABLE soil_horizon_suffix (
 CREATE TABLE soil_hue (
     soil_hue_code varchar(5) PRIMARY KEY,
     soil_hue varchar(5) UNIQUE NOT NULL
-);
-
-CREATE TABLE source_collection (
-    source_collection_id smallint PRIMARY KEY,
-    source_collection varchar(50) UNIQUE NOT NULL
 );
 
 CREATE TABLE source_type (
