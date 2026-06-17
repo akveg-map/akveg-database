@@ -49,56 +49,81 @@ LEFT JOIN citations ON citations.citation_id = project_citations.citation_id
 source_table = query_to_dataframe(akveg_db_connection, source_query)
 source_table = pl.from_pandas(source_table)
 
-# --- Get Table 1 references ---
+# --- Create bibliography for Table 1 ---
 source_final = (source_table
-                  .select("citation_short", "citation_long", "citation_url")
-                  .unique()
+                .unique()
+                .sort("project_code")
                 .with_columns(pl.concat_str(pl.col("citation_long"),
                                             pl.col("citation_url"),
                                             separator=" ")
-                              .alias("citation_full"))
-                .sort(by="citation_short")
-                .select("citation_short", "citation_full")
+                              .alias("citation_full"),
+                              pl.int_range(pl.len()).over(pl.col("project_code")).alias("group_index")
+                              )
+                .with_row_index(name="citation_index", offset=1)  # Change offset to reflect citation order in MS
+                .select("citation_index", "group_index", "project_code", "citation_short", "citation_full")
                 )
 
 # --- Create Table 1 --- #
-project_final = (project_table.lazy()
-                 .with_columns(
-                               # Change year end for ongoing projects to reflect last year of data in AKVEG
-                               pl.when(pl.col("project_code") == "yukon_biophysical_2020")
-                               .then(pl.lit("2020"))
-                               .when(pl.col("project_code") == "nrcs_soils_2024")
-                               .then(pl.lit("2024"))
-                               .otherwise(pl.col("year_end").cast(pl.String))
-                               .alias("year_end"),
-                               pl.col("year_start").cast(pl.String))
-                 .with_columns(
+
+# Convert source table to wide format for superscript indices
+source_wide = (source_final
+        .pivot("group_index",
+               index=["project_code"],
+               values="citation_index")
+        .sort("project_code")
+                     )
+
+# Combine citation index columns and format project table
+project_final = (source_wide.lazy()
+        # Cast columns as string and fill in null
+        .with_columns(pl.all().exclude("project_code")
+                      .cast(pl.String)
+                      .fill_null("")
+                      )
+        # Combine citation indices into a single string
+        .with_columns(pl.concat_str(pl.all().exclude("project_code"),
+                                    separator=",")
+                      .alias("citation_superscript")
+                      )
+        # Clean up column by removing trailing column
+        .with_columns(pl.col("citation_superscript").str.strip_chars(","))
+        # Join with project table
+        .join(project_table.lazy(), on="project_code")
+        .with_columns(
+    # Change year end for ongoing projects to reflect last year of data in AKVEG
+    pl.when(pl.col("project_code") == "yukon_biophysical_2020")
+    .then(pl.lit("2020"))
+    .when(pl.col("project_code") == "nrcs_soils_2024")
+    .then(pl.lit("2024"))
+    .otherwise(pl.col("year_end").cast(pl.String))
+    .alias("year_end"),
+    pl.col("year_start").cast(pl.String))
+        .with_columns(
     # Concatenate year_start and year_end into a range of years
     pl.when(pl.col("year_start") == pl.col("year_end"))
     .then(pl.col("year_start"))
     .otherwise(pl.concat_str(pl.col("year_start"),
                              pl.col("year_end"),
-                             separator="-"))
+                             separator="–"))
     .alias("temporal_extent"),
     # Add private caveat to NRCS project
     pl.when(pl.col("private"))
     .then(pl.concat_str(pl.col("project_name"), pl.lit("(private dataset)"),
-                                                   separator=" "))
+                        separator=" "))
     .otherwise(pl.col("project_name"))
     .alias("project_name"),
-    # Add "partially published" caveat for ACCS Nuyakuk 2019 project
-    pl.when(pl.col("project_code") == "accs_nuyakuk_2019")
-    .then(pl.concat_str(pl.col("citation_short"),
-                        pl.lit("(partially published)"),
-                        separator=" "))
-    .otherwise(pl.col("citation_short"))
-    .alias("citation_short")
+    # Concatenate superscript with source type
+    pl.concat_str(pl.col("source_type"),
+                  pl.col("citation_superscript"),
+                             separator="")
+    .alias("source")
 )
-                 # Select final columns
-                 .select(["project_code", "project_name", "temporal_extent", "source_type", "citation_short"])
+        # Select final columns and sort by project code
+        .select(["project_code", "project_name", "temporal_extent", "source"])
+        .sort("project_code")
 
-                 .collect()
-                 )
+        .collect()
+        )
 
 # --- Export Tables ---
 project_final.write_csv(project_output)
