@@ -541,9 +541,9 @@ def get_valid_values(
         table_name: str,
         field_name: str,
         field_mapping: dict = None
-) -> Union[set, None]:
+) -> set:
     """
-    Queries the AKVEG Database to retrieve a list of valid values from a reference table.
+    Queries the AKVEG Database to retrieve valid values from a reference table.
 
     Args:
         db_connection: A valid database connection to the AKVEG Database.
@@ -563,37 +563,33 @@ def get_valid_values(
     else:
         db_field_name = field_name
 
-    # Query database for foreign key values
-    try:
-        if table_name == 'database_dictionary':
-            query_valid_values = (sql.SQL("SELECT field, data_attribute FROM database_dictionary LEFT JOIN "
-                                         "database_schema ON database_schema.field_id = database_dictionary.field_id "
-                                         "WHERE field = {field}")
-                                  .format(field=sql.Literal(db_field_name)
-                                          )
-                                  )
-            # Identify which column holds the values
-            target_column = "data_attribute"
+    # Query database for constrained values
+    if table_name == 'database_dictionary':
+        query_valid_values = (sql.SQL("SELECT field, data_attribute FROM database_dictionary LEFT JOIN "
+                                      "database_schema ON database_schema.field_id = database_dictionary.field_id "
+                                      "WHERE field = {field}")
+                              .format(field=sql.Literal(db_field_name)
+                                      )
+                              )
+        # Identify which column holds the values
+        target_column = "data_attribute"
 
-        else:
-            query_valid_values = (sql.SQL("SELECT {field} FROM {table}")
-                                  .format(field=sql.Identifier(db_field_name),
-                                          table=sql.Identifier(table_name)
-                                          )
-                                  )
+    else:
+        query_valid_values = (sql.SQL("SELECT {field} FROM {table}")
+                              .format(field=sql.Identifier(db_field_name),
+                                      table=sql.Identifier(table_name)
+                                      )
+                              )
 
-            # Identify which column holds the values
-            target_column = db_field_name
+        # Identify which column holds the values
+        target_column = db_field_name
 
-        # Execute query and extract values as a Set
-        values_original = query_to_dataframe(db_connection, query_valid_values.as_string(db_connection))
-        values_set = set(pl.from_pandas(values_original)[target_column].unique())
+    # Execute query and extract values as a Set
+    values_original = query_to_dataframe(db_connection, query_valid_values.as_string(db_connection))
+    values_set = set(pl.from_pandas(values_original)[target_column].unique())
 
-        return values_set
+    return values_set
 
-    except Exception as e:
-        print(f"An error occurred during query or processing: {e}")
-        return None
 
 # --- Function 9 ---
 def fill_missing_columns(data_df: pl.DataFrame,
