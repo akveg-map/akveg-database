@@ -24,7 +24,7 @@ manuscript_folder = root / 'Projects' / 'AKVEG_Database' / 'Manuscript' / 'Table
 
 # Define inputs
 akveg_credentials = (credential_folder / "akveg_private_read" / "authentication_akveg_private_read.csv")
-project_input = repository_folder / "queries" / "01_project.sql"
+project_input = repository_folder / "user_tools" / "queries" / "01_project.sql"
 
 # Define outputs
 project_output =  manuscript_folder / 'table_projects.csv'
