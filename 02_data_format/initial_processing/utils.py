@@ -539,7 +539,7 @@ def add_missing_elements(
 def get_valid_values(
         db_connection: extensions.connection,
         table_name: str,
-        field_name: str = None,
+        field_name: str,
         field_mapping: dict = None
 ) -> Union[set, None]:
     """
