@@ -86,11 +86,8 @@ project_final = (project_table.lazy()
                                                    separator=" "))
     .otherwise(pl.col("project_name"))
     .alias("project_name"),
-    # Combine source_type and Author-Year citation columns
-    pl.when(pl.col("citation_short").is_null())
-    .then(pl.col("source_type"))
     # Add "partially published" caveat for ACCS Nuyakuk 2019 project
-    .when(pl.col("project_code") == "accs_nuyakuk_2019")
+    pl.when(pl.col("project_code") == "accs_nuyakuk_2019")
     .then(pl.concat_str(pl.col("citation_short"),
                         pl.lit("(partially published)"),
                         separator=" "))
@@ -98,7 +95,7 @@ project_final = (project_table.lazy()
     .alias("citation_short")
 )
                  # Select final columns
-                 .select(["project_code", "project_name", "temporal_extent", "citation_short"])
+                 .select(["project_code", "project_name", "temporal_extent", "source_type", "citation_short"])
 
                  .collect()
                  )
