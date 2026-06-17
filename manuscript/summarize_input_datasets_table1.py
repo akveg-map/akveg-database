@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create project table
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-05-07
+# Last Updated: 2026-06-16
 # Usage: Execute in Python 3.13+.
 # Description: "Create project source table" formats the project and citations tables in the AKVEG Database to
 # produce Table 1 (Droghini et al., in prep.) and associated bibliographic references.
@@ -41,10 +41,17 @@ with open(project_input, 'r') as file:
 project_table = query_to_dataframe(akveg_db_connection, project_query)
 project_table = pl.from_pandas(project_table)
 
+# Query project citations table
+source_query = """
+SELECT project_code, citation_short, citation_long, citation_url FROM project_citations
+LEFT JOIN citations ON citations.citation_id = project_citations.citation_id
+"""
+source_table = query_to_dataframe(akveg_db_connection, source_query)
+source_table = pl.from_pandas(source_table)
+
 # --- Get Table 1 references ---
-source_final = (project_table
+source_final = (source_table
                   .select("citation_short", "citation_long", "citation_url")
-                  .filter(pl.col("citation_short").is_not_null())
                   .unique()
                 .with_columns(pl.concat_str(pl.col("citation_long"),
                                             pl.col("citation_url"),
