@@ -23,6 +23,8 @@ column can now be joined with the scientific names in the AKVEG Database without
 7. add_abiotic_elements: Uses the abiotic query from function 5 to identify and add missing abiotic elements with a
 cover of 0%.
 8. get_valid_values: Queries the AKVEG Database to retrieve valid values from a reference table.
+9. fill_missing_columns: Aligns a processed DataFrame's columns and column ordering with a template DataFrame (e.g.,
+one that matches the AKVEG schema), creating missing columns and filling them with type-specific default null values.
 """
 
 # Import packages
@@ -594,6 +596,19 @@ def get_valid_values(
 # --- Function 9 ---
 def fill_missing_columns(data_df: pl.DataFrame,
                          template_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Aligns a processed DataFrame's schema and column order with a template DataFrame. The function creates columns
+    that are in the template DataFrame but missing from the processed DataFrame, and populates those columns with
+    default null values that are appropriate for the columns data types (e.g., "NULL" for strings, -999 for decimals
+    and integers).
+
+    Args:
+        data_df: A Polars DataFrame with processed data.
+        template_df: A Polars DataFrame serving as the target schema.
+
+    Returns:
+        A new DataFrame with the same columns and column ordering as the template, populated with appropriate default null values.
+    """
 
     # Identify columns missing from dataframe
     missing_cols = [col for col in template_df.columns if col not in data_df.columns]
