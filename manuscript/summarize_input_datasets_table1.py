@@ -60,33 +60,35 @@ source_final = (source_table
                               pl.int_range(pl.len()).over(pl.col("project_code")).alias("group_index")
                               )
                 .with_row_index(name="citation_index", offset=1)  # Change offset to reflect citation order in MS
-                .select("citation_index", "group_index", "project_code", "citation_short", "citation_full")
+                .with_columns(pl.col("citation_index").cast(pl.String))
+                .with_columns(pl.concat_str(pl.col("citation_short"),
+                                            pl.col("citation_index"),
+                                            separator="^"
+                                            ).alias("citation_superscript")
+                              )
+                .select("citation_index", "group_index", "project_code", "citation_superscript", "citation_full")
                 )
 
 # --- Create Table 1 --- #
 
-# Convert source table to wide format for superscript indices
-source_wide = (source_final
+# Pivot source table to wide format for superscript indices
+citation_superscript = (source_final
         .pivot("group_index",
                index=["project_code"],
-               values="citation_index")
+               values="citation_superscript")
         .sort("project_code")
                      )
 
 # Combine citation index columns and format project table
-project_final = (source_wide.lazy()
-        # Cast columns as string and fill in null
-        .with_columns(pl.all().exclude("project_code")
-                      .cast(pl.String)
-                      .fill_null("")
-                      )
+project_final = (citation_superscript.lazy()
+        .fill_null("")
         # Combine citation indices into a single string
         .with_columns(pl.concat_str(pl.all().exclude("project_code"),
-                                    separator=",")
+                                    separator=", ")
                       .alias("citation_superscript")
                       )
         # Clean up column by removing trailing column
-        .with_columns(pl.col("citation_superscript").str.strip_chars(","))
+        .with_columns(pl.col("citation_superscript").str.strip_chars(", "))
         # Join with project table
         .join(project_table.lazy(), on="project_code")
         .with_columns(
@@ -111,15 +113,10 @@ project_final = (source_wide.lazy()
     .then(pl.concat_str(pl.col("project_name"), pl.lit("(private dataset)"),
                         separator=" "))
     .otherwise(pl.col("project_name"))
-    .alias("project_name"),
-    # Concatenate superscript with source type
-    pl.concat_str(pl.col("source_type"),
-                  pl.col("citation_superscript"),
-                             separator="")
-    .alias("source")
+    .alias("project_name")
 )
         # Select final columns and sort by project code
-        .select(["project_code", "project_name", "temporal_extent", "source"])
+        .select(["project_code", "project_name", "temporal_extent", "source_type", "citation_superscript"])
         .sort("project_code")
 
         .collect()
