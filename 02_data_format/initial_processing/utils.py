@@ -539,7 +539,8 @@ def add_missing_elements(
 def get_valid_values(
         db_connection: extensions.connection,
         table_name: str,
-        field_name: str = None
+        field_name: str = None,
+        field_mapping: dict = None
 ) -> Union[set, None]:
     """
     Queries the AKVEG Database to retrieve a list of valid values from a reference table.
@@ -548,18 +549,27 @@ def get_valid_values(
         db_connection: A valid database connection to the AKVEG Database.
         table_name: Name of reference table.
         field_name: The column name in the reference table that has the constrained values.
+        field_mapping: An optional dictionary that maps column names in a DataFrame (keys) to their corresponding database
+        field names (values). Used to resolve instances when table columns differ from the database's internal
+        field names. Defaults to None.
 
     Returns:
         A set of constrained values.
     """
 
+    # Update field name to match field mapping (if specified)
+    if field_mapping and field_name in field_mapping:
+        db_field_name = field_mapping[field_name]
+    else:
+        db_field_name = field_name
+
+    # Query database for foreign key values
     try:
-        # Query database for foreign key values
         if table_name == 'database_dictionary':
             query_valid_values = (sql.SQL("SELECT field, data_attribute FROM database_dictionary LEFT JOIN "
                                          "database_schema ON database_schema.field_id = database_dictionary.field_id "
                                          "WHERE field = {field}")
-                                  .format(field=sql.Literal(field_name)
+                                  .format(field=sql.Literal(db_field_name)
                                           )
                                   )
             # Identify which column holds the values
@@ -567,13 +577,13 @@ def get_valid_values(
 
         else:
             query_valid_values = (sql.SQL("SELECT {field} FROM {table}")
-                                  .format(field=sql.Identifier(field_name),
+                                  .format(field=sql.Identifier(db_field_name),
                                           table=sql.Identifier(table_name)
                                           )
                                   )
 
             # Identify which column holds the values
-            target_column = field_name
+            target_column = db_field_name
 
         # Execute query and extract values as a Set
         values_original = query_to_dataframe(db_connection, query_valid_values.as_string(db_connection))
