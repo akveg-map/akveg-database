@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Query projects
 -- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
--- Last Updated:  2026-05-06
+-- Last Updated:  2026-06-17
 -- Usage: Script should be executed in a PostgreSQL 16+ database.
 -- Description: "Query projects" queries the project metadata.
 -- ---------------------------------------------------------------------------
@@ -19,9 +19,6 @@ SELECT DISTINCT site_visit.project_code     as project_code
               , project.project_description as project_description
               , project.private             as private
               , source_type.source_type     as source_type
-              , citations.citation_short    as citation_short
-              , citations.citation_long     as citation_long
-              , citations.citation_url      as citation_url
               , project.acquisition_date    as acquisition_date
 FROM site_visit
          LEFT JOIN project ON site_visit.project_code = project.project_code
@@ -29,5 +26,4 @@ FROM site_visit
          LEFT JOIN organization funder ON project.funder_id = funder.organization_id
          LEFT JOIN personnel ON project.manager_id = personnel.personnel_id
          LEFT JOIN completion ON project.completion_id = completion.completion_id
-         LEFT JOIN source_type ON project.source_type_id = source_type.source_type_id
-         LEFT JOIN citations ON project.citation_id = citations.citation_id;
+         LEFT JOIN source_type ON project.source_type_id = source_type.source_type_id;
