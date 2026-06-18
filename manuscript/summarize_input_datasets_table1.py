@@ -51,11 +51,11 @@ source_query = """
 SELECT project_code, citation_short, citation_long, citation_url FROM project_citations
 LEFT JOIN citations ON citations.citation_id = project_citations.citation_id
 """
-source_table = query_to_dataframe(akveg_db_connection, source_query)
-source_table = pl.from_pandas(source_table)
+source_original = query_to_dataframe(akveg_db_connection, source_query)
+source_original = pl.from_pandas(source_original)
 
 # --- Create bibliography for Table 1 ---
-source_final = (source_table
+source_processed = (source_original
                 .unique()
                 .sort("project_code")
                 .with_columns(pl.concat_str(pl.col("citation_long"),
@@ -67,36 +67,40 @@ source_final = (source_table
                 .with_row_index(name="citation_index", offset=1)  # Change offset to reflect citation order in MS
                 .with_columns(pl.col("citation_index").cast(pl.String).alias("citation_index"))
                 .with_columns(pl.col("citation_index").str.replace_many(UNICODE_SUPERSCRIPTS)
-                              .alias("citation_index")
+                              .alias("citation_superscript")
                               )
                 .with_columns(pl.concat_str(pl.col("citation_short"),
-                                            pl.col("citation_index"),
+                                            pl.col("citation_superscript"),
                                             separator=""
-                                            ).alias("citation_superscript")
+                                            ).alias("authoryear_superscript")
                               )
-                .select("citation_index", "group_index", "project_code", "citation_superscript", "citation_full")
+                .select("citation_index", "group_index", "project_code", "citation_short", "authoryear_superscript",
+                        "citation_full")
                 )
+
+# Format for export
+source_final = source_processed.drop(['group_index', 'authoryear_superscript'])
 
 # --- Create Table 1 --- #
 
-# Pivot source table to wide format for superscript indices
-citation_superscript = (source_final
+# Pivot source table to wide format
+citation_superscript = (source_processed
         .pivot("group_index",
                index=["project_code"],
-               values="citation_superscript")
+               values="authoryear_superscript")
         .sort("project_code")
                      )
 
-# Combine citation index columns and format project table
+# Combine Author-Year citations into single columns and format project table
 project_final = (citation_superscript.lazy()
         .fill_null("")
         # Combine citation indices into a single string
         .with_columns(pl.concat_str(pl.all().exclude("project_code"),
                                     separator=", ")
-                      .alias("citation_superscript")
+                      .alias("authoryear_superscript")
                       )
         # Remove trailing comma and convert to Unicode superscript number
-        .with_columns(pl.col("citation_superscript").str.strip_chars(", ").alias("citation_superscript")
+        .with_columns(pl.col("authoryear_superscript").str.strip_chars(", ").alias("source_citation")
                       )
         # Join with project table
         .join(project_table.lazy(), on="project_code")
@@ -125,7 +129,7 @@ project_final = (citation_superscript.lazy()
     .alias("project_name")
 )
         # Select final columns and sort by project code
-        .select(["project_code", "project_name", "temporal_extent", "source_type", "citation_superscript"])
+        .select(["project_code", "project_name", "temporal_extent", "source_type", "source_citation"])
         .sort("project_code")
 
         .collect()
