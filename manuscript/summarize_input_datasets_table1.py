@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create project table
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-06-16
+# Last Updated: 2026-06-17
 # Usage: Execute in Python 3.13+.
 # Description: "Create project source table" formats the project and citations tables in the AKVEG Database to
 # produce Table 1 (Droghini et al., in prep.) and associated bibliographic references.
@@ -29,6 +29,11 @@ project_input = repository_folder / "user_tools" / "queries" / "01_project.sql"
 # Define outputs
 project_output =  manuscript_folder / 'table_projects.csv'
 source_output = manuscript_folder / 'table_project_citations.csv'
+
+# Define Unicode numbers in superscript
+UNICODE_SUPERSCRIPTS = {"0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
+                        "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹"
+                        }
 
 # Connect to the AKVEG Database
 akveg_db_connection = connect_database_postgresql(akveg_credentials)
@@ -60,10 +65,13 @@ source_final = (source_table
                               pl.int_range(pl.len()).over(pl.col("project_code")).alias("group_index")
                               )
                 .with_row_index(name="citation_index", offset=1)  # Change offset to reflect citation order in MS
-                .with_columns(pl.col("citation_index").cast(pl.String))
+                .with_columns(pl.col("citation_index").cast(pl.String).alias("citation_index"))
+                .with_columns(pl.col("citation_index").str.replace_many(UNICODE_SUPERSCRIPTS)
+                              .alias("citation_index")
+                              )
                 .with_columns(pl.concat_str(pl.col("citation_short"),
                                             pl.col("citation_index"),
-                                            separator="^"
+                                            separator=""
                                             ).alias("citation_superscript")
                               )
                 .select("citation_index", "group_index", "project_code", "citation_superscript", "citation_full")
@@ -87,8 +95,9 @@ project_final = (citation_superscript.lazy()
                                     separator=", ")
                       .alias("citation_superscript")
                       )
-        # Clean up column by removing trailing column
-        .with_columns(pl.col("citation_superscript").str.strip_chars(", "))
+        # Remove trailing comma and convert to Unicode superscript number
+        .with_columns(pl.col("citation_superscript").str.strip_chars(", ").alias("citation_superscript")
+                      )
         # Join with project table
         .join(project_table.lazy(), on="project_code")
         .with_columns(
