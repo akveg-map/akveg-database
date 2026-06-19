@@ -2,8 +2,8 @@
 # ---------------------------------------------------------------------------
 # Combine data tables
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-04-22
-# Usage: Script should be executed in R 4.5.1+.
+# Last Updated: 2026-06-19
+# Usage: Script should be executed in R 4.6.0+.
 # Description: "Combine data tables" combines data from processed datasets into single CSV files. The CSV files can then be converted into a SQL statement for upload to the AKVEG database. The script requires metadata tables to be inserted into the AKVEG Database.
 # ---------------------------------------------------------------------------
 
@@ -76,7 +76,6 @@ source_original <- read_excel(source_input, sheet = "project_source")
 
 # Process project source table
 source_processed <- join_source_metadata(source_original, lookup_data)
-print(source_processed |> filter(citation_short != "NULL" & is.na(citation_id))) ## Ensure all citations have a match in the citations table
 
 # Create function for table processing
 process_tables <- function(input_pattern, table_name, warn_if_missing, clean_function,
