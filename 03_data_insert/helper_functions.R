@@ -104,7 +104,13 @@ join_project_metadata <- function(df, lookup) {
 #' #' @description Converts source type to lowercase for consistency with constrained values. Returns foreign key values for constrained fields.
 join_source_metadata <- function(df, lookup) {
   df |>
-    mutate(source_type = str_to_lower(source_type)) |>
+    mutate(source_type = str_to_lower(source_type),
+           source_date = na_if(source_date, "NULL"),
+           acquisition_date = na_if(acquisition_date, "NULL")
+           ) |>
+    mutate(source_date = as.Date(source_date),
+           acquisition_date = as.Date(acquisition_date)
+           ) |> 
     left_join(lookup_data$source_type, by = "source_type")
 }
 # ===========================================================================
