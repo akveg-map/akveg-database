@@ -52,13 +52,16 @@ authentication <- path(
 database_connection <- connect_database_postgresql(authentication)
 
 # Read in files ----
-# 1. Read and execute SQL queries
+
+# Read and execute SQL queries
 queries_lookup <- read_yaml(queries_input)
 lookup_data <- map(queries_lookup$queries, \(q) dbGetQuery(database_connection, q))
-# 2. Read plot folder paths
+
+# Read plot folder paths
 target_paths <- fromJSON(file = project_list)$projects
 all_folders <- path(data_folder, target_paths)
-# 3. Read control table file
+
+# Read control table file
 config_table <- read_csv(metadata_input,
   col_select = c(
     "table_name", "input_pattern", "combined_table_csv", "warn_if_missing",
@@ -67,7 +70,8 @@ config_table <- read_csv(metadata_input,
   )
 ) |>
   filter(include_combine) # Drop files that aren't used in this script
-# 4. Read project source data
+
+# Read project source data
 source_original <- read_excel(source_input, sheet = "project_source")
 
 # Process project source table
