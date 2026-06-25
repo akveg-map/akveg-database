@@ -1,8 +1,8 @@
 -- -*- coding: utf-8 -*-
 -- ---------------------------------------------------------------------------
 -- Build metadata and constraint tables
--- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2026-06-16
+-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
+-- Last Updated: 2026-06-25
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Build metadata and constraint tables" creates the empty tables for the metadata components of the AKVEG database, including the schema and data dictionary. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING METADATA TABLES.
 -- ---------------------------------------------------------------------------
@@ -21,6 +21,7 @@ DROP TABLE IF EXISTS
     data_type,
     database_dictionary,
     database_schema,
+    database_version,
     disturbance,
     disturbance_severity,
     drainage,
@@ -39,6 +40,7 @@ DROP TABLE IF EXISTS
     physiography,
     plot_dimensions,
     positional_accuracy,
+    release_category,
     restrictive_type,
     schema_category,
     schema_table,
@@ -181,6 +183,11 @@ CREATE TABLE positional_accuracy (
     positional_accuracy varchar(30) UNIQUE NOT NULL
 );
 
+CREATE TABLE release_category (
+    release_category_id serial PRIMARY KEY,
+    release_category varchar(20) UNIQUE NOT NULL
+);
+
 CREATE TABLE restrictive_type (
     restrictive_type_id smallint PRIMARY KEY,
     restrictive_type varchar(50) UNIQUE NOT NULL
@@ -287,6 +294,18 @@ CREATE TABLE database_dictionary (
     data_attribute_id varchar(10) NOT NULL,
     data_attribute varchar(120) NOT NULL,
     definition varchar(2000) NOT NULL
+);
+
+--- Create version table
+CREATE TABLE database_version (
+    version_id serial PRIMARY KEY,
+    major_version smallint NOT NULL,
+    minor_version smallint NOT NULL,
+    patch_version smallint NOT NULL,
+    release_date date NOT NULL,
+    release_category_id smallint NOT NULL REFERENCES release_category,
+    change_description varchar(500) NOT NULL,
+    private boolean NOT NULL
 );
 
 -- Commit transaction
