@@ -120,7 +120,7 @@ check_schema_fields(schema_df, schema_columns)
 # Map each SQL table to the name of the folder it will be exported to
 folder_dictionary = map_sql_tables(sql_build_folder)
 
-# Ensure number of files in which folder matches expectations
+# Ensure number of files in each folder matches expectations
 folder_counts = Counter(folder_dictionary.values())
 print(folder_counts)
 
