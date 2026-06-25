@@ -2,26 +2,25 @@
 -- ---------------------------------------------------------------------------
 -- Query projects
 -- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
--- Last Updated:  2026-06-17
+-- Last Updated:  2026-06-25
 -- Usage: Script should be executed in a PostgreSQL 16+ database.
 -- Description: "Query projects" queries the project metadata.
 -- ---------------------------------------------------------------------------
 
 -- Compile project data
-SELECT DISTINCT site_visit.project_code     as project_code
-              , project.project_name        as project_name
-              , originator.organization     as originator
-              , funder.organization         as funder
-              , personnel.personnel         as manager
-              , completion.completion       as project_status
-              , project.year_start          as year_start
-              , project.year_end            as year_end
-              , project.project_description as project_description
-              , project.private             as private
-              , source_type.source_type     as source_type
-              , project.acquisition_date    as acquisition_date
-FROM site_visit
-         LEFT JOIN project ON site_visit.project_code = project.project_code
+SELECT project.project_code        as project_code
+     , project.project_name        as project_name
+     , originator.organization     as originator
+     , funder.organization         as funder
+     , personnel.personnel         as manager
+     , completion.completion       as project_status
+     , project.year_start          as year_start
+     , project.year_end            as year_end
+     , project.project_description as project_description
+     , project.private             as private
+     , source_type.source_type     as source_type
+     , project.acquisition_date    as acquisition_date
+FROM project
          LEFT JOIN organization originator ON project.originator_id = originator.organization_id
          LEFT JOIN organization funder ON project.funder_id = funder.organization_id
          LEFT JOIN personnel ON project.manager_id = personnel.personnel_id
