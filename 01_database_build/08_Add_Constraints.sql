@@ -33,20 +33,12 @@ ALTER TABLE project
         CHECK ((completion_id = 1 AND year_end != -999) OR
                (completion_id = 2 AND year_end = -999));
 
--- Add constraint to database_version table and validate records
-ALTER TABLE database_version
-    ADD CONSTRAINT unique_version_number
-        UNIQUE (major_version, minor_version, patch_version);
-
 -- Remove constraints to avoid issues with export file
 ALTER TABLE abiotic_top_cover
     DROP CONSTRAINT check_abiotic_element_type;
 
 ALTER TABLE project
     DROP CONSTRAINT check_completion_date;
-
-ALTER TABLE database_version
-    DROP CONSTRAINT unique_version_number;
 
 -- Commit transaction
 COMMIT TRANSACTION;
