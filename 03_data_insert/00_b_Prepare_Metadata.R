@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Prepare metadata and constraints for upload
 # Authors: Timm Nawrocki, Amanda Droghini, ACCS
-# Last Updated: 2026-05-29
+# Last Updated: 2026-06-25
 # Usage: Script should be executed in R 4.6.0+.
 # Description: Dynamically parses metadata and constraints from Excel into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
@@ -53,6 +53,7 @@ dictionary_data <- read_excel(path(data_folder, "database_dictionary.xlsx"), she
 schema_data <- read_excel(path(data_folder, "database_schema.xlsx"), sheet = "schema")
 org_data <- read_excel(path(data_folder, "organization.xlsx"), sheet = "organization")
 citations_data <- read_excel(path(data_folder, "project_source.xlsx"), sheet = "project_citations")
+version_data <- read_excel(path(data_folder, "database_version.xlsx"))
 
 # Parse constraints
 constraint_tables <- dictionary_data %>%
@@ -125,6 +126,15 @@ print(citations_table |>
   filter(n()>1) |> 
   summarize(n=n()))
 
+# Parse database version table
+database_version_table <- version_data |>
+  mutate(release_category = str_to_lower(release_category),
+         release_date = as.Date(release_date),
+         private = as.logical(private)) |> 
+  left_join(constraint_tables$release_category, by = "release_category") |> 
+  arrange(across(ends_with("version"))) |> 
+  select(-release_category)
+
 # Remove organization table in constraint_tables
 ## Use new organization_table instead
 constraint_tables$organization <- NULL
@@ -140,6 +150,7 @@ final_tables <- c(
   list(
     organization = organization_table,
     citations = citations_table,
+    database_version = database_version_table,
     database_schema = database_schema_table,
     database_dictionary = database_dictionary_table
   )
