@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [2.9.3] - 2026-06-25
+## [Unreleased]
 
 * **Separate database from code versioning**: Moved database change tracking to a dedicated `database_version` table. Future changelog entries in the GitHub repository will focus only on tracking changes to the ETL pipeline, including changes to processing functions and transformation logic.
 * **Updated data insert pipeline**: Process new `database_version` table.
