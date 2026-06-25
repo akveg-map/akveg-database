@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Export database tables
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-06-11
+# Last Updated: 2026-06-25
 # Usage: Execute in Python 3.13+.
 # Description: "Export database tables" verifies completeness of the database schema metadata and assigns a folder
 # name to each table in the AKVEG Database, before exporting all tables in the AKVEG Database to CSVs in their
@@ -22,13 +22,10 @@ root = drive / 'ACCS_Work'
 credential_folder = (root / 'OneDrive - University of Alaska' /'ACCS_Teams' /'Vegetation' / 'AKVEG_Database' /
                      "Credentials")
 sql_build_folder = root / 'Repositories' / 'akveg-database' / '01_database_build'
-output_folder = root / 'Projects' / 'AKVEG_Database' / 'Data_Deposit' / 'v2_9_2'  # Current version
+output_root = root / 'Projects' / 'AKVEG_Database' / 'Data_Deposit'
 
 # Define inputs
 credential_file = (credential_folder / "akveg_public_read" / "authentication_akveg_public_read.csv")
-
-# Define output folder
-###
 
 # Read in data
 db_credentials = pl.read_csv(credential_file)
@@ -60,6 +57,44 @@ connect_args = {
 
 # Create database engine
 engine = sa.create_engine(db_url, connect_args=connect_args)
+
+# --- Dynamically create output folder ---
+## Using latest database version
+
+query_version = f"""
+SELECT major_version, minor_version, patch_version
+FROM database_version
+WHERE version_id = (
+    SELECT
+      MAX (version_id)
+    FROM
+      database_version
+);
+"""
+
+version_df = pl.read_database(query=query_version, connection=engine)
+
+# Concatenate version numbers into single version string
+version_string = (version_df.with_columns(pl.concat_str([pl.lit("v"),
+                                                         pl.col("major_version")],
+                                                        separator="")
+.alias("major_version")
+                                          )
+                  .with_columns(
+    pl.concat_str(
+        [pl.col("major_version"),
+         pl.col("minor_version"),
+         pl.col("patch_version")
+         ],
+        separator="_").alias("full_version")
+)
+                  .select("full_version")
+                  .to_series()
+                  .item()
+                  )
+
+# Establish output folder path
+output_folder = output_root / version_string
 
 # --- Verify schema ---
 insp = sa.inspect(engine)
