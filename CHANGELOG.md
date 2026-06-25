@@ -4,18 +4,24 @@
 
 # Changelog
 
-All changes to the AKVEG database are documented in this file. Changes to the AKVEG taxonomic standard are
-documented in [CHANGELOG_TAXONOMY.md](CHANGELOG_TAXONOMY.md).
+All changes to the AKVEG Database codebase are documented in this file. Changes to the datasets and schema that comprise the AKVEG Database are documented in the `database_version` table within the database. Changes to the AKVEG taxonomic standard are documented in [CHANGELOG_TAXONOMY.md](CHANGELOG_TAXONOMY.md).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.9.3] - 2026-06-25
+
+* **Separate database from code versioning**: Moved database change tracking to a dedicated `database_version` table. Future changelog entries in the GitHub repository will focus only on tracking changes to the ETL pipeline, including changes to processing functions and transformation logic.
+* **Updated data insert pipeline**: Process new `database_version` table.
+* **Updated SQL build scripts**: Create `database_version` table and associated `release_category` lookup table.
+
 ## [2.9.2] - 2026-06-10 
 
 ### Administrative 
 
-- **Increment patch number for Zenodo hotfix:** This version is identical to `v2.9.1`. A new version was minted to resolve a webhook sync issue between GitHub and Zenodo. 
+* **Increment patch number for Zenodo hotfix:** This version is identical to `v2.9.1`. A new version was minted to 
+resolve a webhook sync issue between GitHub and Zenodo. 
 
 ## [2.9.1] - 2026-05-29
 
