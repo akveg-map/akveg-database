@@ -100,6 +100,11 @@ def map_sql_tables(
     """
     Scans a directory for SQL files, extracts the names of all tables being created, and maps them to the name of the
     folder they will be exported to.
+
+    Args: The path to the directory containing the SQL build files.
+
+    Returns: A dictionary where the keys are the extracted table names and the values are the relative folder paths
+    that the tables will be exported to.
     """
 
     # Create empty dictionary for storing results
