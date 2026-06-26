@@ -153,8 +153,15 @@ with engine.connect() as conn:
 
 # Loop over dictionary items and export as CSV
 for table_name, table_df in compiled_dict.items():
-    file_name = table_name + ".csv"
+    # Update name for taxonomy table
+    if table_name == 'taxon_all':
+        file_name = 'taxonomy.csv'
+    else:
+        file_name = table_name + ".csv"
+
+    # Create output path
     file_path = output_folder / 'compiled' / file_name
+    # Export as CSV
     table_df.write_csv(file_path)
 
 # Close engine connection
