@@ -1,26 +1,33 @@
 -- -*- coding: utf-8 -*-
 -- ---------------------------------------------------------------------------
 -- Query taxonomic data
--- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2025-03-12
--- Usage: Script should be executed in a PostgreSQL 14+ database.
+-- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
+-- Last Updated: 2026-06-25
+-- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Query taxonomic data" queries all names along with relationships to accepted taxa from the AKVEG Database.
 -- ---------------------------------------------------------------------------
 
 -- Compile taxon data
 SELECT taxon_all.taxon_code as code_akveg
      , taxon_all.taxon_name as taxon_name
+     , taxon_author.taxon_author as taxon_author
      , taxon_status.taxon_status as taxon_status
      , taxon_final.taxon_name as taxon_accepted
+     , author_accepted.taxon_author as taxon_author_accepted
+     , source_accepted.taxon_source as taxon_source
+     , source_accepted.taxon_citation as taxon_citation
 	 , taxon_genus_name.taxon_name as taxon_genus
 	 , taxon_family.taxon_family as taxon_family
 	 , taxon_level.taxon_level as taxon_level
      , taxon_category.taxon_category as taxon_category
      , taxon_habit.taxon_habit as taxon_habit
 FROM taxon_all
+    LEFT JOIN taxon_author ON taxon_all.taxon_author_id = taxon_author.taxon_author_id
     LEFT JOIN taxon_status ON taxon_all.taxon_status_id = taxon_status.taxon_status_id
 	LEFT JOIN taxon_accepted ON taxon_all.taxon_accepted_code = taxon_accepted.taxon_accepted_code
     LEFT JOIN taxon_all taxon_final ON taxon_accepted.taxon_accepted_code = taxon_final.taxon_code
+    LEFT JOIN taxon_author author_accepted ON taxon_final.taxon_author_id = author_accepted.taxon_author_id
+    LEFT JOIN taxon_source source_accepted ON taxon_accepted.taxon_source_id = source_accepted.taxon_source_id
 	LEFT JOIN taxon_level ON taxon_accepted.taxon_level_id = taxon_level.taxon_level_id
 	LEFT JOIN taxon_hierarchy ON taxon_accepted.taxon_genus_code = taxon_hierarchy.taxon_genus_code
 	LEFT JOIN taxon_all taxon_genus_name ON taxon_accepted.taxon_genus_code = taxon_genus_name.taxon_code
