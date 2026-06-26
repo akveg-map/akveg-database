@@ -19,6 +19,7 @@ SELECT project.project_code        as project_code
      , project.project_description as project_description
      , project.private             as private
      , source_type.source_type     as source_type
+     , project.source_date         as source_date
      , project.acquisition_date    as acquisition_date
 FROM project
          LEFT JOIN organization originator ON project.originator_id = originator.organization_id
