@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-06-03
+# Last Updated: 2026-06-25
 # ---------------------------------------------------------------------------
 
 """
@@ -11,11 +11,13 @@ This module provides utility functions for preparing the depositing of the AKVEG
 Functions include:
 1. check_schema_fields: Verify that all fields exist in the database_schema table.
 2. map_sql_tables: Maps all tables created in SQL build scripts to the names of folders they will be exported to.
+3. compile_sql_tables: Batch executes SQL queries to obtain a dictionary of flattened tables.
 """
 
 # Import packages
 import polars as pl
 import re as re
+import psycopg2.extensions
 from typing import Tuple, List, Dict
 from pathlib import WindowsPath
 
@@ -90,6 +92,7 @@ def check_schema_fields(
 
     return missing_fields
 
+
 # --- Function 2 ---
 def map_sql_tables(
         folder_path: WindowsPath,
@@ -138,3 +141,48 @@ def map_sql_tables(
                 folder_dictionary[table] = "data_tables"
 
     return folder_dictionary
+
+
+# --- Function 3 ---
+def compile_sql_tables(folder_path: WindowsPath,
+                       conn: psycopg2.extensions.connection
+                       ) -> Dict[str, pl.DataFrame]:
+    """
+    Batch executes SQL queries and compiles the resulting flattened tables into Polars DataFrames.
+
+    Args:
+    folder_path: The path to the directory containing the SQL query files.
+    conn: An active database connection used to execute the queries.
+
+    Returns: A dictionary where the keys are the extracted table names and the values are the flattened Polars
+    DataFrames.
+    """
+
+    # Create empty dictionary for storing results
+    compiled_dictionary = dict()
+
+    # List all SQL files in directory
+    file_list = [f for f in folder_path.glob("*.sql") if f.is_file()]
+
+    # Loop through each SQL file
+    for file in file_list:
+
+        with open(file, 'r', encoding='utf-8') as sql_file:
+            # Read and execute SQL query
+            sql_query = sql_file.read()
+
+        # Extract table name from SQL query
+        regex_pattern = r'\nFROM ([a-z_]+)\n'
+        table_name = re.search(regex_pattern, sql_query).group(1)
+
+        print(f"Compiling {table_name}...")
+
+        if table_name == 'environment':
+            compiled_df = pl.read_database(query=sql_query, connection=conn, infer_schema_length=None)
+        else:
+            compiled_df = pl.read_database(query=sql_query, connection=conn, infer_schema_length=5000)
+
+        compiled_dictionary[table_name] = compiled_df
+
+    return compiled_dictionary
+
