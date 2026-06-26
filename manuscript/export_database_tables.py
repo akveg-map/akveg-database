@@ -21,7 +21,9 @@ drive = Path('C:/')
 root = drive / 'ACCS_Work'
 credential_folder = (root / 'OneDrive - University of Alaska' /'ACCS_Teams' /'Vegetation' / 'AKVEG_Database' /
                      "Credentials")
-sql_build_folder = root / 'Repositories' / 'akveg-database' / '01_database_build'
+repository_folder = root / 'Repositories' / 'akveg-database'
+sql_build_folder = repository_folder / '01_database_build'
+query_folder = repository_folder / 'user_tools' / 'queries'
 output_root = root / 'Projects' / 'AKVEG_Database' / 'Data_Deposit'
 
 # Define inputs
@@ -60,7 +62,6 @@ engine = sa.create_engine(db_url, connect_args=connect_args)
 
 # --- Dynamically create output folder ---
 ## Using latest database version
-
 query_version = f"""
 SELECT major_version, minor_version, patch_version
 FROM database_version
@@ -115,7 +116,7 @@ schema_df = pl.read_database(query=query_schema, connection=engine)
 # Verify completeness of database_schema table
 check_schema_fields(schema_df, schema_columns)
 
-# --- Export database tables ---
+# --- Export uncompiled database tables ---
 
 # Map each SQL table to the name of the folder it will be exported to
 folder_dictionary = map_sql_tables(sql_build_folder)
@@ -144,6 +145,17 @@ with engine.connect() as conn:
         df.write_csv(output_path)
 
     print("Export complete.")
+
+# --- Export compiled database tables ---
+
+with engine.connect() as conn:
+    compiled_dict = compile_sql_tables(folder_path=query_folder, conn=conn)
+
+# Loop over dictionary items and export as CSV
+for table_name, table_df in compiled_dict.items():
+    file_name = table_name + ".csv"
+    file_path = output_folder / 'compiled' / file_name
+    table_df.write_csv(file_path)
 
 # Close engine connection
 engine.dispose()
