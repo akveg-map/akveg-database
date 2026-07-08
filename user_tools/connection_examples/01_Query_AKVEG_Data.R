@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Query data from AKVEG Database
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2025-05-06
+# Last Updated: 2026-07-08
 # Usage: Script should be executed in R 4.4.3+.
 # Description: "Query data from AKVEG Database" is an example script to pull data from the AKVEG Database for all available, non-metadata tables. The script connects to the AKVEG database, executes queries, and performs simple spatial analyses (i.e., subset the data to specific study areas, extract raster values to surveyed plots). The outputs are a series of CSV files (one for each non-metadata table in the database) whose results are restricted to the study area in the script.
 # ---------------------------------------------------------------------------
@@ -28,7 +28,8 @@ drive = 'C:'
 root_folder = 'ACCS_Work'
 
 # Define input folders (modify to your folder structure)
-database_repository = path(drive, root_folder, 'Repositories/akveg-database-public')
+database_repository = path(drive, root_folder, 'Repositories/akveg-database')
+query_folder = path(database_repository, 'user_tools', 'queries')
 credentials_folder = path(drive, root_folder, 'Example/Credentials/akveg_public_read')
 input_folder = path(drive, root_folder, 'Example/Data_Input')
 output_folder = path(drive, root_folder, 'Example/Data_Input', 'plot_data')
@@ -54,18 +55,18 @@ soilmetrics_output = path(output_folder, '13_soil_metrics.csv')
 soilhorizons_output = path(output_folder, '14_soil_horizons.csv')
 
 # Define queries
-taxa_file = path(database_repository, 'queries/00_taxonomy.sql')
-project_file = path(database_repository, 'queries/01_project.sql')
-site_visit_file = path(database_repository, 'queries/03_site_visit.sql')
-vegetation_file = path(database_repository, 'queries/05_vegetation.sql')
-abiotic_file = path(database_repository, 'queries/06_abiotic_top_cover.sql')
-tussock_file = path(database_repository, 'queries/07_whole_tussock_cover.sql')
-ground_file = path(database_repository, 'queries/08_ground_cover.sql')
-structural_file = path(database_repository, 'queries/09_structural_group_cover.sql')
-shrub_file = path(database_repository, 'queries/11_shrub_structure.sql')
-environment_file = path(database_repository, 'queries/12_environment.sql')
-soilmetrics_file = path(database_repository, 'queries/13_soil_metrics.sql')
-soilhorizons_file = path(database_repository, 'queries/14_soil_horizons.sql')
+taxa_file = path(query_folder, '00_taxonomy.sql')
+project_file = path(query_folder, '01_project.sql')
+site_visit_file = path(query_folder, '03_site_visit.sql')
+vegetation_file = path(query_folder, '05_vegetation.sql')
+abiotic_file = path(query_folder, '06_abiotic_top_cover.sql')
+tussock_file = path(query_folder, '07_whole_tussock_cover.sql')
+ground_file = path(query_folder, '08_ground_cover.sql')
+structural_file = path(query_folder, '09_structural_group_cover.sql')
+shrub_file = path(query_folder, '11_shrub_structure.sql')
+environment_file = path(query_folder, '12_environment.sql')
+soilmetrics_file = path(query_folder, '13_soil_metrics.sql')
+soilhorizons_file = path(query_folder, '14_soil_horizons.sql')
 
 # Read local data ----
 domain_shape = st_read(domain_input)
