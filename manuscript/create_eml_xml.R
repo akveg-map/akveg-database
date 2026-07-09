@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create EML XML file for data archive
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-08
+# Last Updated: 2026-07-09
 # Usage: Script should be executed in R 4.6.0+.
 # Description: "Create EML XML file for data archive" parses AKVEG's database schema and dictionary into an EML XML metadata file.
 # ---------------------------------------------------------------------------
@@ -94,6 +94,7 @@ attribute_table <- core_schema |>
          ) |> 
   # Populate measurementScale based on domain
   mutate(measurementScale = case_when(attributeName == 'horizon_order' ~ 'ordinal',
+                                      grepl("_dd$", attributeName) ~ 'interval', # Define coordinates as interval, not ratio
                                       domain == 'dateTimeDomain' ~ 'dateTime',
                                       domain == 'enumeratedDomain' ~ 'nominal',
                                       domain == 'textDomain' ~ 'nominal',
@@ -113,10 +114,12 @@ attribute_table <- core_schema |>
   mutate(unit = case_when(grepl(pattern="_m$", attributeName) 
                           & (domain == "numericDomain") ~ 'meter',
                           grepl(pattern="_cm$", attributeName) ~ 'centimeter',
+                          grepl(pattern="_m2$", attributeName) ~ 'squareMeter',
+                          grepl("_dd$", attributeName) ~ 'degree',
+                          grepl(pattern='_percent$|_chroma$|_value$|^number_', attributeName)  ~ 'dimensionless',
+                          attributeName %in% c('ph', 'conductivity_mus') ~ 'dimensionless',
                           attributeName == 'temperature_deg_c' ~ 'celsius',
                           attributeName == 'disturbance_time_y' ~ 'nominalYear',
-                          grepl(pattern='_percent|_chroma|_value|number_', attributeName)  ~ 'dimensionless',
-                          attributeName == 'ph' ~ 'dimensionless',
                           .default = NA)) |> 
   mutate(numberType = case_when(data_type == "decimal" ~ "real",
                                 grepl(pattern="_chroma", attributeName) ~ "real",
@@ -124,9 +127,38 @@ attribute_table <- core_schema |>
                                 attributeName == "disturbance_time_y" ~ "integer",
                                 .default = NA)) |> 
   # Select desired columns
-  select(attributeName, data_type, unit, numberType, domain, attributeDefinition, schema_table, definition,  measurementScale, formatString)
+  select(attributeName, data_type, unit, numberType, domain, attributeDefinition, definition,  measurementScale, formatString)
 
 # Quality checks
-## Check that nothing is NA
-## Check for consistency between domain, mscale, etc.
+
+## Ensure required fields have no nulls
+print(attribute_table %>% 
+        select(attributeName, attributeDefinition, domain, measurementScale) |> 
+  summarise(across(everything(), ~ sum(is.na(.x)))
+            )
+  )
+
+## Verify consistency between domain and measurement scale
+table(attribute_table$domain, attribute_table$measurementScale)
+
+## Verify consistency between domain and domain-specific fields
+## Ensure unit_sum and numberType_sum are equal
+attribute_table |> 
+  mutate(def_exists = case_when(is.na(definition) ~ 0,
+                                .default = 1),
+         unit_exists = case_when(is.na(unit) ~ 0,
+                                 .default = 1),
+         numberType_exists = case_when(is.na(numberType) ~ 0,
+                                       .default = 1),
+         format_exists = case_when(is.na(formatString) ~ 0,
+                                   .default = 1)
+         )|> 
+  group_by(domain) |> 
+  summarise(def_sum = sum(def_exists),
+            format_sum = sum(format_exists),
+            unit_sum = sum(unit_exists),
+            numberType_sum = sum(numberType_exists)
+            )
+
+
 ## Create factors and missingValues tables
