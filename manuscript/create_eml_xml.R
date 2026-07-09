@@ -67,7 +67,7 @@ unique_cols = unique(all_cols)
 core_schema <- schema_db |> filter(field %in% unique_cols)
 
 # Format schema table into attributes ----
-attribute_table <- core_schema |> 
+full_attribute_table <- core_schema |> 
   rename(attributeName = field,
          attributeDefinition = field_description) |> 
   # Populate EML domain based on data type and attribute name
@@ -153,17 +153,18 @@ attribute_table <- core_schema |>
 # Quality checks
 
 ## Ensure required fields have no nulls
-print(attribute_table %>% 
+print(full_attribute_table %>% 
         select(attributeName, attributeDefinition, domain, measurementScale) |> 
   summarise(across(everything(), ~ sum(is.na(.x)))
             )
   )
 
 ## Verify consistency between domain and measurement scale
-table(attribute_table$domain, attribute_table$measurementScale)
+table(full_attribute_table$domain, 
+      full_attribute_table$measurementScale)
 
 ## Verify consistency between missingValueCode and explanation
-attribute_table |> mutate(code_exists = case_when(is.na(missingValueCode) ~ 0,
+full_attribute_table |> mutate(code_exists = case_when(is.na(missingValueCode) ~ 0,
                                                   .default = 1),
                           explanation_exists = case_when(is.na(missingValueCodeExplanation) ~ 0,
                                                          .default = 1)) |> 
@@ -172,7 +173,7 @@ attribute_table |> mutate(code_exists = case_when(is.na(missingValueCode) ~ 0,
 
 ## Verify consistency between domain and domain-specific fields
 ## Ensure unit_sum and numberType_sum are equal
-attribute_table |> 
+full_attribute_table |> 
   mutate(def_exists = case_when(is.na(definition) ~ 0,
                                 .default = 1),
          unit_exists = case_when(is.na(unit) ~ 0,
@@ -195,5 +196,19 @@ factors_table <- dictionary_db |>
   rename(attributeName = field,
          code = data_attribute)
 
-# Create missingValues table ----
+# Set attributes ----
 
+# Create missing values table
+missingvalues_table = full_attribute_table |> 
+  select(attributeName, missingValueCode, missingValueCodeExplanation)
+
+# Create reduced attribute table
+attribute_table <- full_attribute_table |> 
+  select(-c(missingValueCode, missingValueCodeExplanation))
+
+set_attributes(
+  attribute_table,
+  factors_table,
+  col_classes = NULL,
+  missingvalues_table
+)
