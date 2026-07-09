@@ -28,16 +28,21 @@ authentication <- path(drive, root_folder, 'OneDrive - University of Alaska',
                        "akveg_public_read",
                        "authentication_akveg_public_read.csv")
 
-# Define SQL query
+# Define SQL queries
 schema_file = path(repository_folder, 'user_tools', 'queries', '00_database_schema.sql')
+dictionary_file = path(repository_folder, 'user_tools', 'queries', '00_database_dictionary.sql')
 
 # Connect to the AKVEG Database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
 database_connection <- connect_database_postgresql(authentication)
 
-# Read in schema table ----
+# Read in database tables ----
 schema_query = read_file(schema_file)
-schema_table_db = as_tibble(dbGetQuery(database_connection, schema_query))
+schema_db = as_tibble(dbGetQuery(database_connection, schema_query))
+
+dictionary_query = read_file(dictionary_file)
+dictionary_db = as_tibble(dbGetQuery(database_connection, dictionary_query))
+
 
 # Restrict schema to core tables ----
 # Use compiled tables (from extract_schema script) to determine what fields to extract from the database dictionary
@@ -59,7 +64,7 @@ for (path in table_paths) {
 # Remove duplicates
 unique_cols = unique(all_cols)
 
-core_schema <- schema_table_db |> filter(field %in% unique_cols)
+core_schema <- schema_db |> filter(field %in% unique_cols)
 
 # Format schema table into attributes ----
 attribute_table <- core_schema |> 
@@ -102,6 +107,22 @@ attribute_table <- core_schema |>
                                       .default = NA
                                       )
          ) |> 
+  # Populate missingValueCode
+  mutate(missingValueCode = case_when(grepl("_chroma$", attributeName) ~ "-1 | -999",
+                                      attributeName %in% c('source_date', 'acquisition_date') ~ "empty",
+                                      attributeName == 'cover_percent' ~ NA,
+                                      grepl("-999", attributeDefinition) ~ "-999",
+                                      .default = NA)) |>
+  mutate(missingValueCodeExplanation = case_when(grepl("_chroma$", attributeName) ~ "Neutral hue recorded, chroma is null | Not measured",
+                                                 attributeName == 'source_date' ~ "Date is unknown or dataset was digitized from physical sources",
+                                                 attributeName == 'acquisition_date' ~ 'Date is unknown, only allowed for datasets acquired before tracking began on 2026-06-19',
+                                                 attributeName == 'year_end' ~ 'Project is ongoing (end date has not yet occurred)',
+                                                 attributeName == 'disturbance_time_y' ~ 'Disturbance is none, or time since disturbance cannot be determined',
+                                                 attributeName == 'depth_15_percent_coarse_fragments_cm' ~ 'Not measured',
+                                                 attributeName == 'total_coarse_fragment_percent' ~ 'Not measured, or cannot be derived from other measurements',
+                                                 (schema_table == 'soil_horizons') & grepl("_percent$|_value$", attributeName) ~ 'Not measured',
+                                                 missingValueCode == "-999" ~ "Not measured, or could not be measured due to environmental conditions",
+                                                 .default = NA)) |> 
   # Nominal Fields: Populate definition
   mutate(definition = case_when(measurementScale == 'nominal' ~ attributeDefinition,
                                 .default = NA)) |> 
@@ -127,7 +148,7 @@ attribute_table <- core_schema |>
                                 attributeName == "disturbance_time_y" ~ "integer",
                                 .default = NA)) |> 
   # Select desired columns
-  select(attributeName, data_type, unit, numberType, domain, attributeDefinition, definition,  measurementScale, formatString)
+  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode, missingValueCodeExplanation, unit, numberType, definition, formatString)
 
 # Quality checks
 
@@ -160,5 +181,11 @@ attribute_table |>
             numberType_sum = sum(numberType_exists)
             )
 
+# Format dictionary table into factors ----
+## Format already matches EML schema; only need to rename columns
+factors_table <- dictionary_db |> 
+  rename(attributeName = field,
+         code = data_attribute)
 
-## Create factors and missingValues tables
+# Create missingValues table ----
+
