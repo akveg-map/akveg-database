@@ -162,6 +162,14 @@ print(attribute_table %>%
 ## Verify consistency between domain and measurement scale
 table(attribute_table$domain, attribute_table$measurementScale)
 
+## Verify consistency between missingValueCode and explanation
+attribute_table |> mutate(code_exists = case_when(is.na(missingValueCode) ~ 0,
+                                                  .default = 1),
+                          explanation_exists = case_when(is.na(missingValueCodeExplanation) ~ 0,
+                                                         .default = 1)) |> 
+  mutate(both_exist = code_exists + explanation_exists) |> 
+  filter(both_exist == 1)  ## Should not be any rows
+
 ## Verify consistency between domain and domain-specific fields
 ## Ensure unit_sum and numberType_sum are equal
 attribute_table |> 
