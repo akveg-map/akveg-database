@@ -113,7 +113,7 @@ full_attribute_table <- core_schema |>
                                       attributeName == 'cover_percent' ~ NA,
                                       grepl("-999", attributeDefinition) ~ "-999",
                                       .default = NA)) |>
-  mutate(missingValueCodeExplanation = case_when(grepl("_chroma$", attributeName) ~ "Neutral hue recorded, chroma is null | Not measured",
+  mutate(missingValueExplanation = case_when(grepl("_chroma$", attributeName) ~ "Neutral hue recorded, chroma is null | Not measured",
                                                  attributeName == 'source_date' ~ "Date is unknown or dataset was digitized from physical sources",
                                                  attributeName == 'acquisition_date' ~ 'Date is unknown, only allowed for datasets acquired before tracking began on 2026-06-19',
                                                  attributeName == 'year_end' ~ 'Project is ongoing (end date has not yet occurred)',
@@ -148,7 +148,7 @@ full_attribute_table <- core_schema |>
                                 attributeName == "disturbance_time_y" ~ "integer",
                                 .default = NA)) |> 
   # Select desired columns
-  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode, missingValueCodeExplanation, unit, numberType, definition, formatString)
+  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode, missingValueExplanation, unit, numberType, definition, formatString)
 
 # Quality checks
 
@@ -166,7 +166,7 @@ table(full_attribute_table$domain,
 ## Verify consistency between missingValueCode and explanation
 full_attribute_table |> mutate(code_exists = case_when(is.na(missingValueCode) ~ 0,
                                                   .default = 1),
-                          explanation_exists = case_when(is.na(missingValueCodeExplanation) ~ 0,
+                          explanation_exists = case_when(is.na(missingValueExplanation) ~ 0,
                                                          .default = 1)) |> 
   mutate(both_exist = code_exists + explanation_exists) |> 
   filter(both_exist == 1)  ## Should not be any rows
@@ -200,11 +200,13 @@ factors_table <- dictionary_db |>
 
 # Create missing values table
 missingvalues_table = full_attribute_table |> 
-  select(attributeName, missingValueCode, missingValueCodeExplanation)
+  select(attributeName, missingValueCode, missingValueExplanation) |> 
+  rename(code = missingValueCode,
+         definition = missingValueExplanation)
 
 # Create reduced attribute table
 attribute_table <- full_attribute_table |> 
-  select(-c(missingValueCode, missingValueCodeExplanation))
+  select(-c(missingValueCode, missingValueExplanation))
 
 set_attributes(
   attribute_table,
