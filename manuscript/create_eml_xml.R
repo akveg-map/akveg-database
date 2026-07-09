@@ -87,7 +87,7 @@ full_attribute_table <- core_schema |>
                             attributeName == 'citation_short' ~ 'textDomain',
                             attributeName == schema_table ~ 'enumeratedDomain',
                             # Re-classify unambiguous data types
-                            data_type == 'boolean' ~ 'enumeratedDomain',
+                            data_type == 'boolean' ~ 'textDomain',
                             data_type == 'date' ~ 'dateTimeDomain',
                             data_type == 'text' ~ 'textDomain',
                             data_type == 'serial' ~ 'textDomain',
@@ -148,7 +148,7 @@ full_attribute_table <- core_schema |>
                                 attributeName == "disturbance_time_y" ~ "integer",
                                 .default = NA)) |> 
   # Select desired columns
-  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode, missingValueExplanation, unit, numberType, definition, formatString)
+  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode, missingValueExplanation, unit, numberType, definition, formatString, schema_table, data_type)
 
 # Quality checks
 
@@ -191,7 +191,8 @@ full_attribute_table |>
             )
 
 # Format dictionary table into factors ----
-## Format already matches EML schema; only need to rename columns
+
+# Rename columns
 factors_table <- dictionary_db |> 
   rename(attributeName = field,
          code = data_attribute)
@@ -204,7 +205,7 @@ missingvalues_table = full_attribute_table |>
   rename(code = missingValueCode,
          definition = missingValueExplanation)
 
-# Create reduced attribute table
+# create 1 attribute list per data table
 attribute_table <- full_attribute_table |> 
   select(-c(missingValueCode, missingValueExplanation))
 
