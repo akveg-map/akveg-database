@@ -43,37 +43,40 @@ schema_db = as_tibble(dbGetQuery(database_connection, schema_query))
 dictionary_query = read_file(dictionary_file)
 dictionary_db = as_tibble(dbGetQuery(database_connection, dictionary_query))
 
-
-# Restrict schema to core tables ----
-# Use compiled tables (from extract_schema script) to determine what fields to extract from the database dictionary
-# Lookup tables will not be uploaded to the data archive, compiled tables already resolve foreign key ids into values
+# Identify columns in compiled tables ----
+# Some fields in the compiled tables do not exist in the database schema table, nature of compilation step meant fields were renamed or brought in from lookup tables
 
 # Get file paths and file stems of compiled tables
 table_paths <- dir_ls(compiled_folder)
 table_stems <- path_file(table_paths) |> 
   path_ext_remove()
 
-# Loop across the file paths of the compiled tables and extract their column names
-all_cols = c() # Initialize empty character vector
+# Loop across files and extract column names from each table
+all_cols_list = list() # Initialize empty list
 
-for (path in table_paths) {
+for (i in 1:length(table_paths)) {
+  path = table_paths[i]
+  stem = table_stems[i]
+  
+  # Get column names
   cols = colnames(read_csv(path, n_max = 0, show_col_types = FALSE))
-  all_cols = c(all_cols, cols) # Add result to vector
+  
+  all_cols_list[[i]] <- tibble(compiled_table = stem, 
+                               field = cols)
 }
 
-# Remove duplicates
-unique_cols = unique(all_cols)
-
-core_schema <- schema_db |> filter(field %in% unique_cols)
+# Flatten into single dataframe
+all_cols_df = bind_rows(all_cols_list)
 
 # Format schema table into attributes ----
-full_attribute_table <- core_schema |> 
+full_attribute_table <- schema_db |> 
   rename(attributeName = field,
          attributeDefinition = field_description) |> 
   # Populate EML domain based on data type and attribute name
   # Handle exceptions before applying general rules
   mutate(domain = case_when(attributeName %in% c('year_start', 
                                                  'year_end') ~ 'dateTimeDomain',
+                            attributeName %in% c('project_code', 'establishing_project_code', 'site_code', 'site_visit_code', 'taxon_author', 'taxon_source') ~ 'textDomain',
                             (data_type == 'varchar') & (!is.na(link_table)) ~ 'enumeratedDomain',
                             (data_type %in% c('smallint', 'integer', 'varchar')) & 
                               grepl(pattern='_id|_code', attributeName) ~ 'textDomain',
@@ -148,7 +151,10 @@ full_attribute_table <- core_schema |>
                                 attributeName == "disturbance_time_y" ~ "integer",
                                 .default = NA)) |> 
   # Select desired columns
-  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode, missingValueExplanation, unit, numberType, definition, formatString, schema_table, data_type)
+  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode, missingValueExplanation, unit, numberType, definition, formatString, schema_table, data_type) |> 
+  # Join with columns in core data tables to see what is missing
+  right_join(all_cols_df, by = join_by(schema_table == compiled_table,
+                                       attributeName == field))
 
 # Quality checks
 
@@ -190,12 +196,38 @@ full_attribute_table |>
             numberType_sum = sum(numberType_exists)
             )
 
+# Parse full attribute table into nested list
+attribute_list <- vector(mode = "list", length = length(table_paths))  # Initialize empty list
+
+
+for (i in 1:length(table_paths)) {
+  path = table_paths[i]
+  cols = colnames(read_csv(path, n_max = 0, show_col_types = FALSE))
+  attribute_list[[i]] = cols 
+}
+
+# Remove duplicates
+unique_cols = unique(all_cols)
+
+
+
+
+
+
 # Format dictionary table into factors ----
 
 # Rename columns
 factors_table <- dictionary_db |> 
   rename(attributeName = field,
          code = data_attribute)
+
+
+
+
+
+
+
+
 
 # Set attributes ----
 
@@ -215,3 +247,6 @@ set_attributes(
   col_classes = NULL,
   missingvalues_table
 )
+
+
+# Close database connection
