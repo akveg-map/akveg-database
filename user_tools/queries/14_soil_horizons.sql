@@ -20,14 +20,14 @@ SELECT soil_horizons.site_visit_code as site_visit_code
      , soil_horizons.horizon_secondary_code as horizon_secondary_code
      , soil_horizons.horizon_suffix_3_code as horizon_suffix_3
      , soil_horizons.horizon_suffix_4_code as horizon_suffix_4
-     , soil_texture.soil_texture as texture
+     , soil_texture.soil_texture as horizon_texture
      , soil_horizons.clay_percent as clay_percent
      , soil_horizons.total_coarse_fragment_percent as total_coarse_fragment_percent
      , soil_horizons.gravel_percent as gravel_percent
      , soil_horizons.cobble_percent as cobble_percent
      , soil_horizons.stone_percent as stone_percent
      , soil_horizons.boulder_percent as boulder_percent
-     , soil_structure.soil_structure as structure
+     , soil_structure.soil_structure as horizon_structure
      , soil_horizons.matrix_hue_code as matrix_hue_code
      , soil_horizons.matrix_value as matrix_value
      , soil_horizons.matrix_chroma as matrix_chroma
