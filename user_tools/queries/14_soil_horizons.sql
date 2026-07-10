@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Query soil horizons
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2026-07-09
+-- Last Updated: 2026-07-10
 -- Usage: Script should be executed in a PostgreSQL 14+ database.
 -- Description: "Query soil horizons" queries all soil horizon data from the AKVEG Database.
 -- ---------------------------------------------------------------------------
@@ -15,11 +15,11 @@ SELECT soil_horizons.site_visit_code as site_visit_code
      , soil_horizons.depth_lower_cm as depth_lower_cm
      , soil_horizons.depth_extend as depth_extend
      , soil_horizons.horizon_primary_code as horizon_primary_code
-     , soil_horizons.horizon_suffix_1_code as horizon_suffix_1
-     , soil_horizons.horizon_suffix_2_code as horizon_suffix_2
+     , soil_horizons.horizon_suffix_1_code as horizon_suffix_1_code
+     , soil_horizons.horizon_suffix_2_code as horizon_suffix_2_code
      , soil_horizons.horizon_secondary_code as horizon_secondary_code
-     , soil_horizons.horizon_suffix_3_code as horizon_suffix_3
-     , soil_horizons.horizon_suffix_4_code as horizon_suffix_4
+     , soil_horizons.horizon_suffix_3_code as horizon_suffix_3_code
+     , soil_horizons.horizon_suffix_4_code as horizon_suffix_4_code
      , soil_texture.soil_texture as horizon_texture
      , soil_horizons.clay_percent as clay_percent
      , soil_horizons.total_coarse_fragment_percent as total_coarse_fragment_percent
