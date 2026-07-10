@@ -53,7 +53,7 @@ map_to_schema_fields <- function(unmatched_fields_df,
           base_query |> 
             dplyr::mutate(schema_table = target_table, 
                           field = target_field, 
-                          field_description = point$definition)  # Replace schema definition with custom one
+                          field_description = pointer$definition)  # Replace schema definition with custom one
         )
       } else {
         # Use existing description is one is not specified in the YAML file
