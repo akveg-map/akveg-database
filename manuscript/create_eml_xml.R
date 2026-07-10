@@ -112,7 +112,7 @@ full_attribute_table <- schema_db |>
          ) |> 
   # Populate missingValueCode
   mutate(missingValueCode = case_when(grepl("_chroma$", attributeName) ~ "-1 | -999",
-                                      attributeName %in% c('source_date', 'acquisition_date', 'citation_url') ~ "empty",
+                                      attributeName %in% c('source_date', 'acquisition_date', 'citation_url', 'field_length') ~ "empty",
                                       attributeName == 'cover_percent' ~ NA,
                                       (schema_table %in% c('environment', 'soil_horizons')) & (required == FALSE) ~ "empty",
                                       grepl("-999", attributeDefinition) ~ "-999",
@@ -121,6 +121,7 @@ full_attribute_table <- schema_db |>
                                              attributeName == 'acquisition_date' ~ 'Date is unknown, only allowed for datasets acquired before tracking began on 2026-06-19',
                                              attributeName == 'year_end' ~ 'Project is ongoing (end date has not yet occurred)',
                                              attributeName == 'citation_url' ~ 'Citation is unavailable online',
+                                             attributeName == 'field_length' ~ 'Length is not applicable to that specific field (e.g., an integer field)'
                                              ## Define missing values for environment and soil horizons table
                                              attributeName %in% c("physiography", "geomorphology", "macrotopography", "microtopography") ~ "Not recorded, or could not be resolved to an existing database constraint",
                                              attributeName %in% c("disturbance", "surface_water") ~ "Not recorded",
