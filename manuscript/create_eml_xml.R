@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create EML XML file for data archive
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-09
+# Last Updated: 2026-07-10
 # Usage: Script should be executed in R 4.6.0+.
 # Description: "Create EML XML file for data archive" parses AKVEG's database schema and dictionary into an EML XML metadata file.
 # ---------------------------------------------------------------------------
@@ -11,9 +11,11 @@
 library(dplyr, warn.conflicts = FALSE)
 library(EML)
 library(fs)
+library(purrr)
 library(RPostgres)
 library(readr)
 library(tibble)
+library(yaml)
 
 # Define files and directories ----
 drive = 'C:'
@@ -32,6 +34,10 @@ authentication <- path(drive, root_folder, 'OneDrive - University of Alaska',
 schema_file = path(repository_folder, 'user_tools', 'queries', '00_database_schema.sql')
 dictionary_file = path(repository_folder, 'user_tools', 'queries', '00_database_dictionary.sql')
 
+# Define YAML mapping file
+field_map_path <- path(repository_folder, 'manuscript', 'map_compiled_fields.yaml')
+field_map <- read_yaml(field_map_path)
+
 # Connect to the AKVEG Database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
 database_connection <- connect_database_postgresql(authentication)
@@ -44,7 +50,6 @@ dictionary_query = read_file(dictionary_file)
 dictionary_db = as_tibble(dbGetQuery(database_connection, dictionary_query))
 
 # Identify columns in compiled tables ----
-# Some fields in the compiled tables do not exist in the database schema table, nature of compilation step meant fields were renamed or brought in from lookup tables
 
 # Get file paths and file stems of compiled tables
 table_paths <- dir_ls(compiled_folder)
@@ -68,8 +73,32 @@ for (i in 1:length(table_paths)) {
 # Flatten into single dataframe
 all_fields_df = bind_rows(all_fields_list)
 
+# Resolve fields with no match in schema ----
+# Some fields in the compiled tables do not exist in the database schema table because they were renamed or brought in from lookup tables during the compilation step
+
+unmatched_fields <- all_fields_df |> 
+  anti_join(schema_db, by = join_by(compiled_table == schema_table,
+                                    field == field)
+            )
+
+# Address unmatched fields by mapping them to existing entries in the schema
+healed_fields <- map_to_schema_fields(unmatched_fields,
+                             schema_db,
+                             field_map)
+
+## Ensure that all fields were matched
+print(anti_join(unmatched_fields, 
+                temp, 
+                join_by(compiled_table == schema_table,
+                        field == field)
+                )
+      )
+
+# Combine with schema_db
+temp_schema <- bind_rows(schema_db, healed_fields)
+
 # Format schema table into attributes ----
-full_attribute_table <- schema_db |> 
+full_attribute_table <- temp_schema |> 
   rename(attributeName = field,
          attributeDefinition = field_description) |> 
   # Populate EML domain based on data type and attribute name
@@ -121,7 +150,7 @@ full_attribute_table <- schema_db |>
                                              attributeName == 'acquisition_date' ~ 'Date is unknown, only allowed for datasets acquired before tracking began on 2026-06-19',
                                              attributeName == 'year_end' ~ 'Project is ongoing (end date has not yet occurred)',
                                              attributeName == 'citation_url' ~ 'Citation is unavailable online',
-                                             attributeName == 'field_length' ~ 'Length is not applicable to that specific field (e.g., an integer field)'
+                                             attributeName == 'field_length' ~ 'Length is not applicable to that specific field (e.g., an integer field)',
                                              ## Define missing values for environment and soil horizons table
                                              attributeName %in% c("physiography", "geomorphology", "macrotopography", "microtopography") ~ "Not recorded, or could not be resolved to an existing database constraint",
                                              attributeName %in% c("disturbance", "surface_water") ~ "Not recorded",
