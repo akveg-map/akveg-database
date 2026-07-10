@@ -42,7 +42,7 @@ project_citations:
   citation_long:
     db_table: "citations"
     db_field: "citation_long"
-  citaton_url:
+  citation_url:
     db_table: "citations"
     db_field: "citation_url"
 project:
