@@ -18,36 +18,36 @@ taxonomy:
   taxon_accepted:
     db_table: taxon_all
     db_field: taxon_name
-    definition: "Currently accepted taxonomic name according to the AKVEG taxonomic standard"
+    definition: "Currently accepted taxonomic name according to the AKVEG taxonomic standard."
   taxon_author_accepted:
     db_table: taxon_author
     db_field: taxon_author
-    definition: "Abbreviated taxonomic authority of accepted name"
+    definition: "Abbreviated taxonomic authority of accepted name."
   taxon_source:
     db_table: taxon_source
     db_field: taxon_source
-    definition: "Abbreviated citation of accepted name in Council of Science Editors (CSE) Name-Year style"
+    definition: "Abbreviated citation of accepted name in Council of Science Editors (CSE) Name-Year style."
   taxon_citation:
     db_table: taxon_source
     db_field: taxon_citation
-    definition: "Full formal citation of accepted name in the Council of Science Editors (CSE) Name-Year style"
+    definition: "Full formal citation of accepted name in the Council of Science Editors (CSE) Name-Year style."
   taxon_genus:
     db_table: taxon_all
     db_field: taxon_name
-    definition: "Genus of accepted name"
+    definition: "Genus of accepted name."
 project:
   originator:
     db_table: "organization"
     db_field: "organization"
-    definition: "Abbreviated name of the primary organization that collected the project data"
+    definition: "Abbreviated name of the primary organization that collected the project data."
   funder:
     db_table: "organization"
     db_field: "organization"
-    definition: "Abbreviated name of the primary organization that funded the project"
+    definition: "Abbreviated name of the primary organization that funded the project."
   manager:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of the primary person responsible for leading the project or managing the project data"
+    definition: "First and last name of the primary person responsible for leading the project or managing the project data."
   project_status:
     db_table: "completion"
     db_field: "competion"
@@ -68,42 +68,42 @@ site_visit:
   veg_observer:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of vegetation observer"
+    definition: "First and last name of vegetation observer."
   veg_recorder:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of vegetation recorder"
+    definition: "First and last name of vegetation recorder."
   env_observer:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of environmental observer"
-  soils_recorder:
+    definition: "First and last name of environmental observer."
+  soils_observer:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of soils observer"
+    definition: "First and last name of soils observer."
 vegetation_cover:
   name_adjudicated:
     db_table: "taxon_all"
     db_field: "taxon_name"
-    definition: "Cleaned and standardized version of the original name, resolved to a valid taxon concept in the AKVEG taxonomic standard"
+    definition: "Cleaned and standardized version of the original name, resolved to a valid taxon concept in the AKVEG taxonomic standard."
   name_accepted:
     db_table: "taxon_all"
     db_field: "taxon_name"
-    definition: "Currently accepted taxonomic name according to the AKVEG taxonomic standard"
+    definition: "Currently accepted taxonomic name according to the AKVEG taxonomic standard."
 abiotic_top_cover:
   abiotic_element:
     db_table: "ground_element"
     db_field: "ground_element"
-    definition: "One- to several-word description of abiotic top cover element"
+    definition: "One- to several-word description of abiotic top cover element."
 shrub_structure:
   name_adjudicated:
     db_table: "taxon_all"
     db_field: "taxon_name"
-    definition: "Cleaned and standardized version of the original name, resolved to a valid taxon concept in the AKVEG taxonomic standard"
+    definition: "Cleaned and standardized version of the original name, resolved to a valid taxon concept in the AKVEG taxonomic standard."
   name_accepted:
     db_table: "taxon_all"
     db_field: "taxon_name"
-    definition: "Currently accepted taxonomic name according to the AKVEG taxonomic standard"
+    definition: "Currently accepted taxonomic name according to the AKVEG taxonomic standard."
 environment:
   moisture_regime:
     db_table: "moisture"
@@ -111,16 +111,16 @@ environment:
   dominant_texture_40_cm:
     db_table: "soil_texture"
     db_field: "soil_texture"
-    definition: "Dominant soil texture at 40 cm depth"
+    definition: "Dominant soil texture at 40 cm depth."
 soil_horizons:
   horizon_texture:
     db_table: "soil_texture"
     db_field: "soil_texture"
-    definition: "Soil texture at the specified horizon"
+    definition: "Soil texture at the specified horizon."
   horizon_structure:
     db_table: "soil_structure"
     db_field: "soil_structure"
-    definition: "Ssoil structure at the specified horizon"
+    definition: "Ssoil structure at the specified horizon."
   nonmatrix_feature:
     db_table: "soil_nonmatrix_features"
     db_field: "nonmatrix_feature"
