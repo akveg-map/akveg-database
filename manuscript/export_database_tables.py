@@ -12,7 +12,7 @@
 # Import libraries
 import polars as pl
 import sqlalchemy as sa
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from utils import *
 
