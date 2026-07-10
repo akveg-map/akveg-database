@@ -35,6 +35,16 @@ taxonomy:
     db_table: taxon_all
     db_field: taxon_name
     definition: "Genus of accepted name."
+project_citations:
+  citation_short:
+    db_table: "citations"
+    db_field: "citation_short"
+  citation_long:
+    db_table: "citations"
+    db_field: "citation_long"
+  citaton_url:
+    db_table: "citations"
+    db_field: "citation_url"
 project:
   originator:
     db_table: "organization"
