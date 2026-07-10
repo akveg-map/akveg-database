@@ -13,16 +13,16 @@ SELECT environment.site_visit_code as site_visit_code
      , geomorphology.geomorphology as geomorphology
      , macrotopography.macrotopography as macrotopography
      , microtopography.microtopography as microtopography
-     , moisture.moisture as moisture_regime
+     , environment.microrelief_cm as microrelief_cm
      , drainage.drainage as drainage
-     , disturbance.disturbance as disturbance
-     , disturbance_severity.disturbance_severity as disturbance_severity
-     , environment.disturbance_time_y as disturbance_time_y
+     , moisture.moisture as moisture_regime
      , environment.depth_water_cm as depth_water_cm
      , environment.depth_moss_duff_cm as depth_moss_duff_cm
      , environment.depth_restrictive_layer_cm as depth_restrictive_layer_cm
      , restrictive_type.restrictive_type as restrictive_type
-     , environment.microrelief_cm as microrelief_cm
+     , disturbance.disturbance as disturbance
+     , disturbance_severity.disturbance_severity as disturbance_severity
+     , environment.disturbance_time_y as disturbance_time_y
      , environment.surface_water as surface_water
      , soil_class.soil_class as soil_class
      , environment.cryoturbation as cryoturbation
