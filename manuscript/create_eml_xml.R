@@ -112,20 +112,29 @@ full_attribute_table <- schema_db |>
          ) |> 
   # Populate missingValueCode
   mutate(missingValueCode = case_when(grepl("_chroma$", attributeName) ~ "-1 | -999",
-                                      attributeName %in% c('source_date', 'acquisition_date') ~ "empty",
+                                      attributeName %in% c('source_date', 'acquisition_date', 'citation_url') ~ "empty",
                                       attributeName == 'cover_percent' ~ NA,
+                                      (schema_table %in% c('environment', 'soil_horizons')) & (required == FALSE) ~ "empty",
                                       grepl("-999", attributeDefinition) ~ "-999",
                                       .default = NA)) |>
-  mutate(missingValueExplanation = case_when(grepl("_chroma$", attributeName) ~ "Neutral hue recorded, chroma is null | Not measured",
-                                                 attributeName == 'source_date' ~ "Date is unknown or dataset was digitized from physical sources",
-                                                 attributeName == 'acquisition_date' ~ 'Date is unknown, only allowed for datasets acquired before tracking began on 2026-06-19',
-                                                 attributeName == 'year_end' ~ 'Project is ongoing (end date has not yet occurred)',
-                                                 attributeName == 'disturbance_time_y' ~ 'Disturbance is none, or time since disturbance cannot be determined',
-                                                 attributeName == 'depth_15_percent_coarse_fragments_cm' ~ 'Not measured',
-                                                 attributeName == 'total_coarse_fragment_percent' ~ 'Not measured, or cannot be derived from other measurements',
-                                                 (schema_table == 'soil_horizons') & grepl("_percent$|_value$", attributeName) ~ 'Not measured',
-                                                 missingValueCode == "-999" ~ "Not measured, or could not be measured due to environmental conditions",
-                                                 .default = NA)) |> 
+  mutate(missingValueExplanation = case_when(attributeName == 'source_date' ~ "Date is unknown or dataset was digitized from physical sources",
+                                             attributeName == 'acquisition_date' ~ 'Date is unknown, only allowed for datasets acquired before tracking began on 2026-06-19',
+                                             attributeName == 'year_end' ~ 'Project is ongoing (end date has not yet occurred)',
+                                             attributeName == 'citation_url' ~ 'Citation is unavailable online',
+                                             ## Define missing values for environment and soil horizons table
+                                             attributeName %in% c("physiography", "geomorphology", "macrotopography", "microtopography") ~ "Not recorded, or could not be resolved to an existing database constraint",
+                                             attributeName %in% c("disturbance", "surface_water") ~ "Not recorded",
+                                             attributeName == 'disturbance_severity' ~ 'Disturbance is none, or disturbance severity was not recorded',
+                                             attributeName == 'disturbance_time_y' ~ 'Disturbance is none, or time since disturbance cannot be determined',
+                                             attributeName == 'total_coarse_fragment_percent' ~ 'Not measured, or could not be derived from other measurements',
+                                             attributeName == "horizon_texture" ~ "Not recorded, could not be determined due to environmental conditions, or not applicable for the specific horizon (organic horizons cannot have a soil texture)",
+                                             grepl("_chroma$", attributeName) ~ "Neutral hue recorded, chroma is null | Not measured",
+                                             (schema_table == 'soil_horizons') & 
+                                               grepl ("_percent$|_value$", attributeName) ~ 'Not measured',
+                                             ## Define missing values for all remaining varchar fields in environment and soil horizons tables
+                                             (schema_table %in% c('environment', 'soil_horizons')) & (missingValueCode == 'empty') ~ 'Not recorded, or could not be measured due to environmental conditions',
+                                             missingValueCode == "-999" ~ "Not recorded, or could not be measured due to environmental conditions",
+                                             .default = NA)) |> 
   # Nominal Fields: Populate definition
   mutate(definition = case_when(measurementScale == 'nominal' ~ attributeDefinition,
                                 .default = NA)) |> 
@@ -151,7 +160,9 @@ full_attribute_table <- schema_db |>
                                 attributeName == "disturbance_time_y" ~ "integer",
                                 .default = NA)) |> 
   # Select desired columns
-  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode, missingValueExplanation, unit, numberType, definition, formatString, schema_table, data_type) |> 
+  select(attributeName, attributeDefinition, domain, measurementScale, missingValueCode,
+         missingValueExplanation, unit, numberType, definition, formatString, schema_table, 
+         data_type) |> 
   # Join with columns in core data tables to see what is missing
   right_join(all_cols_df, by = join_by(schema_table == compiled_table,
                                        attributeName == field))
