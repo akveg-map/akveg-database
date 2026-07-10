@@ -52,7 +52,7 @@ table_stems <- path_file(table_paths) |>
   path_ext_remove()
 
 # Loop across files and extract column names from each table
-all_cols_list = list() # Initialize empty list
+all_fields_list = list() # Initialize empty list
 
 for (i in 1:length(table_paths)) {
   path = table_paths[i]
@@ -61,12 +61,12 @@ for (i in 1:length(table_paths)) {
   # Get column names
   cols = colnames(read_csv(path, n_max = 0, show_col_types = FALSE))
   
-  all_cols_list[[i]] <- tibble(compiled_table = stem, 
+  all_fields_list[[i]] <- tibble(compiled_table = stem, 
                                field = cols)
 }
 
 # Flatten into single dataframe
-all_cols_df = bind_rows(all_cols_list)
+all_fields_df = bind_rows(all_fields_list)
 
 # Format schema table into attributes ----
 full_attribute_table <- schema_db |> 
@@ -164,7 +164,7 @@ full_attribute_table <- schema_db |>
          missingValueExplanation, unit, numberType, definition, formatString, schema_table, 
          data_type) |> 
   # Join with columns in core data tables to see what is missing
-  right_join(all_cols_df, by = join_by(schema_table == compiled_table,
+  right_join(all_fields_df, by = join_by(schema_table == compiled_table,
                                        attributeName == field))
 
 # Quality checks
