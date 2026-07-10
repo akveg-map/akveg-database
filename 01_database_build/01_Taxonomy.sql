@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Build taxonomy tables
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2024-11-19
+-- Last Updated: 2026-07-10
 -- Usage: Script should be executed in a PostgreSQL 14+ database.
 -- Description: "Build taxonomy tables" creates the empty tables for the taxonomy components of the AKVEG database. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING TAXONOMY TABLES.
 -- ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ CREATE TABLE taxon_hierarchy (
 CREATE TABLE taxon_accepted (
     taxon_accepted_code varchar(15) PRIMARY KEY,
     taxon_genus_code varchar(15) NOT NULL REFERENCES taxon_hierarchy,
-    taxon_source_id smallint REFERENCES taxon_source,
+    taxon_source_id smallint NOT NULL REFERENCES taxon_source,
     taxon_link varchar(255),
     taxon_level_id smallint NOT NULL REFERENCES taxon_level,
     taxon_habit_id smallint NOT NULL REFERENCES taxon_habit,
