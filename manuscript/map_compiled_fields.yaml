@@ -50,7 +50,7 @@ project:
     definition: "First and last name of the primary person responsible for leading the project or managing the project data."
   project_status:
     db_table: "completion"
-    db_field: "competion"
+    db_field: "completion"
 site:
   plot_dimensions_m:
     db_table: "plot_dimensions"
