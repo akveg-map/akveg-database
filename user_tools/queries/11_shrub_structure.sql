@@ -9,7 +9,8 @@
 
 -- Compile shrub structure data
 SELECT shrub_structure.site_visit_code as site_visit_code
-     , taxon_accepted.taxon_code as code_accepted
+     , shrub_structure.name_original as name_original
+     , taxon_adjudicated.taxon_name as name_adjudicated
      , taxon_accepted.taxon_name as name_accepted
      , shrub_class.shrub_class as shrub_class
      , height_type.height_type as height_type
