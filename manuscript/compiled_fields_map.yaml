@@ -8,6 +8,33 @@ database_schema:
   link_table:
     db_table: "schema_table"
     db_field: "schema_table"
+taxonomy:
+  code_akveg:
+    db_table: taxon_all
+    db_field: taxon_code
+  taxon_name:
+    db_table: taxon_all
+    db_field: taxon_name
+  taxon_accepted:
+    db_table: taxon_all
+    db_field: taxon_name
+    definition: "Currently accepted taxonomic name according to the AKVEG taxonomic standard"
+  taxon_author_accepted:
+    db_table: taxon_author
+    db_field: taxon_author
+    definition: "Abbreviated taxonomic authority of accepted name"
+  taxon_source:
+    db_table: taxon_source
+    db_field: taxon_source
+    definition: "Abbreviated citation of accepted name in Council of Science Editors (CSE) Name-Year style"
+  taxon_citation:
+    db_table: taxon_source
+    db_field: taxon_citation
+    definition: "Full formal citation of accepted name in the Council of Science Editors (CSE) Name-Year style"
+  taxon_genus:
+    db_table: taxon_all
+    db_field: taxon_name
+    definition: "Genus of accepted name"
 project:
   originator:
     db_table: "organization"
