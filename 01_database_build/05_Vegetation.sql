@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Build vegetation tables
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2025-08-15
+-- Last Updated: 2026-07-10
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Build vegetation tables" creates the empty tables for the vegetation components of the AKVEG database. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING VEGETATION TABLES.
 -- ---------------------------------------------------------------------------
@@ -59,11 +59,11 @@ CREATE TABLE tree_structure (
     height_type_id smallint NOT NULL REFERENCES height_type,
     height_cm decimal(8,1) NOT NULL,
     cover_type_id smallint REFERENCES cover_type CONSTRAINT tree_check_cover_type CHECK (cover_type_id IN (1, 3)),
-    cover_percent decimal(6,3),
-    mean_dbh_cm decimal(7,3),
-    number_stems smallint,
-    mean_tree_age_y smallint,
-    tree_subplot_area_m2 decimal(10,3)
+    cover_percent decimal(6,3) NOT NULL,
+    mean_dbh_cm decimal(7,3) NOT NULL,
+    number_stems smallint NOT NULL,
+    mean_tree_age_y smallint NOT NULL,
+    tree_subplot_area_m2 decimal(10,3) NOT NULL
 );
 
 -- Create shrub structure table
@@ -76,10 +76,10 @@ CREATE TABLE shrub_structure (
     height_type_id smallint NOT NULL REFERENCES height_type,
     height_cm decimal(8,1) NOT NULL,
     cover_type_id smallint REFERENCES cover_type CONSTRAINT shrub_check_cover_type CHECK (cover_type_id IN (1, 3)),
-    cover_percent decimal(6,3),
-    mean_diameter_cm decimal(7,3),
-    number_stems smallint,
-    shrub_subplot_area_m2 decimal(10,3)
+    cover_percent decimal(6,3) NOT NULL,
+    mean_diameter_cm decimal(7,3) NOT NULL,
+    number_stems smallint NOT NULL,
+    shrub_subplot_area_m2 decimal(10,3) NOT NULL
 );
 
 -- Commit transaction
