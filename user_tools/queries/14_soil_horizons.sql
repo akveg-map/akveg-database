@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Query soil horizons
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2025-03-12
+-- Last Updated: 2026-07-09
 -- Usage: Script should be executed in a PostgreSQL 14+ database.
 -- Description: "Query soil horizons" queries all soil horizon data from the AKVEG Database.
 -- ---------------------------------------------------------------------------
@@ -36,7 +36,6 @@ SELECT soil_horizons.site_visit_code as site_visit_code
      , soil_horizons.nonmatrix_value as nonmatrix_value
      , soil_horizons.nonmatrix_chroma as nonmatrix_chroma
 FROM soil_horizons
-    LEFT JOIN site_visit ON soil_horizons.site_visit_code = site_visit.site_visit_code
     LEFT JOIN soil_texture ON soil_horizons.texture_code = soil_texture.soil_texture_code
     LEFT JOIN soil_structure ON soil_horizons.structure_code = soil_structure.soil_structure_code
     LEFT JOIN soil_nonmatrix_features on soil_horizons.nonmatrix_feature_code = soil_nonmatrix_features.nonmatrix_feature_code;

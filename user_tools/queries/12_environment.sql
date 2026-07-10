@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Query environment
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2025-03-12
+-- Last Updated: 2026-07-09
 -- Usage: Script should be executed in a PostgreSQL 14+ database.
 -- Description: "Query environment" queries all environment data from the AKVEG Database.
 -- ---------------------------------------------------------------------------
@@ -29,7 +29,6 @@ SELECT environment.site_visit_code as site_visit_code
      , soil_texture.soil_texture as dominant_texture_40_cm
      , environment.depth_15_percent_coarse_fragments_cm as depth_15_percent_coarse_fragments_cm
 FROM environment
-    LEFT JOIN site_visit ON environment.site_visit_code = site_visit.site_visit_code
     LEFT JOIN physiography ON environment.physiography_id = physiography.physiography_id
     LEFT JOIN geomorphology ON environment.geomorphology_id = geomorphology.geomorphology_id
     LEFT JOIN macrotopography ON environment.macrotopography_id = macrotopography.macrotopography_id

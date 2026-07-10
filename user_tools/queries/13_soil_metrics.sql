@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Query soil metrics
 -- Author: Timm Nawrocki, Alaska Center for Conservation Science
--- Last Updated: 2025-03-12
+-- Last Updated: 2026-07-09
 -- Usage: Script should be executed in a PostgreSQL 14+ database.
 -- Description: "Query soil metrics" queries all soil pH, conductivity, and temperature data from the AKVEG Database.
 -- ---------------------------------------------------------------------------
@@ -15,4 +15,3 @@ SELECT soil_metrics.site_visit_code as site_visit_code
      , soil_metrics.conductivity_mus as conductivity_mus
      , soil_metrics.temperature_deg_c as temperature_deg_c
 FROM soil_metrics
-    LEFT JOIN site_visit ON soil_metrics.site_visit_code = site_visit.site_visit_code;
