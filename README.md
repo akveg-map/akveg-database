@@ -51,7 +51,7 @@ Once you have obtained the server credentials, the [Getting Started tutorial](ht
 
 The AKVEG Database is updated at least once a quarter. If you need a static version of the data, you can export your query results to a CSV file.
 
-Changes related to datasets and the database schema are recorded in the [CHANGELOG](CHANGELOG.md), while changes related to the taxonomic standard are documented in a separate [TAXONOMY CHANGELOG](CHANGELOG_TAXONOMY.md).
+Changes related to the code repository are recorded in the [CHANGELOG](CHANGELOG.md), while changes related to the taxonomic standard are documented in the [TAXONOMY CHANGELOG](CHANGELOG_TAXONOMY.md). Changes related to datasets and the database schema are documented in the `database_version` table of the database.
 
 ## Navigating the Repository 📂
 
