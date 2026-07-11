@@ -12,9 +12,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-* **Separate database from code versioning**: Moved database change tracking to a dedicated `database_version` table. Future changelog entries in the GitHub repository will focus only on tracking changes to the ETL pipeline, including changes to processing functions and transformation logic.
-* **Updated data insert pipeline**: Process new `database_version` table.
-* **Updated SQL build scripts**: Create `database_version` table and associated `release_category` lookup table.
+* **Separated database from code versioning**: Moved database change tracking to a dedicated `database_version` table. Future changelog entries in the GitHub repository will focus only on tracking changes to the ETL pipeline, including changes to processing functions and transformation logic.
+
+### Updated
+
+- Created `database_version` table and associated `release_category` lookup table.
+- Enforced `NOT NULL` constraints in `taxon_source`, `tree_structure`, and `shrub_structure` tables.
+- Process new `database_version` table in data insert pipeline.
+
+### Added
+- Created the `create_eml_xml` script to parse the database's `database_schema` and `database_dictionary` tables into a valid EML XML document. This document will be uploaded in a data repository alongside compiled data tables. 
+- Added helper utility to `manuscript/utils.R` to map fields in compiled data tables to their corresponding fields in the `database_schema`.
 
 ## [2.9.2] - 2026-06-10 
 
