@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Prepare metadata and constraints for upload
 # Authors: Timm Nawrocki, Amanda Droghini, ACCS
-# Last Updated: 2026-06-25
+# Last Updated: 2026-07-10
 # Usage: Script should be executed in R 4.6.0+.
 # Description: Dynamically parses metadata and constraints from Excel into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
@@ -83,7 +83,8 @@ constraint_tables <- dictionary_data %>%
 constraint_tables$ground_element <- constraint_tables$ground_element %>%
   mutate(element_type = case_when(
     ground_element %in% c("rock fragments", "soil") ~ "abiotic",
-    ground_element %in% c("animal litter", "biotic", "gravel", "cobble", "stone", "boulder", "mineral soil", "organic soil") ~ "ground",
+    ground_element %in% c("animal litter", "biotic", "gravel", "cobble", "stone", "boulder", 
+                          "mineral soil", "organic soil") ~ "ground",
     .default = "both"
   ))
 
@@ -102,10 +103,12 @@ database_schema_table <- schema_data %>%
   ) %>%
   left_join(constraint_tables$schema_table, by = "schema_table") %>%
   left_join(constraint_tables$data_type, by = "data_type") %>%
+  left_join(constraint_tables$missing_value_code, by ="missing_value_code") |> 
   rowid_to_column("field_id") %>%
   select(
     field_id, standards_section, schema_category_id, schema_table_id, field, data_type_id,
-    field_length, is_unique, is_primary_key, is_foreign_key, required, link_table_id, field_description
+    field_length, is_unique, is_primary_key, is_foreign_key, is_required, link_table_id, 
+    field_description, missing_value_code_id, missing_value_description
   )
 
 # Parse dictionary table
@@ -120,7 +123,7 @@ citations_table <- citations_data |>
   distinct() |> # Remove duplicates
   arrange(citation_short)
 
-# Ensure all Author-Year citations are unique
+# Ensure all Name-Year citations are unique
 print(citations_table |> 
   group_by(citation_short) |> 
   filter(n()>1) |> 
