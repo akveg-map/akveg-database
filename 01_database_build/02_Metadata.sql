@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Build metadata and constraint tables
 -- Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
--- Last Updated: 2026-06-25
+-- Last Updated: 2026-07-10
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Build metadata and constraint tables" creates the empty tables for the metadata components of the AKVEG database, including the schema and data dictionary. WARNING: THIS SCRIPT WILL ERASE ALL DATA IN EXISTING METADATA TABLES.
 -- ---------------------------------------------------------------------------
@@ -32,6 +32,7 @@ DROP TABLE IF EXISTS
     location_type,
     macrotopography,
     microtopography,
+    missing_value_code,
     moisture,
     organization,
     organization_type,
@@ -146,6 +147,11 @@ CREATE TABLE macrotopography (
 CREATE TABLE microtopography (
     microtopography_id smallint PRIMARY KEY,
     microtopography varchar(50) UNIQUE NOT NULL
+);
+
+CREATE TABLE missing_value_code (
+    missing_value_code_id smallint PRIMARY KEY,
+    missing_value_code varchar(10) NOT NULL UNIQUE
 );
 
 CREATE TABLE moisture (
@@ -282,9 +288,11 @@ CREATE TABLE database_schema (
     is_unique boolean NOT NULL,
     is_primary_key boolean NOT NULL,
     is_foreign_key boolean NOT NULL,
-    required boolean NOT NULL,
+    is_required boolean NOT NULL,
     link_table_id smallint REFERENCES schema_table,
-    field_description varchar(2000) NOT NULL
+    field_description varchar(2000) NOT NULL,
+    missing_value_code_id smallint REFERENCES missing_value_code,
+    missing_value_description varchar(255)
 );
 
 -- Create dictionary table
