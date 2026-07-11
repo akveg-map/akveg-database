@@ -179,12 +179,11 @@ resolve a webhook sync issue between GitHub and Zenodo.
 
 ## Versioning System
 
-We use a MAJOR.MINOR.PATCH versioning system where we increment the:
+We use a MAJOR.MINOR.PATCH versioning system:
 
-1. MAJOR version when we change the database schema.
-2. MINOR version for changes related to datasets, including adding, removing, or modifying datasets.
-3. PATCH version for changes to the database schema or dictionary that do not substantially alter its structure e.g.,
-   adding a constrained value, adding or modifying a descriptive field.
+1. MAJOR version changes indicate breaking changes to the database schema (e.g., dropping or renaming core attributes) or the data processing pipeline.
+2. MINOR version changes indicate backward-compatible changes, such as adding processing scripts that reuse existing logic and functions, and adding utility functions.
+3. PATCH version changes indicate bug fixes or optimization, such as refactoring existing scripts to improve execution speed or correcting typos.
 
 We began this change log on 2025-07-19. At that date, we were on schema version 2.0. For simplicity's sake, we started 
 our minor version numbering at 1, though there were several changes to the database between the release of schema 2.0 and the updates on 2025-07-19.
