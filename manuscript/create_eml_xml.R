@@ -90,7 +90,8 @@ compiled_folder <- path(
   "Data_Deposit", full_version_string, "compiled"
 )
 
-# Identify columns in compiled tables ----
+# Resolve fields with no match in schema ----
+# Some fields in the compiled tables do not exist in the database schema table because they were renamed or brought in from lookup tables during the compilation step
 
 # Get file paths and file stems of compiled tables
 table_paths <- dir_ls(compiled_folder)
@@ -113,19 +114,18 @@ for (i in 1:length(table_paths)) {
   )
 }
 
-# Flatten into single dataframe
+# Flatten into single data frame
 compiled_fields_df <- bind_rows(compiled_fields_list)
 
-# Resolve fields with no match in schema ----
-# Some fields in the compiled tables do not exist in the database schema table because they were renamed or brought in from lookup tables during the compilation step
-
+# Find unmatched fields
+## Fields in compiled tables that do not exist in the database schema
 unmatched_fields <- compiled_fields_df |>
   anti_join(schema_full, by = join_by(
     compiled_table == schema_table,
     field == field
   ))
 
-# Address unmatched fields by mapping them to existing entries in the schema
+# Map unmatched fields to existing schema entries
 healed_fields <- map_to_schema_fields(
   unmatched_fields,
   schema_full,
@@ -152,7 +152,7 @@ schema_compiled <- schema_full |>
   ) |> # Restrict full schema to fields in compiled table with a direct match in the schema
   bind_rows(healed_fields) # Add 'unmatched' fields
 
-# Parse SQL schema into EML attributes ----
+# Create EML attributes list ----
 
 # Define fields requiring custom classification
 text_domain_fields <- c(
@@ -234,7 +234,7 @@ attribute_table <- schema_compiled |>
     unit, numberType, definition, formatString, schema_table, primary_key_constraint, data_type
   )
 
-# Quality checks ----
+## Validate attribute list
 
 ## Ensure required fields have no nulls
 print(attribute_table %>%
@@ -277,7 +277,7 @@ attribute_table |>
     numberType_sum = sum(numberType_exists)
   )
 
-# Parse dictionary table into factor list ----
+# Create EML factors list ----
 
 # Define a lookup list for fields that do not have a match in the database dictionary
 dictionary_mapping <- list(
@@ -336,7 +336,7 @@ print(attribute_table |>
     by = join_by(attributeName)
   ))
 
-# Create missing values list ----
+# Create EML missing values list ----
 missing_values <- schema_compiled |>
   # Add missing value codes
   mutate(
@@ -355,7 +355,7 @@ missing_values <- schema_compiled |>
     definition = missing_value_description
   )
 
-# Create EML data table for each attribute ----
+# Create EML data tables ----
 all_data_tables <- list() # Initialize empty list for storing results
 
 attribute_table_columns <- c("attributeName", "attributeDefinition", "domain", 
