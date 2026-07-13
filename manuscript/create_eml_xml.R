@@ -20,30 +20,33 @@ library(tidyr)
 library(yaml)
 
 # Define files and directories ----
-drive = 'C:'
-root_folder = 'ACCS_Work'
-repository_folder = path(drive, root_folder, 'Repositories', 'akveg-database')
+drive <- "C:"
+root_folder <- "ACCS_Work"
+repository_folder <- path(drive, root_folder, "Repositories", "akveg-database")
 
 # Define SQL authentication file
-authentication <- path(drive, root_folder, 'OneDrive - University of Alaska', 
-                       'ACCS_Teams', 'Vegetation', 'AKVEG_Database', "Credentials",
-                       "akveg_private_build",
-                       "authentication_akveg_private_build.csv")
+authentication <- path(
+  drive, root_folder, "OneDrive - University of Alaska",
+  "ACCS_Teams", "Vegetation", "AKVEG_Database", "Credentials",
+  "akveg_private_build",
+  "authentication_akveg_private_build.csv"
+)
 
 # Define SQL queries
-schema_file = path(repository_folder, 'user_tools', 'queries', '00_database_schema.sql')
-dictionary_file = path(repository_folder, 'user_tools', 'queries', '00_database_dictionary.sql')
+schema_file <- path(repository_folder, "user_tools", "queries", "00_database_schema.sql")
+dictionary_file <- path(repository_folder, "user_tools", "queries", "00_database_dictionary.sql")
 
 # Define and read in config files
-field_map_path <- path(repository_folder, 'manuscript', 'map_compiled_fields.yaml')
-custom_overrides_path <- path(repository_folder, 'manuscript', 'eml_overrides.csv')
+field_map_path <- path(repository_folder, "manuscript", "map_compiled_fields.yaml")
+custom_overrides_path <- path(repository_folder, "manuscript", "eml_overrides.csv")
 
 field_map <- read_yaml(field_map_path)
-custom_overrides <- read_csv(custom_overrides_path, 
-                             show_col_types = FALSE)
+custom_overrides <- read_csv(custom_overrides_path,
+  show_col_types = FALSE
+)
 
 # Source in functions ----
-source(path(repository_folder, 'manuscript', 'utils.R'))
+source(path(repository_folder, "manuscript", "utils.R"))
 
 # Connect to the AKVEG Database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
@@ -51,16 +54,16 @@ database_connection <- connect_database_postgresql(authentication)
 dbExecute(database_connection, "SET search_path TO public;") ## Define default schema
 
 # Read in database queries ----
-schema_query = read_file(schema_file)
-dictionary_query = read_file(dictionary_file)
+schema_query <- read_file(schema_file)
+dictionary_query <- read_file(dictionary_file)
 
-schema_full = as_tibble(dbGetQuery(database_connection, schema_query))
-dictionary_full = as_tibble(dbGetQuery(database_connection, dictionary_query))
+schema_full <- as_tibble(dbGetQuery(database_connection, schema_query))
+dictionary_full <- as_tibble(dbGetQuery(database_connection, dictionary_query))
 
 # Dynamically set compiled folder path ----
 ## Use latest database version as it appears in the `database_version` table of the database
 
-version_query = "
+version_query <- "
 SELECT major_version, minor_version, patch_version
 FROM database_version
 WHERE version_id = (
@@ -70,171 +73,200 @@ WHERE version_id = (
       database_version
 );
 "
-latest_version = as_tibble(dbGetQuery(database_connection, version_query))
+latest_version <- as_tibble(dbGetQuery(database_connection, version_query))
 
 ## Parse version number into string
-major_version_string = str_c("v", latest_version$major_version, sep="")
-full_version_string = str_c(major_version_string, 
-                     latest_version$minor_version, 
-                     latest_version$patch_version, 
-                     sep="_")
+major_version_string <- str_c("v", latest_version$major_version, sep = "")
+full_version_string <- str_c(major_version_string,
+  latest_version$minor_version,
+  latest_version$patch_version,
+  sep = "_"
+)
 
 ## Define folder path using version string
-compiled_folder = path(drive, root_folder, 'Projects', 'AKVEG_Database', 
-                       'Data_Deposit', full_version_string, 'compiled')
+compiled_folder <- path(
+  drive, root_folder, "Projects", "AKVEG_Database",
+  "Data_Deposit", full_version_string, "compiled"
+)
 
 # Identify columns in compiled tables ----
 
 # Get file paths and file stems of compiled tables
 table_paths <- dir_ls(compiled_folder)
-table_stems <- path_file(table_paths) |> 
+table_stems <- path_file(table_paths) |>
   path_ext_remove()
 
 # Loop across files and extract column names from each table
-compiled_fields_list = list() # Initialize empty list
+compiled_fields_list <- list() # Initialize empty list
 
 for (i in 1:length(table_paths)) {
-  path = table_paths[i]
-  stem = table_stems[i]
-  
+  path <- table_paths[i]
+  stem <- table_stems[i]
+
   # Get column names
-  cols = colnames(read_csv(path, n_max = 0, show_col_types = FALSE))
-  
-  compiled_fields_list[[i]] <- tibble(compiled_table = stem, 
-                               field = cols)
+  cols <- colnames(read_csv(path, n_max = 0, show_col_types = FALSE))
+
+  compiled_fields_list[[i]] <- tibble(
+    compiled_table = stem,
+    field = cols
+  )
 }
 
 # Flatten into single dataframe
-compiled_fields_df = bind_rows(compiled_fields_list)
+compiled_fields_df <- bind_rows(compiled_fields_list)
 
 # Resolve fields with no match in schema ----
 # Some fields in the compiled tables do not exist in the database schema table because they were renamed or brought in from lookup tables during the compilation step
 
-unmatched_fields <- compiled_fields_df |> 
-  anti_join(schema_full, by = join_by(compiled_table == schema_table,
-                                    field == field)
-            )
+unmatched_fields <- compiled_fields_df |>
+  anti_join(schema_full, by = join_by(
+    compiled_table == schema_table,
+    field == field
+  ))
 
 # Address unmatched fields by mapping them to existing entries in the schema
-healed_fields <- map_to_schema_fields(unmatched_fields,
-                             schema_full,
-                             field_map)
+healed_fields <- map_to_schema_fields(
+  unmatched_fields,
+  schema_full,
+  field_map
+)
 
 ## Ensure that all fields were matched
-print(anti_join(unmatched_fields, 
-                healed_fields, 
-                join_by(compiled_table == schema_table,
-                        field == field)
-                )
-      )
+print(anti_join(
+  unmatched_fields,
+  healed_fields,
+  join_by(
+    compiled_table == schema_table,
+    field == field
+  )
+))
 
 # Restrict database schema to only fields in compiled tables
-schema_compiled <- schema_full  |> 
-  semi_join(compiled_fields_df, 
-            by = join_by(schema_table == compiled_table,
-                         field == field)
-  )  |> # Restrict full schema to fields in compiled table with a direct match in the schema
+schema_compiled <- schema_full |>
+  semi_join(compiled_fields_df,
+    by = join_by(
+      schema_table == compiled_table,
+      field == field
+    )
+  ) |> # Restrict full schema to fields in compiled table with a direct match in the schema
   bind_rows(healed_fields) # Add 'unmatched' fields
 
 # Parse SQL schema into EML attributes ----
 
 # Define fields requiring custom classification
-text_domain_fields <- c('originator', 'funder', 'manager', 'h_datum_epsg', 
-                        'plot_dimensions_m', 'horizon_order', 'citation_short', 
-                        'standards_section')
-text_tables <- c('database_dictionary', 'database_schema', 'taxonomy')
-year_fields <- c('year_start', 'year_end')
+text_domain_fields <- c(
+  "originator", "funder", "manager", "h_datum_epsg",
+  "plot_dimensions_m", "horizon_order", "citation_short",
+  "standards_section"
+)
+text_tables <- c("database_dictionary", "database_schema", "taxonomy")
+year_fields <- c("year_start", "year_end")
 
-attribute_table <- schema_compiled |> 
-  rename(attributeName = field,
-         attributeDefinition = field_description) |> 
-  left_join(custom_overrides, by = join_by("attributeName")) |> 
+attribute_table <- schema_compiled |>
+  rename(
+    attributeName = field,
+    attributeDefinition = field_description
+  ) |>
+  left_join(custom_overrides, by = join_by("attributeName")) |>
   # If specified, overwrite schema definitions with custom ones
-  mutate(attributeDefinition = coalesce(customDefinition, attributeDefinition)) |> 
+  mutate(attributeDefinition = coalesce(customDefinition, attributeDefinition)) |>
   # Populate EML domain based on data type and attribute name
-  mutate(domain = case_when(attributeName %in% year_fields ~ 'dateTimeDomain',
-                            attributeName %in% text_domain_fields ~ 'textDomain',
-                            data_type == 'varchar' & schema_table %in% text_tables ~ 'textDomain',
-                            grepl(pattern='_id|_code|_description|name|observer|recorder', attributeName) ~ 'textDomain',
-                            grepl(pattern='_version', attributeName) ~ 'numericDomain',
-                            # Re-classify unambiguous data types
-                            data_type == 'date' ~ 'dateTimeDomain',
-                            data_type %in% c('boolean', 'text', 'serial') ~ 'textDomain',
-                            data_type %in% c('smallint', 'decimal') ~ 'numericDomain',
-                            data_type == 'varchar' ~ 'enumeratedDomain', # Assume all character fields are enumeratedDomain unless custom override exists
-                            .default = NA
-                            )
-         ) |> 
+  mutate(domain = case_when(attributeName %in% year_fields ~ "dateTimeDomain",
+    attributeName %in% text_domain_fields ~ "textDomain",
+    data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
+    grepl(pattern = "_id|_code|_description|name|observer|recorder", attributeName) ~ "textDomain",
+    grepl(pattern = "_version", attributeName) ~ "numericDomain",
+    # Re-classify unambiguous data types
+    data_type == "date" ~ "dateTimeDomain",
+    data_type %in% c("boolean", "text", "serial") ~ "textDomain",
+    data_type %in% c("smallint", "decimal") ~ "numericDomain",
+    data_type == "varchar" ~ "enumeratedDomain", # Assume all character fields are enumeratedDomain unless custom override exists
+    .default = NA
+  )) |>
   # Populate measurementScale based on domain
-  mutate(measurementScale = case_when(attributeName == 'horizon_order' ~ 'ordinal',
-                                      grepl("_dd$", attributeName) ~ 'interval', # For coordinate fields
-                                      domain == 'dateTimeDomain' ~ 'dateTime',
-                                      domain == 'enumeratedDomain' ~ 'nominal',
-                                      domain == 'textDomain' ~ 'nominal',
-                                      domain == 'numericDomain' ~ 'ratio',
-                                      .default = NA
-                                      )
-         ) |> 
+  mutate(measurementScale = case_when(attributeName == "horizon_order" ~ "ordinal",
+    grepl("_dd$", attributeName) ~ "interval", # For coordinate fields
+    domain == "dateTimeDomain" ~ "dateTime",
+    domain == "enumeratedDomain" ~ "nominal",
+    domain == "textDomain" ~ "nominal",
+    domain == "numericDomain" ~ "ratio",
+    .default = NA
+  )) |>
   # Nominal Fields: Populate definition
-  mutate(definition = case_when(measurementScale == 'nominal' ~ attributeDefinition,
-                                .default = NA)) |> 
+  mutate(definition = case_when(measurementScale == "nominal" ~ attributeDefinition,
+    .default = NA
+  )) |>
   # dateTime Fields: Populate formatString
-  mutate(formatString = case_when(data_type == 'date' ~ 'YYYY-mm-dd',
-                                  attributeName %in% year_fields ~ 'YYYY',
-                                  .default = NA)) |>
+  mutate(formatString = case_when(data_type == "date" ~ "YYYY-mm-dd",
+    attributeName %in% year_fields ~ "YYYY",
+    .default = NA
+  )) |>
   # Numeric Fields: Populate unit and numberType
-  mutate(unit = coalesce(customUnit,
-                         case_when(
-                           grepl(pattern='_percent$|_chroma$|_value$|^number_', attributeName) ~ 'dimensionless',
-                          grepl(pattern="_cm$", attributeName) 
-                          & domain == "numericDomain" ~ 'centimeter',
-                          .default = NA)),
-         numberType = case_when(data_type == "decimal" ~ "real",
-                                grepl(pattern="_chroma", attributeName) ~ "real",
-                                attributeName == "number_stems" ~ "natural",
-                                attributeName == "disturbance_time_y" ~ "integer",
-                                .default = NA)
-         ) |>
+  mutate(
+    unit = coalesce(
+      customUnit,
+      case_when(
+        grepl(pattern = "_percent$|_chroma$|_value$|^number_", attributeName) ~ "dimensionless",
+        grepl(pattern = "_cm$", attributeName) &
+          domain == "numericDomain" ~ "centimeter",
+        .default = NA
+      )
+    ),
+    numberType = case_when(data_type == "decimal" ~ "real",
+      grepl(pattern = "_chroma", attributeName) ~ "real",
+      attributeName == "number_stems" ~ "natural",
+      attributeName == "disturbance_time_y" ~ "integer",
+      .default = NA
+    )
+  ) |>
   # Select desired columns
-  select(schema_table, attributeName, attributeDefinition, domain, measurementScale, 
-         unit, numberType, definition, formatString, schema_table)
+  select(
+    schema_table, attributeName, attributeDefinition, domain, measurementScale,
+    unit, numberType, definition, formatString, schema_table
+  )
 
 # Quality checks ----
 
 ## Ensure required fields have no nulls
-print(attribute_table %>% 
-        select(attributeName, attributeDefinition, domain, measurementScale) |> 
-  summarise(across(everything(), ~ sum(is.na(.x)))
-            )
-  )
+print(attribute_table %>%
+  select(attributeName, attributeDefinition, domain, measurementScale) |>
+  summarise(across(everything(), ~ sum(is.na(.x)))))
 
 ## Verify consistency between domain and measurement scale
 ## dateTimeDomain -> dateTime only
 ## enumeratedDomain and textDomain -> nominal or ordinal
 ## numericDomain -> interval or ratio
-table(attribute_table$domain, 
-      attribute_table$measurementScale)
+table(
+  attribute_table$domain,
+  attribute_table$measurementScale
+)
 
 ## Verify consistency between domain and domain-specific fields
 ## Ensure unit_sum and numberType_sum are equal
 ## dateTimeDomain -> format_sum only
 ## enumerated and textDomain -> def_sum only
-attribute_table |> 
-  mutate(def_exists = case_when(is.na(definition) ~ 0,
-                                .default = 1),
-         unit_exists = case_when(is.na(unit) ~ 0,
-                                 .default = 1),
-         numberType_exists = case_when(is.na(numberType) ~ 0,
-                                       .default = 1),
-         format_exists = case_when(is.na(formatString) ~ 0,
-                                   .default = 1)
-         )|> 
-  group_by(domain) |> 
-  summarise(def_sum = sum(def_exists),
-            format_sum = sum(format_exists),
-            unit_sum = sum(unit_exists),
-            numberType_sum = sum(numberType_exists)
-            )
+attribute_table |>
+  mutate(
+    def_exists = case_when(is.na(definition) ~ 0,
+      .default = 1
+    ),
+    unit_exists = case_when(is.na(unit) ~ 0,
+      .default = 1
+    ),
+    numberType_exists = case_when(is.na(numberType) ~ 0,
+      .default = 1
+    ),
+    format_exists = case_when(is.na(formatString) ~ 0,
+      .default = 1
+    )
+  ) |>
+  group_by(domain) |>
+  summarise(
+    def_sum = sum(def_exists),
+    format_sum = sum(format_exists),
+    unit_sum = sum(unit_exists),
+    numberType_sum = sum(numberType_exists)
+  )
 
 # Parse dictionary table into factor list ----
 
@@ -242,14 +274,16 @@ attribute_table |>
 dictionary_mapping <- list(
   "ground_element" = c("abiotic_element", "ground_element"),
   "scope" = c("scope_vascular", "scope_bryophyte", "scope_lichen"),
-  "soil_hue"            = c("matrix_hue_code", "nonmatrix_hue_code"),
-  "soil_horizon_suffix" = c("horizon_suffix_1_code", "horizon_suffix_2_code", 
-                            "horizon_suffix_3_code", "horizon_suffix_4_code"),
+  "soil_hue" = c("matrix_hue_code", "nonmatrix_hue_code"),
+  "soil_horizon_suffix" = c(
+    "horizon_suffix_1_code", "horizon_suffix_2_code",
+    "horizon_suffix_3_code", "horizon_suffix_4_code"
+  ),
   "soil_horizon_type" = c("horizon_primary_code", "horizon_secondary_code"),
   "soil_texture" = c("dominant_texture_40_cm", "horizon_texture")
 )
 
-# Use mapping to resolve missing dictionary entries
+# Resolve missing dictionary entries using mapping
 factors_table <- dictionary_full |>
   # Create duplicate_count field based on number of values associated with each key
   mutate(
@@ -263,98 +297,114 @@ factors_table <- dictionary_full |>
   # Rename fields using names defined in dictionary map
   mutate(
     field = case_when(
-      field == 'ground_element' ~ dictionary_mapping[["ground_element"]][duplicate_id],
+      field == "ground_element" ~ dictionary_mapping[["ground_element"]][duplicate_id],
       field == "scope" ~ dictionary_mapping[["scope"]][duplicate_id],
       field == "soil_hue" ~ dictionary_mapping[["soil_hue"]][duplicate_id],
       field == "soil_horizon_suffix" ~ dictionary_mapping[["soil_horizon_suffix"]][duplicate_id],
       field == "soil_horizon_type" ~ dictionary_mapping[["soil_horizon_type"]][duplicate_id],
       field == "soil_texture" ~ dictionary_mapping[["soil_texture"]][duplicate_id],
       field == "completion" ~ "project_status",
-      field == "soil_structure" ~ 'horizon_structure',
-      field == 'moisture' ~ 'moisture_regime',
-      .default                           = field
+      field == "soil_structure" ~ "horizon_structure",
+      field == "moisture" ~ "moisture_regime",
+      .default = field
     )
   ) |>
   select(-duplicate_id) |>
   # Restrict dictionary to enumeratedDomain attributes
-  semi_join(attribute_table |> filter(domain == "enumeratedDomain"), 
-            by = join_by(field == attributeName)) |> 
-  arrange(field) |> 
-  rename(attributeName = field,
-         code = data_attribute)  # Rename columns to match EML schema
+  semi_join(attribute_table |> filter(domain == "enumeratedDomain"),
+    by = join_by(field == attributeName)
+  ) |>
+  arrange(field) |>
+  rename(
+    attributeName = field,
+    code = data_attribute
+  ) # Rename columns to match EML schema
 
 # Verify if any fields in the compiled table don't have a match in the dictionary
-print(attribute_table |> 
-  filter(domain == 'enumeratedDomain') |> 
-  anti_join(factors_table, 
-            by = join_by(attributeName)
-  )
-)
+print(attribute_table |>
+  filter(domain == "enumeratedDomain") |>
+  anti_join(factors_table,
+    by = join_by(attributeName)
+  ))
 
 # Create missing values list ----
-missing_values = schema_compiled |> 
+missing_values <- schema_compiled |>
   # Add missing value codes
-  mutate(missing_value_code = case_when(field %in% c("env_observer", "soils_observer") ~ "none",
-                                        .default = missing_value_code),
-         missing_value_description = case_when(field %in% c("env_observer", "soils_observer") ~ "Observer name not recorded because corresponding data were not collected.",
-                                               .default = missing_value_description
+  mutate(
+    missing_value_code = case_when(field %in% c("env_observer", "soils_observer") ~ "none",
+      .default = missing_value_code
+    ),
+    missing_value_description = case_when(field %in% c("env_observer", "soils_observer") ~ "Observer name not recorded because corresponding data were not collected.",
+      .default = missing_value_description
+    )
+  ) |>
+  filter(!is.na(missing_value_code)) |>
+  select(schema_table, field, missing_value_code, missing_value_description) |>
+  rename(
+    attributeName = field,
+    code = missing_value_code,
+    definition = missing_value_description
   )
-  ) |> 
-  filter(!is.na(missing_value_code)) |> 
-  select(schema_table, field, missing_value_code, missing_value_description) |> 
-  rename(attributeName = field,
-         code = missing_value_code,
-         definition = missing_value_description
-         )
 
-# Create data table for each attribute ----
-all_data_tables = list()  # Initialize empty list for storing results
+# Create EML data table for each attribute ----
+all_data_tables <- list() # Initialize empty list for storing results
 
 for (i in 1:length(compiled_fields_list)) {
-  current_table = unique(compiled_fields_list[[i]]$compiled_table)
-  current_filename = str_c(current_table, ".csv")
-  current_fields = compiled_fields_list[[i]]$field
-  
+  current_table <- unique(compiled_fields_list[[i]]$compiled_table)
+  current_filename <- str_c(current_table, ".csv")
+  current_fields <- compiled_fields_list[[i]]$field
+
   # Filter master EML tables for the specific compiled table
-  current_attributes = attribute_table |> filter(schema_table == current_table) |> select(-schema_table)
-  current_factors = factors_table |> filter(attributeName %in% current_fields)
-  current_missing = missing_values |> filter(schema_table == current_table) |> select(-schema_table)
-  
+  current_attributes <- attribute_table |>
+    filter(schema_table == current_table) |>
+    select(-schema_table)
+  current_factors <- factors_table |> filter(attributeName %in% current_fields)
+  current_missing <- missing_values |>
+    filter(schema_table == current_table) |>
+    select(-schema_table)
+
   if (nrow(current_missing) == 0) {
-    attributeList = set_attributes(attributes = current_attributes, 
-                                   factors = current_factors)
+    attributeList <- set_attributes(
+      attributes = current_attributes,
+      factors = current_factors
+    )
   } else {
-    attributeList = set_attributes(attributes = current_attributes, 
-                                   factors = current_factors, 
-                                   missingValues = current_missing)
+    attributeList <- set_attributes(
+      attributes = current_attributes,
+      factors = current_factors,
+      missingValues = current_missing
+    )
   }
-  
+
   # Define file name and format
   current_physical <- set_physical(current_filename,
-                                   encoding="UTF-8")
-  
+    encoding = "UTF-8"
+  )
+
   # Define entity description
-  filtered_dictionary <- dictionary_full |> 
+  filtered_dictionary <- dictionary_full |>
     filter(field == "schema_table" & data_attribute == current_table)
-  
+
   if (current_table == "taxonomy") {
-    current_entity_description = "Master taxonomic checklist table of accepted names, synonyms, authorities, and unknown/functional group codes for Alaska and adjacent Canadian. Covers vascular plants, bryophytes, and lichens ranging from genus to infraspecies."
+    current_entity_description <- "Master taxonomic checklist table of accepted names, synonyms, authorities, and unknown/functional group codes for Alaska and adjacent Canadian. Covers vascular plants, bryophytes, and lichens ranging from genus to infraspecies."
   } else if (nrow(filtered_dictionary) == 0) {
     warning(str_c("Table ", current_table, " was not found in the data dictionary"))
-    clean_table_name = str_replace_all(current_table, "_", " ")
-    current_entity_description = str_c("Table containing observations for ", 
-                                       clean_table_name, ".", 
-                                       sep="")
+    clean_table_name <- str_replace_all(current_table, "_", " ")
+    current_entity_description <- str_c("Table containing observations for ",
+      clean_table_name, ".",
+      sep = ""
+    )
   } else {
-    current_entity_description <- filtered_dictionary |> 
-      pull(definition) |> 
+    current_entity_description <- filtered_dictionary |>
+      pull(definition) |>
       as.character()
   }
-  
+
   # Read in CSV to obtain row count
-  row_count <- as.character(nrow(read_csv(path(compiled_folder, current_filename), 
-                                          show_col_types = FALSE)))
-  
+  row_count <- as.character(nrow(read_csv(path(compiled_folder, current_filename),
+    show_col_types = FALSE
+  )))
+
   # Assemble EML data table
   current_data_table <- eml$dataTable(
     entityName = current_filename,
@@ -362,15 +412,15 @@ for (i in 1:length(compiled_fields_list)) {
     physical = current_physical,
     attributeList = attributeList,
     numberOfRecords = row_count,
-    id = str_c("entity", current_table, sep = "_"))
-  
+    id = str_c("entity", current_table, sep = "_")
+  )
+
   # Append to all tables list
   all_data_tables[[i]] <- current_data_table
   names(all_data_tables)[[i]] <- current_table
 }
 
 
-
 # Clean up workspace ----
 dbDisconnect(database_connection)
-rm(list=ls())
+rm(list = ls())
