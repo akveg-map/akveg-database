@@ -377,6 +377,29 @@ for (i in 1:length(compiled_fields_list)) {
     )
   }
 
+  # Define constraints
+  current_constraints <- list()
+  constraints_mapping <- list(
+    name_adjudicated = "taxon_name",
+    name_accepted    = "taxon_accepted"
+  )
+  
+  existing_constraints <- intersect(names(constraints_mapping), current_fields)
+  
+  for (foreign_key in existing_constraints){
+    constraint_name = str_c(current_table,
+                            foreign_key,
+                            "link", 
+                            sep="_")
+    
+    current_constraints[[length(current_constraints) + 1]] = create_taxonomy_constraint(
+      constraint_name = constraint_name,
+      foreign_key_name = foreign_key,
+      primary_key_name = constraints_mapping[[foreign_key]]
+      )
+  
+  }
+  
   # Define file name and format
   current_physical <- set_physical(current_filename,
     encoding = "UTF-8"
@@ -413,7 +436,8 @@ for (i in 1:length(compiled_fields_list)) {
     physical = current_physical,
     attributeList = attributeList,
     numberOfRecords = row_count,
-    id = str_c("entity", current_table, sep = "_")
+    id = str_c("entity", current_table, sep = "_"),
+    constraint = current_constraints
   )
 
   # Append to all tables list
