@@ -61,7 +61,7 @@ dictionary_query <- read_file(dictionary_file)
 schema_full <- as_tibble(dbGetQuery(database_connection, schema_query))
 dictionary_full <- as_tibble(dbGetQuery(database_connection, dictionary_query))
 
-# Dynamically set compiled folder path ----
+# Dynamically set folder path ----
 ## Use latest database version as it appears in the `database_version` table of the database
 
 version_query <- "
@@ -179,9 +179,9 @@ attribute_table <- schema_compiled |>
     grepl(pattern = "_version", attributeName) ~ "numericDomain",
     # Re-classify unambiguous data types
     data_type == "date" ~ "dateTimeDomain",
-    data_type %in% c("boolean", "text", "serial") ~ "textDomain",
+    data_type %in% c("text", "serial") ~ "textDomain",
     data_type %in% c("smallint", "decimal") ~ "numericDomain",
-    data_type == "varchar" ~ "enumeratedDomain", # Assume all character fields are enumeratedDomain unless custom override exists
+    data_type %in% c("boolean", "varchar") ~ "enumeratedDomain", # Assume all character fields are enumeratedDomain unless custom override exists
     .default = NA
   )) |>
   # Populate measurementScale based on domain
@@ -231,7 +231,7 @@ attribute_table <- schema_compiled |>
   # Select desired columns
   select(
     schema_table, attributeName, attributeDefinition, domain, measurementScale,
-    unit, numberType, definition, formatString, schema_table, primary_key_constraint
+    unit, numberType, definition, formatString, schema_table, primary_key_constraint, data_type
   )
 
 # Quality checks ----
