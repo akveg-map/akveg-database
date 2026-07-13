@@ -12,6 +12,7 @@
 # Import libraries
 import polars as pl
 import sqlalchemy as sa
+import urllib.parse
 from collections import Counter
 from pathlib import Path
 from utils import *
@@ -27,7 +28,7 @@ query_folder = repository_folder / 'user_tools' / 'queries'
 output_root = root / 'Projects' / 'AKVEG_Database' / 'Data_Deposit'
 
 # Define inputs
-credential_file = (credential_folder / "akveg_public_read" / "authentication_akveg_public_read.csv")
+credential_file = (credential_folder / "akveg_private_build" / "authentication_akveg_private_build.csv")
 
 # Read in data
 db_credentials = pl.read_csv(credential_file)
@@ -41,13 +42,16 @@ db_user = db_credentials.filter(pl.col("parameter") == "user").select(pl.col("va
 db_password = db_credentials.filter(pl.col("parameter") == "password").select(pl.col("value")).item()
 db_name = db_credentials.filter(pl.col("parameter") == "dbname").select(pl.col("value")).item()
 
+## Encode password string to handle special characters
+encoded_password = urllib.parse.quote_plus(db_password)
+
 ## Extract SSL parameters
 ssl_rootcert = db_credentials.filter(pl.col("parameter") == "sslrootcert").select(pl.col("value")).item()
 ssl_cert = db_credentials.filter(pl.col("parameter") == "sslcert").select(pl.col("value")).item()
 ssl_key = db_credentials.filter(pl.col("parameter") == "sslkey").select(pl.col("value")).item()
 
 # Create URL from extracted values
-db_url = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+db_url = f"postgresql+psycopg2://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
 
 # Define connection parameters to pass to connect_args
 connect_args = {
