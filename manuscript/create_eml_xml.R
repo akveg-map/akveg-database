@@ -220,10 +220,18 @@ attribute_table <- schema_compiled |>
       .default = NA
     )
   ) |>
+  # Add primary keys only for tables with fields that serve as foreign keys for other tables
+  mutate(
+    primary_key_constraint = 
+      case_when(schema_table == 'database_schema' & attributeName %in% c('schema_table',
+                                                                         'field') ~ TRUE,
+        .default = is_primary_key
+      )
+    ) |> 
   # Select desired columns
   select(
     schema_table, attributeName, attributeDefinition, domain, measurementScale,
-    unit, numberType, definition, formatString, schema_table
+    unit, numberType, definition, formatString, schema_table, primary_key_constraint
   )
 
 # Quality checks ----
@@ -350,20 +358,42 @@ missing_values <- schema_compiled |>
 # Create EML data table for each attribute ----
 all_data_tables <- list() # Initialize empty list for storing results
 
+attribute_table_columns <- c("attributeName", "attributeDefinition", "domain", 
+                             "measurementScale", "unit", "numberType", "definition", 
+                             "formatString")
+# Define primary key constraints
+constraints_mapping <- list(
+  name_adjudicated = list(primary_key = "taxon_name",     
+                          entity = "entity_taxonomy"),
+  name_accepted = list(primary_key = "taxon_accepted", 
+                       entity = "entity_taxonomy"),
+  field = list(primary_key = "field",
+               entity = "entity_database_schema")
+)
+
+# Iterate over each compiled table
 for (i in 1:length(compiled_fields_list)) {
   current_table <- unique(compiled_fields_list[[i]]$compiled_table)
   current_filename <- str_c(current_table, ".csv")
   current_fields <- compiled_fields_list[[i]]$field
 
-  # Filter master EML tables for the specific compiled table
-  current_attributes <- attribute_table |>
-    filter(schema_table == current_table) |>
-    select(-schema_table)
-  current_factors <- factors_table |> filter(attributeName %in% current_fields)
+  # Get attribute table
+  current_schema <- attribute_table |>
+    filter(schema_table == current_table) 
+  
+  current_attributes <- current_schema |>
+    select(all_of(attribute_table_columns))
+  
+  # Get factors table
+  current_factors <- factors_table |> 
+    filter(attributeName %in% current_fields)
+  
+  # Get missing values table
   current_missing <- missing_values |>
     filter(schema_table == current_table) |>
     select(-schema_table)
-
+  
+  # Create attributeList
   if (nrow(current_missing) == 0) {
     attributeList <- set_attributes(
       attributes = current_attributes,
@@ -373,31 +403,50 @@ for (i in 1:length(compiled_fields_list)) {
     attributeList <- set_attributes(
       attributes = current_attributes,
       factors = current_factors,
-      missingValues = current_missing
+      missingValues = current_missing  # Add missing values if they exist
     )
   }
 
   # Define constraints
   current_constraints <- list()
-  constraints_mapping <- list(
-    name_adjudicated = "taxon_name",
-    name_accepted    = "taxon_accepted"
-  )
+  
+  ## Add constraints for foreign key/primary key relationships
   
   existing_constraints <- intersect(names(constraints_mapping), current_fields)
   
   for (foreign_key in existing_constraints){
+    specific_mapping = constraints_mapping[[foreign_key]]
+    
     constraint_name = str_c(current_table,
                             foreign_key,
                             "link", 
                             sep="_")
     
-    current_constraints[[length(current_constraints) + 1]] = create_taxonomy_constraint(
+    current_constraints[[length(current_constraints) + 1]] = create_key_constraint(
       constraint_name = constraint_name,
       foreign_key_name = foreign_key,
-      primary_key_name = constraints_mapping[[foreign_key]]
+      primary_key_name = specific_mapping$primary_key,
+      entity_name = specific_mapping$entity
       )
   
+  }
+  
+  ## Add primary key constraints
+  primary_key_fields <- current_schema |> 
+    filter(primary_key_constraint == TRUE) |> 
+    arrange(match(attributeName, current_fields)) |>  # Ensure primary keys are listed in the order that they appear in the physical file
+    pull(attributeName)
+  
+  if (length(primary_key_fields) > 0) {
+    pk_constraint_name <- str_c(current_table, "primary_key", sep = "_")
+    
+    # Append to constraints list
+    current_constraints[[length(current_constraints) + 1]] <- list(
+      constraintName = pk_constraint_name,
+      primaryKey = list(
+        key = primary_key_fields
+      )
+    )
   }
   
   # Define file name and format
