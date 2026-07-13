@@ -420,9 +420,7 @@ for (i in 1:length(compiled_fields_list)) {
   names(all_data_tables)[[i]] <- current_table
 }
 
-# Define coverage ----
-
-# Define taxonomic classification
+# Define taxonomic coverage ----
 taxonomic_classification_list <- list(
   # Vascular plants & bryophytes
   list(
@@ -484,6 +482,34 @@ taxonomic_coverage <- eml$taxonomicCoverage(
   )
   )
 )
+
+# Define geographic coverage ----
+## Create two separate bounding boxes to handle the international date line
+
+# Bounding Box 1: Western Hemisphere
+bbox_west <- eml$geographicCoverage(
+  geographicDescription = "Western Hemisphere component of the AKVEG Database from the 180th Meridian eastward to the easternmost plot in the Northwest Territories, Canada.",
+  boundingCoordinates = list(
+    westBoundingCoordinate = "-180.00000",
+    eastBoundingCoordinate = "-123.00000",
+    northBoundingCoordinate = "71.27648",
+    southBoundingCoordinate = "52.70761"
+  )
+)
+
+# Bounding Box 2: Eastern Hemisphere (Aleutian Islands)
+geo_box_east <- eml$geographicCoverage(
+  geographicDescription = "Eastern Hemisphere component of the AKVEG Database from the westernmost plot in the western Aleutian Islands eastward to the 180th Meridian.",
+  boundingCoordinates = list(
+    westBoundingCoordinate = "174.15216",
+    eastBoundingCoordinate = "180.00000",
+    northBoundingCoordinate = "71.27648",
+    southBoundingCoordinate = "52.70761"
+  )
+)
+
+# Combine both bounding boxes to create overall geographic coverage
+geographic_coverage <- list(bbox_west, bbox_east)
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
