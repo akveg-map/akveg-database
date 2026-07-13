@@ -1,0 +1,23 @@
+field,data_attribute,definition
+is_foreign_key,TRUE,Field links records to a primary key in an external table.
+is_foreign_key,FALSE,Field is a standard attribute column with no dependencies on an external table.
+is_primary_key,TRUE,Field serves as the unique identifier for each row in this table.
+is_primary_key,FALSE,Field is a standard attribute column that does not enforce uniqueness.
+is_required,TRUE,A valid value must be entered for every record in this table. Empty cells or system nulls are structurally invalid.
+is_required,FALSE,Field is optional and accepts empty cells and missing values.
+is_unique,TRUE,Every value in this column must be distinct; duplicate values are not allowed.
+is_unique,FALSE,Field does not require unique values; the same value can be repeated across multiple rows.
+private,TRUE,Project metadata and associated data entries are restricted from public view.
+private,FALSE,Project metadata and associated data entries are available to all users.
+homogeneous,TRUE,"The plot's dominant vegetation is uniform and falls entirely within a single, distinct structural class (e.g., needlelead forest, sedge meadow)."
+homogeneous,FALSE,The plot captures a transitional zone or a mixed community where the dominant vegetation is not uniform throughout the plot. The assigned structural class may not fully represent the entire plot area.
+dead_status,TRUE,Vegetation is dead. Dead vegetation is restricted to only rooted standing dead structures or dead parts attached to live rooted plants.
+dead_status,FALSE,Vegetation is alive.
+cryoturbation,TRUE,Cryoturbation was observed (applies to any soil layer within the plot).
+cryoturbation,FALSE,Cryoturbation was not observed.
+surface_water,TRUE,Surface water was observed in the plot.
+surface_water,FALSE,Surface water was not observed in the plot.
+water_measurement,TRUE,Measurements were taken from standing surface water.
+water_measurement,FALSE,Measurements were taken from a soil sample.
+depth_extend,TRUE,Measurement of the lowermost soil horizon's depth boundary was hindered by a restrictive layer such as bedrock or permafrost.
+depth_extend,FALSE,The lowermost soil horizon's depth boundary was reached and measured without being hindered by a restrictive layer.
