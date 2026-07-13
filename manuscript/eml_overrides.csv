@@ -1,0 +1,15 @@
+﻿attributeName,customDefinition,customDomain,formatString
+site_visit_code,Unique alpha-numeric identifier assigned to the site or plot in the project with the addition of the visit date in yyyymmdd format.,,
+project_code,"Unique identifier for each project, formatted as OriginatorAbbreviation_ProjectScopeOrLocation_LastYearOfDataCollection.",,
+establishing_project_code,"Unique identifier for each project, formatted as OriginatorAbbreviation_ProjectScopeOrLocation_LastYearOfDataCollection.",,
+site_code,Unique alphanumeric identifier assigned to the site or plot in the project.,,
+matrix_hue_code,"Standard Munsell code that indicates the relation of soil color to red (R), yellow (Y), green (G), blue (B), and purple (P), or neutral (N).",,
+nonmatrix_hue_code,"Standard Munsell code that indicates the relation of soil color to red (R), yellow (Y), green (G), blue (B), and purple (P), or neutral (N).",,
+horizon_suffix_1_code,Standardized alphanumeric suffix code as used by NRCS to denote subordinate distinctions or special features within a soil horizon layer.,,
+horizon_suffix_2_code,Standardized alphanumeric suffix code as used by NRCS to denote subordinate distinctions or special features within a soil horizon layer.,,
+horizon_suffix_3_code,Standardized alphanumeric suffix code as used by NRCS to denote subordinate distinctions or special features within a soil horizon layer.,,
+horizon_suffix_4_code,Standardized alphanumeric suffix code as used by NRCS to denote subordinate distinctions or special features within a soil horizon layer.,,
+horizon_primary_code,Standardized alpha code used by the NRCS to denote master soil horizon designations.,,
+horizon_secondary_code,Standardized alpha code used by the NRCS to denote master soil horizon designations.,,
+year_start,,dateTimeDomain,YYYY
+year_end,,dateTimeDomain,YYYY
