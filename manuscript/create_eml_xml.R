@@ -41,12 +41,13 @@ field_map <- read_yaml(field_map_path)
 # Connect to the AKVEG Database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
 database_connection <- connect_database_postgresql(authentication)
+dbExecute(database_connection, "SET search_path TO public;") ## Define default schema
 
-# Read in database tables ----
+# Read in database queries ----
 schema_query = read_file(schema_file)
-schema_db = as_tibble(dbGetQuery(database_connection, schema_query))
-
 dictionary_query = read_file(dictionary_file)
+
+schema_db = as_tibble(dbGetQuery(database_connection, schema_query))
 dictionary_db = as_tibble(dbGetQuery(database_connection, dictionary_query))
 
 # Identify columns in compiled tables ----
