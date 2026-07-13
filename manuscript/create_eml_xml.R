@@ -39,7 +39,8 @@ field_map_path <- path(repository_folder, 'manuscript', 'map_compiled_fields.yam
 custom_overrides_path <- path(repository_folder, 'manuscript', 'eml_overrides.csv')
 
 field_map <- read_yaml(field_map_path)
-custom_overrides <- read_csv(custom_overrides_path)
+custom_overrides <- read_csv(custom_overrides_path, 
+                             show_col_types = FALSE)
 
 # Source in functions ----
 source(path(repository_folder, 'manuscript', 'utils.R'))
@@ -136,37 +137,37 @@ schema_compiled <- schema_full  |>
   bind_rows(healed_fields) # Add 'unmatched' fields
 
 # Parse SQL schema into EML attributes ----
+
+# Define fields requiring custom classification
+text_domain_fields <- c('originator', 'funder', 'manager', 'h_datum_epsg', 
+                        'plot_dimensions_m', 'horizon_order', 'citation_short', 
+                        'standards_section')
+text_tables <- c('database_dictionary', 'database_schema', 'taxonomy')
+year_fields <- c('year_start', 'year_end')
+
 attribute_table <- schema_compiled |> 
   rename(attributeName = field,
          attributeDefinition = field_description) |> 
   left_join(custom_overrides, by = join_by("attributeName")) |> 
-  # If specified, overwrite existing definitions with custom ones
+  # If specified, overwrite schema definitions with custom ones
   mutate(attributeDefinition = coalesce(customDefinition, attributeDefinition)) |> 
   # Populate EML domain based on data type and attribute name
-  # Handle exceptions before applying general rules
-  mutate(domain = case_when(attributeName %in% c('year_start', 
-                                                 'year_end') ~ 'dateTimeDomain',
-                            attributeName %in% c('originator', 'funder', 'manager', 'h_datum_epsg', 
-                                                 'plot_dimensions_m', 'horizon_order', 'citation_short',
-                                                 'standards_section') ~ 'textDomain',
-                            data_type == 'varchar' & schema_table %in% c('database_dictionary', 'database_schema', 'taxonomy') ~ 'textDomain',
-                            (data_type %in% c('smallint', 'integer', 'varchar')) & 
-                              grepl(pattern='_id|_code|_description|name|observer|recorder', attributeName) ~ 'textDomain',
+  mutate(domain = case_when(attributeName %in% year_fields ~ 'dateTimeDomain',
+                            attributeName %in% text_domain_fields ~ 'textDomain',
+                            data_type == 'varchar' & schema_table %in% text_tables ~ 'textDomain',
+                            grepl(pattern='_id|_code|_description|name|observer|recorder', attributeName) ~ 'textDomain',
                             grepl(pattern='_version', attributeName) ~ 'numericDomain',
                             # Re-classify unambiguous data types
-                            data_type == 'boolean' ~ 'textDomain',
                             data_type == 'date' ~ 'dateTimeDomain',
-                            data_type == 'text' ~ 'textDomain',
-                            data_type == 'serial' ~ 'textDomain',
-                            data_type == 'decimal' ~ 'numericDomain',
-                            data_type == 'varchar' ~ 'enumeratedDomain',
-                            data_type == 'smallint' ~ 'numericDomain',
+                            data_type %in% c('boolean', 'text', 'serial') ~ 'textDomain',
+                            data_type %in% c('smallint', 'decimal') ~ 'numericDomain',
+                            data_type == 'varchar' ~ 'enumeratedDomain', # Assume all character fields are enumeratedDomain unless custom override exists
                             .default = NA
                             )
          ) |> 
   # Populate measurementScale based on domain
   mutate(measurementScale = case_when(attributeName == 'horizon_order' ~ 'ordinal',
-                                      grepl("_dd$", attributeName) ~ 'interval', # Define coordinates as interval, not ratio
+                                      grepl("_dd$", attributeName) ~ 'interval', # For coordinate fields
                                       domain == 'dateTimeDomain' ~ 'dateTime',
                                       domain == 'enumeratedDomain' ~ 'nominal',
                                       domain == 'textDomain' ~ 'nominal',
@@ -177,35 +178,26 @@ attribute_table <- schema_compiled |>
   # Nominal Fields: Populate definition
   mutate(definition = case_when(measurementScale == 'nominal' ~ attributeDefinition,
                                 .default = NA)) |> 
-  # dateTime Fields:
+  # dateTime Fields: Populate formatString
   mutate(formatString = case_when(data_type == 'date' ~ 'YYYY-mm-dd',
-                                  attributeName %in% c('year_start', 
-                                                       'year_end') ~ 'YYYY',
+                                  attributeName %in% year_fields ~ 'YYYY',
                                   .default = NA)) |>
   # Numeric Fields: Populate unit and numberType
-  mutate(unit = case_when(grepl(pattern="_m$", attributeName) 
-                          & domain == "numericDomain" ~ 'meter',
+  mutate(unit = coalesce(customUnit,
+                         case_when(
+                           grepl(pattern='_percent$|_chroma$|_value$|^number_', attributeName) ~ 'dimensionless',
                           grepl(pattern="_cm$", attributeName) 
-                           & domain == "numericDomain" ~ 'centimeter',
-                          grepl(pattern="_m2$", attributeName) 
-                           & domain == "numericDomain" ~ 'squareMeter',
-                          grepl("_dd$", attributeName) 
-                           & domain == "numericDomain" ~ 'degree',
-                          grepl(pattern='_percent$|_chroma$|_value$|^number_', attributeName)  ~ 'dimensionless',
-                          attributeName %in% c('ph', 'conductivity_mus') ~ 'dimensionless',
-                          attributeName == 'temperature_deg_c' ~ 'celsius',
-                          attributeName == 'disturbance_time_y' ~ 'nominalYear',
-                          .default = NA)
-) |> 
-  mutate(numberType = case_when(data_type == "decimal" ~ "real",
+                          & domain == "numericDomain" ~ 'centimeter',
+                          .default = NA)),
+         numberType = case_when(data_type == "decimal" ~ "real",
                                 grepl(pattern="_chroma", attributeName) ~ "real",
                                 attributeName == "number_stems" ~ "natural",
                                 attributeName == "disturbance_time_y" ~ "integer",
-                                .default = NA)) |>
+                                .default = NA)
+         ) |>
   # Select desired columns
   select(schema_table, attributeName, attributeDefinition, domain, measurementScale, 
-         unit, numberType, definition, formatString, schema_table, 
-         )
+         unit, numberType, definition, formatString, schema_table)
 
 # Quality checks ----
 
