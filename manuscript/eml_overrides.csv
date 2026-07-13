@@ -1,4 +1,4 @@
-﻿attributeName,customDefinition,customDomain,formatString
+﻿attributeName,customDefinition,customDomain,customUnit
 site_visit_code,Unique alpha-numeric identifier assigned to the site or plot in the project with the addition of the visit date in yyyymmdd format.,,
 project_code,"Unique identifier for each project, formatted as OriginatorAbbreviation_ProjectScopeOrLocation_LastYearOfDataCollection.",,
 establishing_project_code,"Unique identifier for each project, formatted as OriginatorAbbreviation_ProjectScopeOrLocation_LastYearOfDataCollection.",,
@@ -11,5 +11,11 @@ horizon_suffix_3_code,Standardized alphanumeric suffix code as used by NRCS to d
 horizon_suffix_4_code,Standardized alphanumeric suffix code as used by NRCS to denote subordinate distinctions or special features within a soil horizon layer.,,
 horizon_primary_code,Standardized alpha code used by the NRCS to denote master soil horizon designations.,,
 horizon_secondary_code,Standardized alpha code used by the NRCS to denote master soil horizon designations.,,
-year_start,,dateTimeDomain,YYYY
-year_end,,dateTimeDomain,YYYY
+shrub_subplot_area_m2,,,squareMeter
+temperature_deg_c,,,celsius
+disturbance_time_y,,,nominalYear
+ph,,,dimensionless
+conductivity_mus,,,dimensionless
+latitude_dd,,,degree
+longitude_dd,,,degree
+h_error_m,,,meter
