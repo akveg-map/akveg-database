@@ -499,7 +499,7 @@ bbox_west <- eml$geographicCoverage(
 )
 
 # Bounding Box 2: Eastern Hemisphere (Aleutian Islands)
-geo_box_east <- eml$geographicCoverage(
+bbox_east <- eml$geographicCoverage(
   geographicDescription = "Eastern Hemisphere component of the AKVEG Database from the westernmost plot in the western Aleutian Islands eastward to the 180th Meridian.",
   boundingCoordinates = list(
     westBoundingCoordinate = "174.15216",
@@ -528,6 +528,17 @@ temporal_coverage <- eml$temporalCoverage(
     endDate = eml$endDate(calendarDate = site_visit_dates$max_date)
   )
 )
+
+# Set global coverage object
+global_coverage <- eml$coverage(
+  geographicCoverage = geographic_coverage,
+  temporalCoverage = temporal_coverage,
+  taxonomicCoverage = taxonomic_coverage
+)
+
+# Delete intermediate products
+rm(geographic_coverage, temporal_coverage, taxonomic_coverage, taxonomic_classification_list, 
+   bbox_west, bbox_east, site_visit_dates)
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
