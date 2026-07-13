@@ -130,7 +130,7 @@ soil_horizons:
   horizon_structure:
     db_table: "soil_structure"
     db_field: "soil_structure"
-    definition: "Ssoil structure at the specified horizon."
+    definition: "Soil structure at the specified horizon."
   nonmatrix_feature:
     db_table: "soil_nonmatrix_features"
     db_field: "nonmatrix_feature"
