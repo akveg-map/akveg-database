@@ -117,7 +117,7 @@ healed_fields <- map_to_schema_fields(unmatched_fields,
 
 ## Ensure that all fields were matched
 print(anti_join(unmatched_fields, 
-                temp, 
+                healed_fields, 
                 join_by(compiled_table == schema_table,
                         field == field)
                 )
