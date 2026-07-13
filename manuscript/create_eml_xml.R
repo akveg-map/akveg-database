@@ -140,16 +140,13 @@ attribute_table <- schema_compiled |>
   # Handle exceptions before applying general rules
   mutate(domain = case_when(attributeName %in% c('year_start', 
                                                  'year_end') ~ 'dateTimeDomain',
-                            attributeName %in% c('code_akveg', 'definition', 'name_original', 'originator', 'funder', 'manager', 'env_observer', 'soils_observer', 'veg_recorder', 'veg_observer', 'project_name') ~ 'textDomain',
-                            attributeName == 'standards_section' ~ 'enumeratedDomain',
+                            attributeName %in% c('originator', 'funder', 'manager', 'h_datum_epsg', 
+                                                 'plot_dimensions_m', 'horizon_order', 'citation_short',
+                                                 'standards_section') ~ 'textDomain',
                             data_type == 'varchar' & schema_table %in% c('database_dictionary', 'database_schema', 'taxonomy') ~ 'textDomain',
                             (data_type %in% c('smallint', 'integer', 'varchar')) & 
-                              grepl(pattern='_id|_code|_description', attributeName) ~ 'textDomain',
-                            grepl(pattern='_version', attributeName) ~ 'numericDomain', 
-                            attributeName == 'h_datum_epsg' ~ 'textDomain',
-                            attributeName == 'plot_dimensions_m' ~ 'textDomain',
-                            attributeName == 'horizon_order' ~ 'textDomain',
-                            attributeName == 'citation_short' ~ 'textDomain',
+                              grepl(pattern='_id|_code|_description|name|observer|recorder', attributeName) ~ 'textDomain',
+                            grepl(pattern='_version', attributeName) ~ 'numericDomain',
                             # Re-classify unambiguous data types
                             data_type == 'boolean' ~ 'textDomain',
                             data_type == 'date' ~ 'dateTimeDomain',
@@ -171,6 +168,14 @@ attribute_table <- schema_compiled |>
                                       .default = NA
                                       )
          ) |> 
+  # Write custom definitions for certain foreign key fields
+  mutate(attributeDefinition = case_when(attributeName == "site_visit_code" ~ "Unique alpha-numeric identifier assigned to the site or plot in the project with the addition of the visit date in yyyymmdd format.",
+                                         grepl("project_code", attributeName) ~ "Standardized unique identifier for each project, formatted as: OriginatorAbbreviation_ProjectScopeOrLocation_LastYearOfDataCollection.",
+                                         attributeName == "site_code" ~ "Unique alpha-numeric identifier assigned to the site or plot in the project.",
+                                         grepl("hue_code", attributeName) ~ "Standard Munsell code that indicates the relation of soil color to red (R), yellow (Y), green (G), blue (B), and purple (P), or neutral (N).",
+                                         grepl("horizon_suffix_\\d_code", attributeName) ~ "Standardized alphanumeric suffix code as used by NRCS to denote subordinate distinctions or special features within a soil horizon layer.",
+                                         grepl("horizon_[a-z]+_code", attributeName) ~ "Standardized alpha code used by the NRCS to denote master soil horizon designations.",
+                                         .default = attributeDefinition)) |> 
   # Nominal Fields: Populate definition
   mutate(definition = case_when(measurementScale == 'nominal' ~ attributeDefinition,
                                 .default = NA)) |> 
@@ -198,7 +203,7 @@ attribute_table <- schema_compiled |>
                                 grepl(pattern="_chroma", attributeName) ~ "real",
                                 attributeName == "number_stems" ~ "natural",
                                 attributeName == "disturbance_time_y" ~ "integer",
-                                .default = NA)) |> 
+                                .default = NA)) |>
   # Select desired columns
   select(schema_table, attributeName, attributeDefinition, domain, measurementScale, 
          unit, numberType, definition, formatString, schema_table, 
@@ -241,7 +246,7 @@ attribute_table |>
             numberType_sum = sum(numberType_exists)
             )
 
-# Format dictionary table into factors ----
+# Parse dictionary table into factor list ----
 
 # Define a lookup list for fields that do not have a match in the database dictionary
 dictionary_mapping <- list(
@@ -255,7 +260,7 @@ dictionary_mapping <- list(
 )
 
 # Use mapping to resolve missing dictionary entries
-dictionary_compiled <- dictionary_full |>
+factors_table <- dictionary_full |>
   # Create duplicate_count field based on number of values associated with each key
   mutate(
     duplicate_count = case_when(
@@ -284,71 +289,98 @@ dictionary_compiled <- dictionary_full |>
   # Restrict dictionary to enumeratedDomain attributes
   semi_join(attribute_table |> filter(domain == "enumeratedDomain"), 
             by = join_by(field == attributeName)) |> 
-  arrange(field)
-
-# Identify fields in the compiled table that don't have a match in the dictionary
-dictionary_missing <- attribute_table |> 
-  filter(domain == 'enumeratedDomain') |> 
-  anti_join(dictionary_compiled, 
-            by = join_by(attributeName == field)
-  )
-
-
-
-# Rename columns
-factors_table <- dictionary_compiled |> 
+  arrange(field) |> 
   rename(attributeName = field,
-         code = data_attribute)
+         code = data_attribute)  # Rename columns to match EML schema
 
+# Verify if any fields in the compiled table don't have a match in the dictionary
+print(attribute_table |> 
+  filter(domain == 'enumeratedDomain') |> 
+  anti_join(factors_table, 
+            by = join_by(attributeName)
+  )
+)
 
+# Create missing values list ----
+missing_values = schema_compiled |> 
+  # Add missing value codes
+  mutate(missing_value_code = case_when(field %in% c("env_observer", "soils_observer") ~ "none",
+                                        .default = missing_value_code),
+         missing_value_description = case_when(field %in% c("env_observer", "soils_observer") ~ "Observer name not recorded because corresponding data were not collected.",
+                                               .default = missing_value_description
+  )
+  ) |> 
+  filter(!is.na(missing_value_code)) |> 
+  select(schema_table, field, missing_value_code, missing_value_description) |> 
+  rename(attributeName = field,
+         code = missing_value_code,
+         definition = missing_value_description
+         )
 
+# Create data table for each attribute ----
+all_data_tables = list()  # Initialize empty list for storing results
 
-
-# Parse attribute table into nested list
-attribute_list <- vector(mode = "list", length = length(table_paths))  # Initialize empty list
-
-
-for (i in 1:length(table_paths)) {
-  path = table_paths[i]
-  cols = colnames(read_csv(path, n_max = 0, show_col_types = FALSE))
-  attribute_list[[i]] = cols 
+for (i in 1:length(compiled_fields_list)) {
+  current_table = unique(compiled_fields_list[[i]]$compiled_table)
+  current_filename = str_c(current_table, ".csv")
+  current_fields = compiled_fields_list[[i]]$field
+  
+  # Filter master EML tables for the specific compiled table
+  current_attributes = attribute_table |> filter(schema_table == current_table) |> select(-schema_table)
+  current_factors = factors_table |> filter(attributeName %in% current_fields)
+  current_missing = missing_values |> filter(schema_table == current_table) |> select(-schema_table)
+  
+  if (nrow(current_missing) == 0) {
+    attributeList = set_attributes(attributes = current_attributes, 
+                                   factors = current_factors)
+  } else {
+    attributeList = set_attributes(attributes = current_attributes, 
+                                   factors = current_factors, 
+                                   missingValues = current_missing)
+  }
+  
+  # Define file name and format
+  current_physical <- set_physical(current_filename,
+                                   encoding="UTF-8")
+  
+  # Define entity description
+  filtered_dictionary <- dictionary_full |> 
+    filter(field == "schema_table" & data_attribute == current_table)
+  
+  if (current_table == "taxonomy") {
+    current_entity_description = "Master taxonomic checklist table of accepted names, synonyms, authorities, and unknown/functional group codes for Alaska and adjacent Canadian. Covers vascular plants, bryophytes, and lichens ranging from genus to infraspecies."
+  } else if (nrow(filtered_dictionary) == 0) {
+    warning(str_c("Table ", current_table, " was not found in the data dictionary"))
+    clean_table_name = str_replace_all(current_table, "_", " ")
+    current_entity_description = str_c("Table containing observations for ", 
+                                       clean_table_name, ".", 
+                                       sep="")
+  } else {
+    current_entity_description <- filtered_dictionary |> 
+      pull(definition) |> 
+      as.character()
+  }
+  
+  # Read in CSV to obtain row count
+  row_count <- as.character(nrow(read_csv(path(compiled_folder, current_filename), 
+                                          show_col_types = FALSE)))
+  
+  # Assemble EML data table
+  current_data_table <- eml$dataTable(
+    entityName = current_filename,
+    entityDescription = current_entity_description,
+    physical = current_physical,
+    attributeList = attributeList,
+    numberOfRecords = row_count,
+    id = str_c("entity", current_table, sep = "_"))
+  
+  # Append to all tables list
+  all_data_tables[[i]] <- current_data_table
+  names(all_data_tables)[[i]] <- current_table
 }
 
 
 
-
-
-
-
-
-
-# Set attributes ----
-
-# Create missing values table
-missingvalues_table = attribute_table |> 
-  select(attributeName, missingValueCode, missingValueExplanation) |> 
-  rename(code = missingValueCode,
-         definition = missingValueExplanation)
-
-## Verify consistency between missingValueCode and explanation
-attribute_table |> mutate(code_exists = case_when(is.na(missingValueCode) ~ 0,
-                                                  .default = 1),
-                          explanation_exists = case_when(is.na(missingValueExplanation) ~ 0,
-                                                         .default = 1)) |> 
-  mutate(both_exist = code_exists + explanation_exists) |> 
-  filter(both_exist == 1)  ## Should not be any rows
-
-
-# create 1 attribute list per data table
-attribute_table <- attribute_table |> 
-  select(-c(missingValueCode, missingValueExplanation))
-
-set_attributes(
-  attribute_table,
-  factors_table,
-  col_classes = NULL,
-  missingvalues_table
-)
-
-
-# Close database connection
+# Clean up workspace ----
+dbDisconnect(database_connection)
+rm(list=ls())
