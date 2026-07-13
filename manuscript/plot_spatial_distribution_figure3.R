@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Map spatial distribution of sites
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-06-08
+# Last Updated: 2026-07-12
 # Usage: Must be executed in a R 4.6.0+ installation.
 # Description: "Map spatial distribution of sites" creates a map figure for publication that shows the spatial distribution of sites in AKVEG, inclusive of private data, classified according to cover method.
 # ---------------------------------------------------------------------------
@@ -172,3 +172,7 @@ ggsave(figure_output,
        units = 'in',
        dpi = 300,
        limitsize = TRUE)
+
+# Clean up workspace ----
+dbDisconnect(database_connection)
+rm(list=ls())
