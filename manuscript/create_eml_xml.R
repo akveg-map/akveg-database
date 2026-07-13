@@ -37,24 +37,30 @@ authentication <- path(
 schema_file <- path(repository_folder, "user_tools", "queries", "00_database_schema.sql")
 dictionary_file <- path(repository_folder, "user_tools", "queries", "00_database_dictionary.sql")
 
-# Define and read in config files
+# Define config files
 field_map_path <- path(repository_folder, "manuscript", "config", "map_compiled_fields.yaml")
 custom_overrides_path <- path(repository_folder, "manuscript", "config", "eml_overrides.csv")
-
-field_map <- read_yaml(field_map_path)
-custom_overrides <- read_csv(custom_overrides_path,
-  show_col_types = FALSE
-)
-
-# Source in functions ----
-source(path(repository_folder, "manuscript", "utils.R"))
+boolean_dictionary_path <- path(repository_folder, "manuscript", "config", "dictionary_boolean.csv")
 
 # Connect to the AKVEG Database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
 database_connection <- connect_database_postgresql(authentication)
 dbExecute(database_connection, "SET search_path TO public;") ## Define default schema
 
-# Read in database queries ----
+# Read in files ----
+
+## Read functions and config files
+source(path(repository_folder, "manuscript", "utils.R"))
+field_map <- read_yaml(field_map_path)
+custom_overrides <- read_csv(custom_overrides_path,
+                             show_col_types = FALSE
+)
+boolean_dictionary <- read_csv(boolean_dictionary_path,
+                               col_types = cols(.default = "c"),  # Force boolean column to be read as character
+                             show_col_types = FALSE
+)
+
+## Read queries
 schema_query <- read_file(schema_file)
 dictionary_query <- read_file(dictionary_file)
 
@@ -89,6 +95,8 @@ compiled_folder <- path(
   drive, root_folder, "Projects", "AKVEG_Database",
   "Data_Deposit", full_version_string, "compiled"
 )
+
+rm(latest_version, major_version_string, full_version_string)
 
 # Resolve fields with no match in schema ----
 # Some fields in the compiled tables do not exist in the database schema table because they were renamed or brought in from lookup tables during the compilation step
@@ -319,6 +327,8 @@ factors_table <- dictionary_full |>
     )
   ) |>
   select(-duplicate_id) |>
+  # Bring in custom boolean dictionary
+  bind_rows(boolean_dictionary) |> 
   # Restrict dictionary to enumeratedDomain attributes
   semi_join(attribute_table |> filter(domain == "enumeratedDomain"),
     by = join_by(field == attributeName)
