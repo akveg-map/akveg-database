@@ -386,7 +386,7 @@ for (i in 1:length(compiled_fields_list)) {
     filter(field == "schema_table" & data_attribute == current_table)
 
   if (current_table == "taxonomy") {
-    current_entity_description <- "Master taxonomic checklist table of accepted names, synonyms, authorities, and unknown/functional group codes for Alaska and adjacent Canadian. Covers vascular plants, bryophytes, and lichens ranging from genus to infraspecies."
+    current_entity_description <- "Comprehensive taxonomic checklist table of accepted names, synonyms, authorities, and unknown/functional group codes for Alaska and adjacent Canadian. Covers vascular plants, bryophytes, and lichens ranging from genus to infraspecies."
   } else if (nrow(filtered_dictionary) == 0) {
     warning(str_c("Table ", current_table, " was not found in the data dictionary"))
     clean_table_name <- str_replace_all(current_table, "_", " ")
@@ -420,6 +420,70 @@ for (i in 1:length(compiled_fields_list)) {
   names(all_data_tables)[[i]] <- current_table
 }
 
+# Define coverage ----
+
+# Define taxonomic classification
+taxonomic_classification_list <- list(
+  # Vascular plants & bryophytes
+  list(
+    taxonRankName = "Kingdom",
+    taxonRankValue = "Plantae",
+    taxonClassification = list(
+      list(taxonRankName = "Phylum", taxonRankValue = "Tracheophyta"),
+      list(taxonRankName = "Phylum", taxonRankValue = "Bryophyta")
+    )
+  ),
+  # Lichens
+  list(
+    taxonRankName = "Kingdom",
+    taxonRankValue = "Fungi",
+    taxonClassification = list(
+      list(taxonRankName = "Phylum", taxonRankValue = "Ascomycota"),
+      list(taxonRankName = "Phylum", taxonRankValue = "Basidiomycota")  # e.g., Lichenomphalia
+    )
+  )
+)
+
+# Define checklist authors
+checklist_creators = list(
+  list(individualName = list(givenName = "Timm", surName = "Nawrocki")),
+  list(individualName = list(givenName = "Caroline", surName = "Parker")),
+  list(individualName = list(givenName = "James", surName = "Walton")),
+  list(individualName = list(givenName = "Preston", surName = "Villumsen")),
+  list(individualName = list(givenName = "Bruce", surName = "Bennett")),
+  list(individualName = list(givenName = "Matthew", surName = "Carlson")),
+  list(individualName = list(givenName = "John", surName = "DeLapp")),
+  list(individualName = list(givenName = "Justin", surName = "Fulkerson")),
+  list(individualName = list(givenName = "Martin", surName = "Hutten")), 
+  list(individualName = list(givenName = "Brian", surName = "Heitz")), 
+  list(individualName = list(givenName = "Stefanie", surName = "Ickert-Bond")), 
+  list(individualName = list(givenName = "Mary", surName = "Stensvold")), 
+  list(individualName = list(givenName = "Campbell", surName = "Webb"))
+)
+
+# Assemble taxonomic coverage
+taxonomic_coverage <- eml$taxonomicCoverage(
+  generalTaxonomicCoverage = "Taxonomic coverage includes vascular plants, bryophytes, and lichens, but varies by project and individual site visit. Among the 44,324 unique site visits in the AKVEG Database, 65% recorded exhaustive, species-level data of vascular plants. In contrast, bryophyte and lichen records are generally limited to dominant species (55% of site visits) or absent (29% of visits). Taxonomic coverage of individual site visits is documented in this data package's `site_visit` table with separate fields for vascular plants, bryophytes, and lichens.",
+  taxonomicSystem = list(
+    classificationSystem = "Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska",
+      classificationSystemCitation = list(
+        title = "Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska",
+        creator = checklist_creators,
+        pubDate = "2024",
+        
+        distribution = list(
+          online = list(
+            onlineDescription = "Online interface for browsing the taxonomic checklist; the version in this data package contains minor updates and was the version used to standardize taxonomy across datasets.",
+            url = list(
+              "https://akveg.org/taxonomic-standard/", 
+              `function` = "information"
+      )
+    )
+    ),
+  taxonomicClassification = taxonomic_classification_list
+  )
+  )
+)
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
