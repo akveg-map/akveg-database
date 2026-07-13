@@ -1,3 +1,6 @@
+# ===========================================================================
+# PARSE SCHEMA TO EML ----
+# ===========================================================================
 #' Map unmatched columns to database schema table
 #'
 #' @param unmatched_fields_df Data frame containing the unmatched fields. Must include the following columns: compiled_table (name of the compiled table with the unmatch field) and field (name of the unmatched field).
@@ -69,4 +72,29 @@ map_to_schema_fields <- function(unmatched_fields_df,
     warning(paste0("Could not find reference for: ", target_table, ".", target_field))
     return(NULL)
   })
+}
+
+# ===========================================================================
+# EML CONSTRAINTS ----
+# ===========================================================================
+#' Create data table constraints for taxonomic fields
+#'
+#' @param constraint_name Name of constraint as it will appear in the EML file
+#' @param foreign_key_name Character string of field name that serves as a foreign key for this table
+#' @param primary_key_name Character strung of field name that serves as a primary key
+#' @returns List that can be included in an eml$dataTable call
+
+create_taxonomy_constraint <- function(constraint_name,
+                                       foreign_key_name,
+                                       primary_key_name) {
+  list(
+    constraintName = constraint_name,
+    foreignKey = list(
+      key = foreign_key_name,
+      referencedKey = list(
+        entityReference = "entity_taxonomy",
+        key = primary_key_name
+      )
+    )
+  )
 }
