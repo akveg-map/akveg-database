@@ -38,8 +38,8 @@ schema_file <- path(repository_folder, "user_tools", "queries", "00_database_sch
 dictionary_file <- path(repository_folder, "user_tools", "queries", "00_database_dictionary.sql")
 
 # Define and read in config files
-field_map_path <- path(repository_folder, "manuscript", "map_compiled_fields.yaml")
-custom_overrides_path <- path(repository_folder, "manuscript", "eml_overrides.csv")
+field_map_path <- path(repository_folder, "manuscript", "config", "map_compiled_fields.yaml")
+custom_overrides_path <- path(repository_folder, "manuscript", "config", "eml_overrides.csv")
 
 field_map <- read_yaml(field_map_path)
 custom_overrides <- read_csv(custom_overrides_path,
