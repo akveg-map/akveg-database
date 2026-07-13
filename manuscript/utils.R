@@ -77,22 +77,23 @@ map_to_schema_fields <- function(unmatched_fields_df,
 # ===========================================================================
 # EML CONSTRAINTS ----
 # ===========================================================================
-#' Create data table constraints for taxonomic fields
+#' Create data table constraints to link foreign keys with priamry keys
 #'
 #' @param constraint_name Name of constraint as it will appear in the EML file
 #' @param foreign_key_name Character string of field name that serves as a foreign key for this table
 #' @param primary_key_name Character strung of field name that serves as a primary key
 #' @returns List that can be included in an eml$dataTable call
 
-create_taxonomy_constraint <- function(constraint_name,
+create_key_constraint <- function(constraint_name,
                                        foreign_key_name,
-                                       primary_key_name) {
+                                       primary_key_name,
+                                  entity_name) {
   list(
     constraintName = constraint_name,
     foreignKey = list(
       key = foreign_key_name,
       referencedKey = list(
-        entityReference = "entity_taxonomy",
+        entityReference = entity_name,
         key = primary_key_name
       )
     )
