@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Processed new `database_version` table in data insert pipeline.
 - Appended `missing_value_code_id` foreign key and `missing_value_description` to `database_schema` table in data insert pipeline.
 - Renamed `required` field in `database_schema` to `is_required` to align with the names of other Boolean fields in this table.
+- Aligned queries in `user_tools/queries` to mirror the field names and structure of the original tables. Ensured new and renamed fields were included in the query files.
 
 ### Added
 - Created the `create_eml_xml` script to parse the database's `database_schema` and `database_dictionary` tables into a valid EML XML document. This document will be uploaded in a data repository alongside compiled data tables. 
@@ -27,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Created `database_version` table and associated `release_category` lookup table.
 - Added `missing_value_code_id` and `missing_value_description` to `database_schema` to explicitly track how missing values are handled by different fields. Created `missing_value_code` lookup table to enforce a standardized vocabulary for missing value codes. 
 - Added check constraint to the `database_schema` table to ensure that all entries with a `missing_value_code_id` have a corresponding entry in the `missing_value_description` field.
+
+### Fixed 
+
+- Encoded database password in `export_database_tables.py` to provide support for passwords that contain certain special characters.
 
 ## [2.9.2] - 2026-06-10 
 
