@@ -164,9 +164,11 @@ for table_name, table_df in compiled_dict.items():
         file_name = table_name + ".csv"
 
     # Create output path
-    file_path = output_folder / 'compiled' / file_name
+    target_dir = output_folder / 'compiled'
+    target_dir.mkdir(parents=True, exist_ok=True)  # Create folder if it doesn't exist
+    output_path = target_dir / file_name
     # Export as CSV
-    table_df.write_csv(file_path)
+    table_df.write_csv(output_path)
 
 # Close engine connection
 engine.dispose()
