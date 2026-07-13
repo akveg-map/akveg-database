@@ -57,7 +57,7 @@ project:
   manager:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of the primary person responsible for leading the project or managing the project data."
+    definition: "Full name of the primary person responsible for leading the project or managing the project data, formatted as First Name Last Name."
   project_status:
     db_table: "completion"
     db_field: "completion"
@@ -78,19 +78,19 @@ site_visit:
   veg_observer:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of vegetation observer."
+    definition: "Full name of the vegetation observer, formatted as First Name Last Name."
   veg_recorder:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of vegetation recorder."
+    definition: "Full name of the vegetation recorder, formatted as First Name Last Name."
   env_observer:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of environmental observer."
+    definition: "Full name of the environmental observer, formatted as First Name Last Name."
   soils_observer:
     db_table: "personnel"
     db_field: "personnel"
-    definition: "First and last name of soils observer."
+    definition: "Full name of the soils observer, formatted as First Name Last Name."
 vegetation_cover:
   name_adjudicated:
     db_table: "taxon_all"
