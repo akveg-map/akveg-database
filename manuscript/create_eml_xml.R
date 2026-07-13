@@ -34,9 +34,12 @@ authentication <- path(drive, root_folder, 'OneDrive - University of Alaska',
 schema_file = path(repository_folder, 'user_tools', 'queries', '00_database_schema.sql')
 dictionary_file = path(repository_folder, 'user_tools', 'queries', '00_database_dictionary.sql')
 
-# Define YAML mapping file
+# Define and read in config files
 field_map_path <- path(repository_folder, 'manuscript', 'map_compiled_fields.yaml')
+custom_overrides_path <- path(repository_folder, 'manuscript', 'eml_overrides.csv')
+
 field_map <- read_yaml(field_map_path)
+custom_overrides <- read_csv(custom_overrides_path)
 
 # Source in functions ----
 source(path(repository_folder, 'manuscript', 'utils.R'))
@@ -136,6 +139,9 @@ schema_compiled <- schema_full  |>
 attribute_table <- schema_compiled |> 
   rename(attributeName = field,
          attributeDefinition = field_description) |> 
+  left_join(custom_overrides, by = join_by("attributeName")) |> 
+  # If specified, overwrite existing definitions with custom ones
+  mutate(attributeDefinition = coalesce(customDefinition, attributeDefinition)) |> 
   # Populate EML domain based on data type and attribute name
   # Handle exceptions before applying general rules
   mutate(domain = case_when(attributeName %in% c('year_start', 
@@ -168,14 +174,6 @@ attribute_table <- schema_compiled |>
                                       .default = NA
                                       )
          ) |> 
-  # Write custom definitions for certain foreign key fields
-  mutate(attributeDefinition = case_when(attributeName == "site_visit_code" ~ "Unique alpha-numeric identifier assigned to the site or plot in the project with the addition of the visit date in yyyymmdd format.",
-                                         grepl("project_code", attributeName) ~ "Standardized unique identifier for each project, formatted as: OriginatorAbbreviation_ProjectScopeOrLocation_LastYearOfDataCollection.",
-                                         attributeName == "site_code" ~ "Unique alpha-numeric identifier assigned to the site or plot in the project.",
-                                         grepl("hue_code", attributeName) ~ "Standard Munsell code that indicates the relation of soil color to red (R), yellow (Y), green (G), blue (B), and purple (P), or neutral (N).",
-                                         grepl("horizon_suffix_\\d_code", attributeName) ~ "Standardized alphanumeric suffix code as used by NRCS to denote subordinate distinctions or special features within a soil horizon layer.",
-                                         grepl("horizon_[a-z]+_code", attributeName) ~ "Standardized alpha code used by the NRCS to denote master soil horizon designations.",
-                                         .default = attributeDefinition)) |> 
   # Nominal Fields: Populate definition
   mutate(definition = case_when(measurementScale == 'nominal' ~ attributeDefinition,
                                 .default = NA)) |> 
@@ -209,7 +207,7 @@ attribute_table <- schema_compiled |>
          unit, numberType, definition, formatString, schema_table, 
          )
 
-# Quality checks
+# Quality checks ----
 
 ## Ensure required fields have no nulls
 print(attribute_table %>% 
