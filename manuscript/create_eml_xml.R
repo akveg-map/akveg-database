@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create EML XML file for data archive
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-10
+# Last Updated: 2026-07-12
 # Usage: Script should be executed in R 4.6.0+.
 # Description: "Create EML XML file for data archive" parses AKVEG's database schema and dictionary into an EML XML metadata file.
 # ---------------------------------------------------------------------------
@@ -27,8 +27,8 @@ compiled_folder = path(drive, root_folder, 'Projects', 'AKVEG_Database',
 # Define SQL authentication file
 authentication <- path(drive, root_folder, 'OneDrive - University of Alaska', 
                        'ACCS_Teams', 'Vegetation', 'AKVEG_Database', "Credentials",
-                       "akveg_public_read",
-                       "authentication_akveg_public_read.csv")
+                       "akveg_private_build",
+                       "authentication_akveg_private_build.csv")
 
 # Define SQL queries
 schema_file = path(repository_folder, 'user_tools', 'queries', '00_database_schema.sql')
