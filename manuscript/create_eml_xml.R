@@ -2,8 +2,8 @@
 # ---------------------------------------------------------------------------
 # Create EML XML file for data archive
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-12
-# Usage: Script should be executed in R 4.6.0+.
+# Last Updated: 2026-07-13
+# Usage: Script should be executed in R 4.6.1+.
 # Description: "Create EML XML file for data archive" parses AKVEG's database schema and dictionary into an EML XML metadata file.
 # ---------------------------------------------------------------------------
 
@@ -11,6 +11,7 @@
 library(dplyr, warn.conflicts = FALSE)
 library(EML)
 library(fs)
+library(lubridate)
 library(purrr)
 library(RPostgres)
 library(readr)
@@ -510,6 +511,23 @@ geo_box_east <- eml$geographicCoverage(
 
 # Combine both bounding boxes to create overall geographic coverage
 geographic_coverage <- list(bbox_west, bbox_east)
+
+# Define temporal coverage ----
+
+# Get min/max dates from compiled table
+site_visit_dates = read_csv(path(compiled_folder, "site_visit.csv"),
+                      col_select = "observe_date",
+                      col_types = "D") |>  # Set to Date
+  summarize(min_date = min(observe_date),
+            max_date = max(observe_date)) |> 
+  mutate(across(where(is.Date), as.character))
+
+temporal_coverage <- eml$temporalCoverage(
+  rangeOfDates = eml$rangeOfDates(
+    beginDate = eml$beginDate(calendarDate = site_visit_dates$min_date),
+    endDate = eml$endDate(calendarDate = site_visit_dates$max_date)
+  )
+)
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
