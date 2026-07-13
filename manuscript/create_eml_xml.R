@@ -14,6 +14,7 @@ library(fs)
 library(purrr)
 library(RPostgres)
 library(readr)
+library(stringr)
 library(tibble)
 library(yaml)
 
@@ -21,8 +22,6 @@ library(yaml)
 drive = 'C:'
 root_folder = 'ACCS_Work'
 repository_folder = path(drive, root_folder, 'Repositories', 'akveg-database')
-compiled_folder = path(drive, root_folder, 'Projects', 'AKVEG_Database', 
-                       'Data_Deposit', 'v2_10_0', 'compiled')
 
 # Define SQL authentication file
 authentication <- path(drive, root_folder, 'OneDrive - University of Alaska', 
@@ -38,6 +37,9 @@ dictionary_file = path(repository_folder, 'user_tools', 'queries', '00_database_
 field_map_path <- path(repository_folder, 'manuscript', 'map_compiled_fields.yaml')
 field_map <- read_yaml(field_map_path)
 
+# Source in functions ----
+source(path(repository_folder, 'manuscript', 'utils.R'))
+
 # Connect to the AKVEG Database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
 database_connection <- connect_database_postgresql(authentication)
@@ -49,6 +51,32 @@ dictionary_query = read_file(dictionary_file)
 
 schema_db = as_tibble(dbGetQuery(database_connection, schema_query))
 dictionary_db = as_tibble(dbGetQuery(database_connection, dictionary_query))
+
+# Dynamically set compiled folder path ----
+## Use latest database version as it appears in the `database_version` table of the database
+
+version_query = "
+SELECT major_version, minor_version, patch_version
+FROM database_version
+WHERE version_id = (
+    SELECT
+      MAX (version_id)
+    FROM
+      database_version
+);
+"
+latest_version = as_tibble(dbGetQuery(database_connection, version_query))
+
+## Parse version number into string
+major_version_string = str_c("v", latest_version$major_version, sep="")
+full_version_string = str_c(major_version_string, 
+                     latest_version$minor_version, 
+                     latest_version$patch_version, 
+                     sep="_")
+
+## Define folder path using version string
+compiled_folder = path(drive, root_folder, 'Projects', 'AKVEG_Database', 
+                       'Data_Deposit', full_version_string, 'compiled')
 
 # Identify columns in compiled tables ----
 
