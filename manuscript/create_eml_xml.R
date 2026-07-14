@@ -549,7 +549,6 @@ for (i in 1:length(compiled_fields_list)) {
 
   # Append to all tables list
   all_data_tables[[i]] <- current_data_table
-  names(all_data_tables)[[i]] <- current_table
 }
 
 # Define taxonomic coverage ----
