@@ -93,16 +93,18 @@ full_version_string <- str_c(major_version_string,
 ## Define folder path using version string
 compiled_folder <- path(
   drive, root_folder, "Projects", "AKVEG_Database",
-  "Data_Deposit", full_version_string, "compiled"
+  "Data_Deposit", full_version_string, "data_package"
 )
 
-rm(latest_version, major_version_string, full_version_string)
+## Remove intermediate products
+rm(latest_version, major_version_string)
 
 # Resolve fields with no match in schema ----
 # Some fields in the compiled tables do not exist in the database schema table because they were renamed or brought in from lookup tables during the compilation step
 
 # Get file paths and file stems of compiled tables
-table_paths <- dir_ls(compiled_folder)
+table_paths <- dir_ls(compiled_folder, 
+                      glob="*.csv")
 table_stems <- path_file(table_paths) |>
   path_ext_remove()
 
@@ -120,6 +122,31 @@ for (i in 1:length(table_paths)) {
     compiled_table = stem,
     field = cols
   )
+  
+  # Append table name to list
+  names(compiled_fields_list)[[i]] <- stem
+}
+
+# Add schema and dictionary fields if not already in data package
+documentation_tables <- list(
+  database_schema = colnames(schema_full),
+  database_dictionary = colnames(dictionary_full)
+)
+
+
+for (table_name in names(documentation_tables)) {
+  
+  if (!table_name %in% names(compiled_fields_list)) {
+  cols <- documentation_tables[[table_name]]
+  new_index <- length(compiled_fields_list) + 1
+  compiled_fields_list[[new_index]] <- tibble(
+    compiled_table = table_name,
+    field = cols
+  )
+  
+  # Append table name to list
+  names(compiled_fields_list)[[new_index]] <- table_name
+  }
 }
 
 # Flatten into single data frame
@@ -301,7 +328,7 @@ dictionary_mapping <- list(
 )
 
 # Resolve missing dictionary entries using mapping
-factors_table <- dictionary_full |>
+dictionary_compiled <- dictionary_full |>
   # Create duplicate_count field based on number of values associated with each key
   mutate(
     duplicate_count = case_when(
@@ -333,11 +360,14 @@ factors_table <- dictionary_full |>
   semi_join(attribute_table |> filter(domain == "enumeratedDomain"),
     by = join_by(field == attributeName)
   ) |>
-  arrange(field) |>
+  arrange(field) 
+
+# Rename columns to match EML schema
+factors_table = dictionary_compiled |>
   rename(
     attributeName = field,
     code = data_attribute
-  ) # Rename columns to match EML schema
+  )
 
 # Verify if any fields in the compiled table don't have a match in the dictionary
 print(attribute_table |>
@@ -364,6 +394,15 @@ missing_values <- schema_compiled |>
     code = missing_value_code,
     definition = missing_value_description
   )
+
+# Export compiled documentation tables as CSVs ----
+## Will be included in data package
+write_csv(schema_compiled, 
+          file = path(compiled_folder, "database_schema.csv"), 
+          na = "")
+write_csv(dictionary_compiled, 
+          file = path(compiled_folder, "database_dictionary.csv"),
+          na = "")
 
 # Create EML data tables ----
 all_data_tables <- list() # Initialize empty list for storing results
