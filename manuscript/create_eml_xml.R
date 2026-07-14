@@ -699,6 +699,75 @@ print(keyword_sets)
 rm(geographic_coverage, temporal_coverage, taxonomic_coverage, taxonomic_classification_list, 
    bbox_west, bbox_east, site_visit_dates)
 
+# Parse EML abstract ----
+
+# Parse Markdown metadata files
+abstract_eml <- set_TextType(abstract_path)
+
+# Clean abstract formatting
+abstract_eml$para <- map(abstract_eml$para, function(p) {
+  para_clean <- str_replace_all(p, "\\n", " ")
+  para_clean <- str_squish(para_clean) # Strip extra whitespaces
+  return(para_clean)
+})
+
+# Parse EML methods ----
+## set_methods() does not parse Markdown file as expected
+## Need to add samplingCitation and software
+
+# Compile final EML file
+akveg_metadata <- eml$dataset(
+  title = "Alaska Vegetation (AKVEG) Database (Version 2.11.0): Harmonized plot-level vegetation observations for Alaska and adjacent Canada, 1975–2025",
+  pubDate = "2026",
+  creator = emld::as_emld(list(
+    individualName = list(givenName = "Amanda",
+                          surName = "Droghini"), 
+    organizationName = "University of Alaska Anchorage"
+  )),
+  contact = list(
+    individualName = list(givenName = "Amanda",
+                          surName = "Droghini"),
+    organizationName = "University of Alaska Anchorage",
+    electronicMailAddress = "adroghini@alaska.edu"
+  ),
+  abstract = abstract_eml,
+  keywordSet = keyword_sets,
+  coverage = global_coverage,
+  methods = "",
+  
+  # Define license
+  intellectualRights = "This data package is released to the public domain under the Creative Commons CC0 1.0 Universal public domain dedication (https://creativecommons.org/publicdomain/zero/1.0/). It may be freely copied, modified, distributed, or used for any purpose without explicit permission.",
+  
+  # Define maintenance block
+  maintenance = list(
+    description = "The AKVEG Database is actively maintained. Users who wish to access the live database can consult the project website at https://akveg.org.",
+    maintenanceUpdateFrequency = "asNeeded"
+  ),
+  
+  # Add project website URL
+  distribution = list(
+    online = list(
+      url = list("https://akveg.org", `function` = "information")
+    )
+  ),
+  dataTable = all_data_tables 
+)
+
+# Compile EML document structure
+eml_doc <- eml$eml(
+  packageId = "urn:uuid:9b07dc26-594c-4bbe-aef5-3f766d5e8edd",
+  system = "knb",
+  dataset = akveg_metadata
+)
+
+# Validate EML file
+validation_result <- eml_validate(eml_doc)
+
+print(validation_result)
+
+# Write EML XML to disk
+write_eml(eml_doc, "compiled_folder/akveg_metadata.xml")
+
 # Clean up workspace ----
 dbDisconnect(database_connection)
 rm(list = ls())
