@@ -558,7 +558,7 @@ taxonomic_classification_list <- list(
   list(
     taxonRankName = "Kingdom",
     taxonRankValue = "Plantae",
-    taxonClassification = list(
+    taxonomicClassification = list(
       list(taxonRankName = "Phylum", taxonRankValue = "Tracheophyta"),
       list(taxonRankName = "Phylum", taxonRankValue = "Bryophyta")
     )
@@ -567,7 +567,7 @@ taxonomic_classification_list <- list(
   list(
     taxonRankName = "Kingdom",
     taxonRankValue = "Fungi",
-    taxonClassification = list(
+    taxonomicClassification = list(
       list(taxonRankName = "Phylum", taxonRankValue = "Ascomycota"),
       list(taxonRankName = "Phylum", taxonRankValue = "Basidiomycota")  # e.g., Lichenomphalia
     )
@@ -595,25 +595,34 @@ checklist_creators = list(
 taxonomic_coverage <- eml$taxonomicCoverage(
   generalTaxonomicCoverage = "Taxonomic coverage includes vascular plants, bryophytes, and lichens, but varies by project and individual site visit. Among the 44,324 unique site visits in the AKVEG Database, 65% recorded exhaustive, species-level data of vascular plants. In contrast, bryophyte and lichen records are generally limited to dominant species (55% of site visits) or absent (29% of visits). Taxonomic coverage of individual site visits is documented in this data package's `site_visit` table with separate fields for vascular plants, bryophytes, and lichens.",
   taxonomicSystem = list(
-    classificationSystem = "Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska",
+    classificationSystem = list(
       classificationSystemCitation = list(
-        title = "Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska",
-        creator = checklist_creators,
-        pubDate = "2024",
-        
-        distribution = list(
-          online = list(
-            onlineDescription = "Online interface for browsing the taxonomic checklist; the version in this data package contains minor updates and was the version used to standardize taxonomy across datasets.",
-            url = list(
+          title = "Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska",
+          creator = checklist_creators,
+          pubDate = "2024",
+          distribution = list(
+            online = list(
+              onlineDescription = "Online interface for browsing the taxonomic checklist; the version in this data package contains minor updates and was the version used to standardize taxonomy across datasets.",
+              url = list(
               "https://akveg.org/taxonomic-standard/", 
-              `function` = "information"
+                `function` = "information"
       )
     )
     ),
+    generic = list(
+      publisher = list(
+        organizationName = "Alaska Vegetation (AKVEG) Database"
+      ),
+      referenceType = "dataset"
+    )
+    )
+),
+identifierName = list(organizationName = "AKVEG Database Contributing Botanists and Vegetation Ecologists"),
+
+taxonomicProcedures = "Taxonomic names recorded in the field were standardized programmatically by matching exact names against the Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska, followed by manual review of all unresolved records."
+  ),
   taxonomicClassification = taxonomic_classification_list
   )
-  )
-)
 
 # Define geographic coverage ----
 ## Create two separate bounding boxes to handle the international date line
@@ -694,10 +703,6 @@ keyword_sets <- map(1:nrow(grouped_keywords), function(i) {
 
 ## Verify that keywords were correctly parsed
 print(keyword_sets)
-
-# Delete intermediate products
-rm(geographic_coverage, temporal_coverage, taxonomic_coverage, taxonomic_classification_list, 
-   bbox_west, bbox_east, site_visit_dates)
 
 # Parse EML abstract ----
 
