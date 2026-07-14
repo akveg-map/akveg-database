@@ -767,7 +767,10 @@ validation_result <- eml_validate(eml_doc)
 print(validation_result)
 
 # Write EML XML to disk
-write_eml(eml_doc, path(compiled_folder/akveg_metadata.xml))
+xml_folder <- path(
+  drive, root_folder, "Projects", "AKVEG_Database",
+  "Data_Deposit", full_version_string)
+write_eml(eml_doc, path(xml_folder, "akveg_metadata.xml"))
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
