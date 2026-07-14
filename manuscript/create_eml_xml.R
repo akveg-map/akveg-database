@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create EML XML file for data archive
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-13
+# Last Updated: 2026-07-14
 # Usage: Script should be executed in R 4.6.1+.
 # Description: "Create EML XML file for data archive" parses AKVEG's database schema and dictionary into an EML XML metadata file.
 # ---------------------------------------------------------------------------
@@ -24,6 +24,7 @@ library(yaml)
 drive <- "C:"
 root_folder <- "ACCS_Work"
 repository_folder <- path(drive, root_folder, "Repositories", "akveg-database")
+archive_folder <- path(drive, root_folder, "Projects", "AKVEG_Database", "Data_Deposit")
 
 # Define SQL authentication file
 authentication <- path(
@@ -70,132 +71,20 @@ keywords <- read_csv(keywords_path,
                      show_col_types = FALSE)
 
 ## Read queries
-schema_query <- read_file(schema_file)
 dictionary_query <- read_file(dictionary_file)
-
-schema_full <- as_tibble(dbGetQuery(database_connection, schema_query))
 dictionary_full <- as_tibble(dbGetQuery(database_connection, dictionary_query))
 
 # Dynamically set folder path ----
-## Use latest database version as it appears in the `database_version` table of the database
+## Using latest database version
+full_version_string <- get_latest_version(db_conn = database_connection)
+compiled_folder <- path(archive_folder, full_version_string, "data_package")
 
-version_query <- "
-SELECT major_version, minor_version, patch_version
-FROM database_version
-WHERE version_id = (
-    SELECT
-      MAX (version_id)
-    FROM
-      database_version
-);
-"
-latest_version <- as_tibble(dbGetQuery(database_connection, version_query))
+# Define compiled documentation files
+schema_compiled_path <- path(compiled_folder, "database_schema.csv")
 
-## Parse version number into string
-major_version_string <- str_c("v", latest_version$major_version, sep = "")
-full_version_string <- str_c(major_version_string,
-  latest_version$minor_version,
-  latest_version$patch_version,
-  sep = "_"
-)
-
-## Define folder path using version string
-compiled_folder <- path(
-  drive, root_folder, "Projects", "AKVEG_Database",
-  "Data_Deposit", full_version_string, "data_package"
-)
-
-## Remove intermediate products
-rm(latest_version, major_version_string)
-
-# Resolve fields with no match in schema ----
-# Some fields in the compiled tables do not exist in the database schema table because they were renamed or brought in from lookup tables during the compilation step
-
-# Get file paths and file stems of compiled tables
-table_paths <- dir_ls(compiled_folder, 
-                      glob="*.csv")
-table_stems <- path_file(table_paths) |>
-  path_ext_remove()
-
-# Loop across files and extract column names from each table
-compiled_fields_list <- list() # Initialize empty list
-
-for (i in 1:length(table_paths)) {
-  path <- table_paths[i]
-  stem <- table_stems[i]
-
-  # Get column names
-  cols <- colnames(read_csv(path, n_max = 0, show_col_types = FALSE))
-
-  compiled_fields_list[[i]] <- tibble(
-    compiled_table = stem,
-    field = cols
-  )
+# Read in compiled schema
+schema_compiled <- read_csv(schema_compiled_path, show_col_types = FALSE)
   
-  # Append table name to list
-  names(compiled_fields_list)[[i]] <- stem
-}
-
-# Add schema and dictionary fields if not already in data package
-documentation_tables <- list(
-  database_schema = colnames(schema_full),
-  database_dictionary = colnames(dictionary_full)
-)
-
-
-for (table_name in names(documentation_tables)) {
-  
-  if (!table_name %in% names(compiled_fields_list)) {
-  cols <- documentation_tables[[table_name]]
-  new_index <- length(compiled_fields_list) + 1
-  compiled_fields_list[[new_index]] <- tibble(
-    compiled_table = table_name,
-    field = cols
-  )
-  
-  # Append table name to list
-  names(compiled_fields_list)[[new_index]] <- table_name
-  }
-}
-
-# Flatten into single data frame
-compiled_fields_df <- bind_rows(compiled_fields_list)
-
-# Find unmatched fields
-## Fields in compiled tables that do not exist in the database schema
-unmatched_fields <- compiled_fields_df |>
-  anti_join(schema_full, by = join_by(
-    compiled_table == schema_table,
-    field == field
-  ))
-
-# Map unmatched fields to existing schema entries
-healed_fields <- map_to_schema_fields(
-  unmatched_fields,
-  schema_full,
-  field_map
-)
-
-## Ensure that all fields were matched
-print(anti_join(
-  unmatched_fields,
-  healed_fields,
-  join_by(
-    compiled_table == schema_table,
-    field == field
-  )
-))
-
-# Restrict database schema to only fields in compiled tables
-schema_compiled <- schema_full |>
-  semi_join(compiled_fields_df,
-    by = join_by(
-      schema_table == compiled_table,
-      field == field
-    )
-  ) |> # Restrict full schema to fields in compiled table with a direct match in the schema
-  bind_rows(healed_fields) # Add 'unmatched' fields
-
 # Create EML attributes list ----
 
 # Define fields requiring custom classification
@@ -406,9 +295,6 @@ missing_values <- schema_compiled |>
 
 # Export compiled documentation tables as CSVs ----
 ## Will be included in data package
-write_csv(schema_compiled, 
-          file = path(compiled_folder, "database_schema.csv"), 
-          na = "")
 write_csv(dictionary_compiled, 
           file = path(compiled_folder, "database_dictionary.csv"),
           na = "")
