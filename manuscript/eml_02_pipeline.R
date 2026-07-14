@@ -76,8 +76,9 @@ dictionary_compiled <- read_csv(dictionary_compiled_path, show_col_types = FALSE
 text_domain_fields <- c(
   "originator", "funder", "manager", "h_datum_epsg",
   "plot_dimensions_m", "horizon_order", "citation_short",
-  "standards_section"
-)
+  "standards_section", "project_code", "site_code", "site_visit_code", 
+  "establishing_project_code"
+  )
 text_tables <- c("database_dictionary", "database_schema", "taxonomy")
 year_fields <- c("year_start", "year_end")
 
@@ -92,9 +93,8 @@ attribute_table <- schema_compiled |>
   # Populate EML domain based on data type and attribute name
   mutate(domain = case_when(attributeName %in% year_fields ~ "dateTimeDomain",
                             attributeName %in% text_domain_fields ~ "textDomain",
-                            attributeName %in% c("matrix_hue_code", "nonmatrix_hue_code") ~ "enumeratedDomain",
     data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
-    grepl(pattern = "_id|_code|_description|name|observer|recorder", attributeName) ~ "textDomain",
+    grepl(pattern = "_id|_description|name|observer|recorder", attributeName) ~ "textDomain",
     grepl(pattern = "_version", attributeName) ~ "numericDomain",
     # Re-classify unambiguous data types
     data_type == "date" ~ "dateTimeDomain",
