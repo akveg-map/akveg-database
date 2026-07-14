@@ -133,7 +133,7 @@ map_to_schema_fields <- function(unmatched_fields_df,
 #' @returns List that can be included in an eml$dataTable call
 
 create_key_constraint <- function(constraint_name,
-                                       foreign_key_name,
+                                  foreign_key_name,
                                   entity_name) {
   eml$constraint(
     foreignKey = list(
