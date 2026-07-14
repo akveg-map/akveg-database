@@ -32,4 +32,9 @@ Thumbs.db
 .Rhistory
 .Rdata
 .Rproj.user
+*.Rproj
 .Ruserdata
+
+# Config Files #
+#################
+paths.yaml
