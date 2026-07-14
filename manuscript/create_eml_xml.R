@@ -238,7 +238,7 @@ attribute_table <- schema_compiled |>
     .default = NA
   )) |>
   # Nominal Fields: Populate definition
-  mutate(definition = case_when(measurementScale == "nominal" ~ attributeDefinition,
+  mutate(definition = case_when(measurementScale %in% c("nominal", "ordinal") ~ attributeDefinition,
     .default = NA
   )) |>
   # dateTime Fields: Populate formatString
