@@ -147,3 +147,7 @@ schema_compiled <- schema_full |>
 write_csv(schema_compiled, 
           file = path(compiled_folder, "database_schema.csv"), 
           na = "")
+
+# Clean up workspace ----
+dbDisconnect(database_connection)
+rm(list = ls())
