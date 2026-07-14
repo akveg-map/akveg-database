@@ -81,21 +81,16 @@ map_to_schema_fields <- function(unmatched_fields_df,
 #'
 #' @param constraint_name Name of constraint as it will appear in the EML file
 #' @param foreign_key_name Character string of field name that serves as a foreign key for this table
-#' @param primary_key_name Character strung of field name that serves as a primary key
 #' @returns List that can be included in an eml$dataTable call
 
 create_key_constraint <- function(constraint_name,
                                        foreign_key_name,
-                                       primary_key_name,
                                   entity_name) {
-  list(
-    constraintName = constraint_name,
+  eml$constraint(
     foreignKey = list(
-      key = foreign_key_name,
-      referencedKey = list(
-        entityReference = entity_name,
-        key = primary_key_name
-      )
+      constraintName = constraint_name,
+      key = list(attributeReference = foreign_key_name),
+      entityReference = entity_name
     )
   )
 }
