@@ -96,10 +96,13 @@ dictionary_compiled <- dictionary_full |>
   select(-duplicate_id) |>
   # Bring in custom boolean dictionary
   bind_rows(boolean_dictionary) |> 
-  # Restrict dictionary to enumeratedDomain attributes
-  semi_join(attribute_table |> filter(domain == "enumeratedDomain"),
-            by = join_by(field == attributeName)
-  ) |>
+  # Drop fields that are being treated as textDomain
+  filter(!(field %in% c("personnel", "plot_dimensions_m",
+                        "schema_table",
+                        "release_category",
+                        "organization", 
+                        "organization_type",
+                        "crown_class"))) |>
   arrange(field) 
 
 # Export as CSV ----
