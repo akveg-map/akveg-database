@@ -92,6 +92,7 @@ attribute_table <- schema_compiled |>
   # Populate EML domain based on data type and attribute name
   mutate(domain = case_when(attributeName %in% year_fields ~ "dateTimeDomain",
                             attributeName %in% text_domain_fields ~ "textDomain",
+                            attributeName %in% c("matrix_hue_code", "nonmatrix_hue_code") ~ "enumeratedDomain",
     data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
     grepl(pattern = "_id|_code|_description|name|observer|recorder", attributeName) ~ "textDomain",
     grepl(pattern = "_version", attributeName) ~ "numericDomain",
