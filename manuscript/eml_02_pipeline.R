@@ -34,14 +34,8 @@ authentication <- path(
   "authentication_akveg_private_build.csv"
 )
 
-# Define SQL queries
-schema_file <- path(repository_folder, "user_tools", "queries", "00_database_schema.sql")
-dictionary_file <- path(repository_folder, "user_tools", "queries", "00_database_dictionary.sql")
-
 # Define config files
-field_map_path <- path(repository_folder, "manuscript", "config", "map_compiled_fields.yaml")
 custom_overrides_path <- path(repository_folder, "manuscript", "config", "eml_overrides.csv")
-boolean_dictionary_path <- path(repository_folder, "manuscript", "config", "dictionary_boolean.csv")
 
 # Define data package metadata files 
 abstract_path <- path(repository_folder, "manuscript", "deposit_metadata", "abstract.md")
@@ -57,22 +51,11 @@ dbExecute(database_connection, "SET search_path TO public;") ## Define default s
 
 ## Read functions and config files
 source(path(repository_folder, "manuscript", "utils.R"))
-field_map <- read_yaml(field_map_path)
 custom_overrides <- read_csv(custom_overrides_path,
-                             show_col_types = FALSE
-)
-boolean_dictionary <- read_csv(boolean_dictionary_path,
-                               col_types = cols(.default = "c"),  # Force boolean column to be read as character
-                             show_col_types = FALSE
-)
-
+                             show_col_types = FALSE)
 ## Read metadata files
 keywords <- read_csv(keywords_path,
                      show_col_types = FALSE)
-
-## Read queries
-dictionary_query <- read_file(dictionary_file)
-dictionary_full <- as_tibble(dbGetQuery(database_connection, dictionary_query))
 
 # Dynamically set folder path ----
 ## Using latest database version
@@ -81,10 +64,12 @@ compiled_folder <- path(archive_folder, full_version_string, "data_package")
 
 # Define compiled documentation files
 schema_compiled_path <- path(compiled_folder, "database_schema.csv")
+schema_compiled_path <- path(compiled_folder, "database_dictionary.csv")
 
-# Read in compiled schema
+# Read in compiled schema and dictionary
 schema_compiled <- read_csv(schema_compiled_path, show_col_types = FALSE)
-  
+dictionary_compiled <- read_csv(dictionary_compiled_path, show_col_types = FALSE)
+
 # Create EML attributes list ----
 
 # Define fields requiring custom classification
@@ -106,7 +91,7 @@ attribute_table <- schema_compiled |>
   mutate(attributeDefinition = coalesce(customDefinition, attributeDefinition)) |>
   # Populate EML domain based on data type and attribute name
   mutate(domain = case_when(attributeName %in% year_fields ~ "dateTimeDomain",
-    attributeName %in% text_domain_fields ~ "textDomain",
+                            attributeName %in% text_domain_fields ~ "textDomain",
     data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
     grepl(pattern = "_id|_code|_description|name|observer|recorder", attributeName) ~ "textDomain",
     grepl(pattern = "_version", attributeName) ~ "numericDomain",
@@ -212,54 +197,6 @@ attribute_table |>
 
 # Create EML factors list ----
 
-# Define a lookup list for fields that do not have a match in the database dictionary
-dictionary_mapping <- list(
-  "ground_element" = c("abiotic_element", "ground_element"),
-  "scope" = c("scope_vascular", "scope_bryophyte", "scope_lichen"),
-  "soil_hue" = c("matrix_hue_code", "nonmatrix_hue_code"),
-  "soil_horizon_suffix" = c(
-    "horizon_suffix_1_code", "horizon_suffix_2_code",
-    "horizon_suffix_3_code", "horizon_suffix_4_code"
-  ),
-  "soil_horizon_type" = c("horizon_primary_code", "horizon_secondary_code"),
-  "soil_texture" = c("dominant_texture_40_cm", "horizon_texture")
-)
-
-# Resolve missing dictionary entries using mapping
-dictionary_compiled <- dictionary_full |>
-  # Create duplicate_count field based on number of values associated with each key
-  mutate(
-    duplicate_count = case_when(
-      field %in% names(dictionary_mapping) ~ lengths(dictionary_mapping)[field],
-      .default = 1
-    )
-  ) |>
-  # Duplicate fields
-  uncount(duplicate_count, .id = "duplicate_id") |>
-  # Rename fields using names defined in dictionary map
-  mutate(
-    field = case_when(
-      field == "ground_element" ~ dictionary_mapping[["ground_element"]][duplicate_id],
-      field == "scope" ~ dictionary_mapping[["scope"]][duplicate_id],
-      field == "soil_hue" ~ dictionary_mapping[["soil_hue"]][duplicate_id],
-      field == "soil_horizon_suffix" ~ dictionary_mapping[["soil_horizon_suffix"]][duplicate_id],
-      field == "soil_horizon_type" ~ dictionary_mapping[["soil_horizon_type"]][duplicate_id],
-      field == "soil_texture" ~ dictionary_mapping[["soil_texture"]][duplicate_id],
-      field == "completion" ~ "project_status",
-      field == "soil_structure" ~ "horizon_structure",
-      field == "moisture" ~ "moisture_regime",
-      .default = field
-    )
-  ) |>
-  select(-duplicate_id) |>
-  # Bring in custom boolean dictionary
-  bind_rows(boolean_dictionary) |> 
-  # Restrict dictionary to enumeratedDomain attributes
-  semi_join(attribute_table |> filter(domain == "enumeratedDomain"),
-    by = join_by(field == attributeName)
-  ) |>
-  arrange(field) 
-
 # Rename columns to match EML schema
 factors_table = dictionary_compiled |>
   rename(
@@ -287,17 +224,10 @@ missing_values <- schema_compiled |>
   ) |>
   filter(!is.na(missing_value_code)) |>
   select(schema_table, field, missing_value_code, missing_value_description) |>
-  rename(
-    attributeName = field,
-    code = missing_value_code,
-    definition = missing_value_description
+  rename(attributeName = field,
+         code = missing_value_code,
+         definition = missing_value_description
   )
-
-# Export compiled documentation tables as CSVs ----
-## Will be included in data package
-write_csv(dictionary_compiled, 
-          file = path(compiled_folder, "database_dictionary.csv"),
-          na = "")
 
 # Create EML data tables ----
 all_data_tables <- list() # Initialize empty list for storing results
