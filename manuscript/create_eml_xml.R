@@ -473,20 +473,16 @@ for (i in 1:length(compiled_fields_list)) {
   existing_constraints <- intersect(names(constraints_mapping), current_fields)
   
   for (foreign_key in existing_constraints){
-    specific_mapping = constraints_mapping[[foreign_key]]
+    specific_mapping <- constraints_mapping[[foreign_key]]
     
-    constraint_name = str_c(current_table,
-                            foreign_key,
-                            "link", 
-                            sep="_")
+    constraint_name <- str_c(current_table, foreign_key, "link", sep = "_")
     
-    current_constraints[[length(current_constraints) + 1]] = create_key_constraint(
+    # Append constraints to list
+    current_constraints[[length(current_constraints) + 1]] <- create_key_constraint(
       constraint_name = constraint_name,
       foreign_key_name = foreign_key,
-      primary_key_name = specific_mapping$primary_key,
       entity_name = specific_mapping$entity
-      )
-  
+    )
   }
   
   ## Add primary key constraints
@@ -498,11 +494,12 @@ for (i in 1:length(compiled_fields_list)) {
   if (length(primary_key_fields) > 0) {
     pk_constraint_name <- str_c(current_table, "primary_key", sep = "_")
     
-    # Append to constraints list
-    current_constraints[[length(current_constraints) + 1]] <- list(
-      constraintName = pk_constraint_name,
+    current_constraints[[length(current_constraints) + 1]] <- eml$constraint(
       primaryKey = list(
-        key = primary_key_fields
+        constraintName = pk_constraint_name,
+        key = list(
+          attributeReference = primary_key_fields
+        )
       )
     )
   }
@@ -770,7 +767,7 @@ validation_result <- eml_validate(eml_doc)
 print(validation_result)
 
 # Write EML XML to disk
-write_eml(eml_doc, "compiled_folder/akveg_metadata.xml")
+write_eml(eml_doc, path(compiled_folder/akveg_metadata.xml))
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
