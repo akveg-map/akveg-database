@@ -9,6 +9,7 @@
 
 # Load required packages ----
 library(dplyr, warn.conflicts = FALSE)
+library(here)
 library(EML)
 library(fs)
 library(lubridate)
@@ -20,47 +21,41 @@ library(tibble)
 library(tidyr)
 library(yaml)
 
-# Define files and directories ----
-drive <- "C:"
-root_folder <- "ACCS_Work"
-repository_folder <- path(drive, root_folder, "Repositories", "akveg-database")
-archive_folder <- path(drive, root_folder, "Projects", "AKVEG_Database", "Data_Deposit")
+# Source utility scripts
+source(here::here("user_tools", "utils_init.R"))
+source(path("user_tools", "connect_database_postgresql.R"))
 
-# Define SQL authentication file
-authentication <- path(
-  drive, root_folder, "OneDrive - University of Alaska",
-  "ACCS_Teams", "Vegetation", "AKVEG_Database", "Credentials",
-  "akveg_private_build",
-  "authentication_akveg_private_build.csv"
-)
+# Define directories
+local_paths <- load_system_paths("manuscript/paths.yaml")
 
 # Define config files
-custom_overrides_path <- path(repository_folder, "manuscript", "config", "eml_overrides.csv")
+custom_overrides_path <- path("manuscript", "config", "eml_overrides.csv")
 
-# Define data package metadata files 
-abstract_path <- path(repository_folder, "manuscript", "deposit_metadata", "abstract.md")
-methods_path <- path(repository_folder, "manuscript", "deposit_metadata", "methods.md")
-keywords_path <- path(repository_folder, "manuscript", "deposit_metadata", "keywords.csv")
+# Define data package metadata files
+abstract_path <- path("manuscript", "deposit_metadata", "abstract.md")
+methods_path <- path("manuscript", "deposit_metadata", "methods.md")
+keywords_path <- path("manuscript", "deposit_metadata", "keywords.csv")
 
 # Connect to the AKVEG Database ----
-source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
-database_connection <- connect_database_postgresql(authentication)
+database_connection <- connect_database_postgresql(local_paths$credentials)
 dbExecute(database_connection, "SET search_path TO public;") ## Define default schema
 
 # Read in files ----
 
 ## Read functions and config files
-source(path(repository_folder, "manuscript", "utils.R"))
+source(path("manuscript", "utils.R"))
 custom_overrides <- read_csv(custom_overrides_path,
-                             show_col_types = FALSE)
+  show_col_types = FALSE
+)
 ## Read metadata files
 keywords <- read_csv(keywords_path,
-                     show_col_types = FALSE)
+  show_col_types = FALSE
+)
 
 # Dynamically set folder path ----
 ## Using latest database version
 full_version_string <- get_latest_version(db_conn = database_connection)
-compiled_folder <- path(archive_folder, full_version_string, "data_package")
+compiled_folder <- path(local_paths$archive_folder, full_version_string, "data_package")
 
 # Define compiled documentation files
 schema_compiled_path <- path(compiled_folder, "database_schema.csv")
@@ -76,9 +71,9 @@ dictionary_compiled <- read_csv(dictionary_compiled_path, show_col_types = FALSE
 text_domain_fields <- c(
   "originator", "funder", "manager", "h_datum_epsg",
   "plot_dimensions_m", "horizon_order", "citation_short",
-  "standards_section", "project_code", "site_code", "site_visit_code", 
+  "standards_section", "project_code", "site_code", "site_visit_code",
   "establishing_project_code"
-  )
+)
 text_tables <- c("database_dictionary", "database_schema", "taxonomy")
 year_fields <- c("year_start", "year_end")
 
@@ -92,8 +87,8 @@ attribute_table <- schema_compiled |>
   mutate(attributeDefinition = coalesce(customDefinition, attributeDefinition)) |>
   # Populate EML domain based on data type and attribute name
   mutate(domain = case_when(attributeName %in% year_fields ~ "dateTimeDomain",
-                            attributeName %in% c("schema_category", "missing_value_code", "data_type") ~ "enumeratedDomain",
-                            attributeName %in% text_domain_fields ~ "textDomain",
+    attributeName %in% c("schema_category", "missing_value_code", "data_type") ~ "enumeratedDomain",
+    attributeName %in% text_domain_fields ~ "textDomain",
     data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
     grepl(pattern = "_id|_description|name|observer|recorder", attributeName) ~ "textDomain",
     grepl(pattern = "_version", attributeName) ~ "numericDomain",
@@ -142,12 +137,15 @@ attribute_table <- schema_compiled |>
   ) |>
   # Add primary keys only for tables with fields that serve as foreign keys for other tables
   mutate(
-    primary_key_constraint = 
-      case_when(schema_table == 'database_schema' & attributeName %in% c('schema_table',
-                                                                         'field') ~ TRUE,
+    primary_key_constraint =
+      case_when(
+        schema_table == "database_schema" & attributeName %in% c(
+          "schema_table",
+          "field"
+        ) ~ TRUE,
         .default = is_primary_key
       )
-    ) |> 
+  ) |>
   # Select desired columns
   select(
     schema_table, attributeName, attributeDefinition, domain, measurementScale,
@@ -200,7 +198,7 @@ attribute_table |>
 # Create EML factors list ----
 
 # Rename columns to match EML schema
-factors_table = dictionary_compiled |>
+factors_table <- dictionary_compiled |>
   rename(
     attributeName = field,
     code = data_attribute
@@ -226,25 +224,34 @@ missing_values <- schema_compiled |>
   ) |>
   filter(!is.na(missing_value_code)) |>
   select(schema_table, field, missing_value_code, missing_value_description) |>
-  rename(attributeName = field,
-         code = missing_value_code,
-         definition = missing_value_description
+  rename(
+    attributeName = field,
+    code = missing_value_code,
+    definition = missing_value_description
   )
 
 # Create EML data tables ----
 all_data_tables <- list() # Initialize empty list for storing results
 
-attribute_table_columns <- c("attributeName", "attributeDefinition", "domain", 
-                             "measurementScale", "unit", "numberType", "definition", 
-                             "formatString")
+attribute_table_columns <- c(
+  "attributeName", "attributeDefinition", "domain",
+  "measurementScale", "unit", "numberType", "definition",
+  "formatString"
+)
 # Define primary key constraints
 constraints_mapping <- list(
-  name_adjudicated = list(primary_key = "taxon_name",     
-                          entity = "entity_taxonomy"),
-  name_accepted = list(primary_key = "taxon_accepted", 
-                       entity = "entity_taxonomy"),
-  field = list(primary_key = "field",
-               entity = "entity_database_schema")
+  name_adjudicated = list(
+    primary_key = "taxon_name",
+    entity = "entity_taxonomy"
+  ),
+  name_accepted = list(
+    primary_key = "taxon_accepted",
+    entity = "entity_taxonomy"
+  ),
+  field = list(
+    primary_key = "field",
+    entity = "entity_database_schema"
+  )
 )
 
 # Iterate over each compiled table
@@ -255,20 +262,20 @@ for (i in 1:length(compiled_fields_list)) {
 
   # Get attribute table
   current_schema <- attribute_table |>
-    filter(schema_table == current_table) 
-  
+    filter(schema_table == current_table)
+
   current_attributes <- current_schema |>
     select(all_of(attribute_table_columns))
-  
+
   # Get factors table
-  current_factors <- factors_table |> 
+  current_factors <- factors_table |>
     filter(attributeName %in% current_fields)
-  
+
   # Get missing values table
   current_missing <- missing_values |>
     filter(schema_table == current_table) |>
     select(-schema_table)
-  
+
   # Create attributeList
   if (nrow(current_missing) == 0) {
     attributeList <- set_attributes(
@@ -279,22 +286,22 @@ for (i in 1:length(compiled_fields_list)) {
     attributeList <- set_attributes(
       attributes = current_attributes,
       factors = current_factors,
-      missingValues = current_missing  # Add missing values if they exist
+      missingValues = current_missing # Add missing values if they exist
     )
   }
 
   # Define constraints
   current_constraints <- list()
-  
+
   ## Add constraints for foreign key/primary key relationships
-  
+
   existing_constraints <- intersect(names(constraints_mapping), current_fields)
-  
-  for (foreign_key in existing_constraints){
+
+  for (foreign_key in existing_constraints) {
     specific_mapping <- constraints_mapping[[foreign_key]]
-    
+
     constraint_name <- str_c(current_table, foreign_key, "link", sep = "_")
-    
+
     # Append constraints to list
     current_constraints[[length(current_constraints) + 1]] <- create_key_constraint(
       constraint_name = constraint_name,
@@ -302,16 +309,16 @@ for (i in 1:length(compiled_fields_list)) {
       entity_name = specific_mapping$entity
     )
   }
-  
+
   ## Add primary key constraints
-  primary_key_fields <- current_schema |> 
-    filter(primary_key_constraint == TRUE) |> 
-    arrange(match(attributeName, current_fields)) |>  # Ensure primary keys are listed in the order that they appear in the physical file
+  primary_key_fields <- current_schema |>
+    filter(primary_key_constraint == TRUE) |>
+    arrange(match(attributeName, current_fields)) |> # Ensure primary keys are listed in the order that they appear in the physical file
     pull(attributeName)
-  
+
   if (length(primary_key_fields) > 0) {
     pk_constraint_name <- str_c(current_table, "primary_key", sep = "_")
-    
+
     current_constraints[[length(current_constraints) + 1]] <- eml$constraint(
       primaryKey = list(
         constraintName = pk_constraint_name,
@@ -321,7 +328,7 @@ for (i in 1:length(compiled_fields_list)) {
       )
     )
   }
-  
+
   # Define file name and format
   current_physical <- set_physical(current_filename,
     encoding = "UTF-8"
@@ -383,13 +390,13 @@ taxonomic_classification_list <- list(
     taxonRankValue = "Fungi",
     taxonomicClassification = list(
       list(taxonRankName = "Phylum", taxonRankValue = "Ascomycota"),
-      list(taxonRankName = "Phylum", taxonRankValue = "Basidiomycota")  # e.g., Lichenomphalia
+      list(taxonRankName = "Phylum", taxonRankValue = "Basidiomycota") # e.g., Lichenomphalia
     )
   )
 )
 
 # Define checklist authors
-checklist_creators = list(
+checklist_creators <- list(
   list(individualName = list(givenName = "Timm", surName = "Nawrocki")),
   list(individualName = list(givenName = "Caroline", surName = "Parker")),
   list(individualName = list(givenName = "James", surName = "Walton")),
@@ -398,10 +405,10 @@ checklist_creators = list(
   list(individualName = list(givenName = "Matthew", surName = "Carlson")),
   list(individualName = list(givenName = "John", surName = "DeLapp")),
   list(individualName = list(givenName = "Justin", surName = "Fulkerson")),
-  list(individualName = list(givenName = "Martin", surName = "Hutten")), 
-  list(individualName = list(givenName = "Brian", surName = "Heitz")), 
-  list(individualName = list(givenName = "Stefanie", surName = "Ickert-Bond")), 
-  list(individualName = list(givenName = "Mary", surName = "Stensvold")), 
+  list(individualName = list(givenName = "Martin", surName = "Hutten")),
+  list(individualName = list(givenName = "Brian", surName = "Heitz")),
+  list(individualName = list(givenName = "Stefanie", surName = "Ickert-Bond")),
+  list(individualName = list(givenName = "Mary", surName = "Stensvold")),
   list(individualName = list(givenName = "Campbell", surName = "Webb"))
 )
 
@@ -411,32 +418,31 @@ taxonomic_coverage <- eml$taxonomicCoverage(
   taxonomicSystem = list(
     classificationSystem = list(
       classificationSystemCitation = list(
-          title = "Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska",
-          creator = checklist_creators,
-          pubDate = "2024",
-          distribution = list(
-            online = list(
-              onlineDescription = "Online interface for browsing the taxonomic checklist; the version in this data package contains minor updates and was the version used to standardize taxonomy across datasets.",
-              url = list(
-              "https://akveg.org/taxonomic-standard/", 
-                `function` = "information"
+        title = "Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska",
+        creator = checklist_creators,
+        pubDate = "2024",
+        distribution = list(
+          online = list(
+            onlineDescription = "Online interface for browsing the taxonomic checklist; the version in this data package contains minor updates and was the version used to standardize taxonomy across datasets.",
+            url = list(
+              "https://akveg.org/taxonomic-standard/",
+              `function` = "information"
+            )
+          )
+        ),
+        generic = list(
+          publisher = list(
+            organizationName = "Alaska Vegetation (AKVEG) Database"
+          ),
+          referenceType = "dataset"
+        )
       )
-    )
     ),
-    generic = list(
-      publisher = list(
-        organizationName = "Alaska Vegetation (AKVEG) Database"
-      ),
-      referenceType = "dataset"
-    )
-    )
-),
-identifierName = list(organizationName = "AKVEG Database Contributing Botanists and Vegetation Ecologists"),
-
-taxonomicProcedures = "Taxonomic names recorded in the field were standardized programmatically by matching exact names against the Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska, followed by manual review of all unresolved records."
+    identifierName = list(organizationName = "AKVEG Database Contributing Botanists and Vegetation Ecologists"),
+    taxonomicProcedures = "Taxonomic names recorded in the field were standardized programmatically by matching exact names against the Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska, followed by manual review of all unresolved records."
   ),
   taxonomicClassification = taxonomic_classification_list
-  )
+)
 
 # Define geographic coverage ----
 ## Create two separate bounding boxes to handle the international date line
@@ -469,11 +475,14 @@ geographic_coverage <- list(bbox_west, bbox_east)
 # Define temporal coverage ----
 
 # Get min/max dates from compiled table
-site_visit_dates = read_csv(path(compiled_folder, "site_visit.csv"),
-                      col_select = "observe_date",
-                      col_types = "D") |>  # Set to Date
-  summarize(min_date = min(observe_date),
-            max_date = max(observe_date)) |> 
+site_visit_dates <- read_csv(path(compiled_folder, "site_visit.csv"),
+  col_select = "observe_date",
+  col_types = "D"
+) |> # Set to Date
+  summarize(
+    min_date = min(observe_date),
+    max_date = max(observe_date)
+  ) |>
   mutate(across(where(is.Date), as.character))
 
 temporal_coverage <- eml$temporalCoverage(
@@ -493,15 +502,15 @@ global_coverage <- eml$coverage(
 # Create EML keywords set ----
 
 ## Group by thesaurus
-grouped_keywords <- keywords %>% 
-  group_by(Thesaurus) %>% 
-  summarize(keywords_list = list(Keyword), .groups = 'drop')
+grouped_keywords <- keywords %>%
+  group_by(Thesaurus) %>%
+  summarize(keywords_list = list(Keyword), .groups = "drop")
 
 # Construct EML keywordSet for each thesaurus group
 keyword_sets <- map(1:nrow(grouped_keywords), function(i) {
   thesaurus <- grouped_keywords$Thesaurus[i]
   words <- grouped_keywords$keywords_list[[i]]
-  
+
   # Leave thesaurus undefined for local vocabularies
   if (thesaurus == "None") {
     eml$keywordSet(
@@ -539,13 +548,17 @@ akveg_metadata <- eml$dataset(
   title = "Alaska Vegetation (AKVEG) Database (Version 2.11.0): Harmonized plot-level vegetation observations for Alaska and adjacent Canada, 1975–2025",
   pubDate = "2026",
   creator = emld::as_emld(list(
-    individualName = list(givenName = "Amanda",
-                          surName = "Droghini"), 
+    individualName = list(
+      givenName = "Amanda",
+      surName = "Droghini"
+    ),
     organizationName = "University of Alaska Anchorage"
   )),
   contact = list(
-    individualName = list(givenName = "Amanda",
-                          surName = "Droghini"),
+    individualName = list(
+      givenName = "Amanda",
+      surName = "Droghini"
+    ),
     organizationName = "University of Alaska Anchorage",
     electronicMailAddress = "adroghini@alaska.edu"
   ),
@@ -553,23 +566,23 @@ akveg_metadata <- eml$dataset(
   keywordSet = keyword_sets,
   coverage = global_coverage,
   methods = "",
-  
+
   # Define license
   intellectualRights = "This data package is released to the public domain under the Creative Commons CC0 1.0 Universal public domain dedication (https://creativecommons.org/publicdomain/zero/1.0/). It may be freely copied, modified, distributed, or used for any purpose without explicit permission.",
-  
+
   # Define maintenance block
   maintenance = list(
     description = "The AKVEG Database is actively maintained. Users who wish to access the live database can consult the project website at https://akveg.org.",
     maintenanceUpdateFrequency = "asNeeded"
   ),
-  
+
   # Add project website URL
   distribution = list(
     online = list(
       url = list("https://akveg.org", `function` = "information")
     )
   ),
-  dataTable = all_data_tables 
+  dataTable = all_data_tables
 )
 
 # Compile EML document structure
@@ -587,7 +600,8 @@ print(validation_result)
 # Write EML XML to disk
 xml_folder <- path(
   drive, root_folder, "Projects", "AKVEG_Database",
-  "Data_Deposit", full_version_string)
+  "Data_Deposit", full_version_string
+)
 write_eml(eml_doc, path(xml_folder, "akveg_metadata.xml"))
 
 # Clean up workspace ----
