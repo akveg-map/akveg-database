@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Export database tables
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-12
+# Last Updated: 2026-07-13
 # Usage: Execute in Python 3.13+.
 # Description: "Export database tables" verifies completeness of the database schema metadata and assigns a folder
 # name to each table in the AKVEG Database, before exporting all tables in the AKVEG Database to CSVs in their
@@ -113,6 +113,7 @@ SELECT database_schema.*, schema_table.schema_table, data_type.data_type
 FROM database_schema
 LEFT JOIN schema_table on schema_table.schema_table_id = database_schema.schema_table_id
 LEFT JOIN data_type on data_type.data_type_id = database_schema.data_type_id
+
 """
 
 schema_df = pl.read_database(query=query_schema, connection=engine)
@@ -163,10 +164,20 @@ for table_name, table_df in compiled_dict.items():
     else:
         file_name = table_name + ".csv"
 
-    # Create output path
-    target_dir = output_folder / 'compiled'
-    target_dir.mkdir(parents=True, exist_ok=True)  # Create folder if it doesn't exist
-    output_path = target_dir / file_name
+    # Define output folders
+    target_dir = output_folder / 'data_package'
+    docs_dir = output_folder / 'full_documentation'
+
+    # Create output folders
+    for output_folder in (docs_dir, target_dir):
+        output_folder.mkdir(parents=True, exist_ok=True)
+
+    # Define output file paths
+    if table_name in ('database_dictionary', 'database_schema'):
+        output_path = docs_dir / file_name
+    else:
+        output_path = target_dir / file_name
+
     # Export as CSV
     table_df.write_csv(output_path)
 
