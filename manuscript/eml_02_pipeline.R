@@ -64,7 +64,7 @@ compiled_folder <- path(archive_folder, full_version_string, "data_package")
 
 # Define compiled documentation files
 schema_compiled_path <- path(compiled_folder, "database_schema.csv")
-schema_compiled_path <- path(compiled_folder, "database_dictionary.csv")
+dictionary_compiled_path <- path(compiled_folder, "database_dictionary.csv")
 
 # Read in compiled schema and dictionary
 schema_compiled <- read_csv(schema_compiled_path, show_col_types = FALSE)
