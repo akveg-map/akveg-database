@@ -41,7 +41,8 @@ def check_schema_fields(
     # Define required fields that can never be null
     required_fields = [
         col for col in schema_df.columns
-        if col not in ['field_length', 'link_table_id']
+        if col not in ['field_length', 'link_table_id',
+                       'missing_value_code_id', 'missing_value_description']
     ]
 
     for table_key, columns in schema_columns.items():
