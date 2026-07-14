@@ -42,6 +42,11 @@ field_map_path <- path(repository_folder, "manuscript", "config", "map_compiled_
 custom_overrides_path <- path(repository_folder, "manuscript", "config", "eml_overrides.csv")
 boolean_dictionary_path <- path(repository_folder, "manuscript", "config", "dictionary_boolean.csv")
 
+# Define data package metadata files 
+abstract_path <- path(repository_folder, "manuscript", "deposit_metadata", "abstract.md")
+methods_path <- path(repository_folder, "manuscript", "deposit_metadata", "methods.md")
+keywords_path <- path(repository_folder, "manuscript", "deposit_metadata", "keywords.csv")
+
 # Connect to the AKVEG Database ----
 source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
 database_connection <- connect_database_postgresql(authentication)
@@ -59,6 +64,10 @@ boolean_dictionary <- read_csv(boolean_dictionary_path,
                                col_types = cols(.default = "c"),  # Force boolean column to be read as character
                              show_col_types = FALSE
 )
+
+## Read metadata files
+keywords <- read_csv(keywords_path,
+                     show_col_types = FALSE)
 
 ## Read queries
 schema_query <- read_file(schema_file)
@@ -657,6 +666,34 @@ global_coverage <- eml$coverage(
   temporalCoverage = temporal_coverage,
   taxonomicCoverage = taxonomic_coverage
 )
+
+# Create EML keywords set ----
+
+## Group by thesaurus
+grouped_keywords <- keywords %>% 
+  group_by(Thesaurus) %>% 
+  summarize(keywords_list = list(Keyword), .groups = 'drop')
+
+# Construct EML keywordSet for each thesaurus group
+keyword_sets <- map(1:nrow(grouped_keywords), function(i) {
+  thesaurus <- grouped_keywords$Thesaurus[i]
+  words <- grouped_keywords$keywords_list[[i]]
+  
+  # Leave thesaurus undefined for local vocabularies
+  if (thesaurus == "None") {
+    eml$keywordSet(
+      keyword = words
+    )
+  } else {
+    eml$keywordSet(
+      keyword = words,
+      keywordThesaurus = thesaurus
+    )
+  }
+})
+
+## Verify that keywords were correctly parsed
+print(keyword_sets)
 
 # Delete intermediate products
 rm(geographic_coverage, temporal_coverage, taxonomic_coverage, taxonomic_classification_list, 
