@@ -42,11 +42,7 @@ schema_compiled_path <- path(compiled_folder, "database_schema.csv")
 dictionary_compiled_path <- path(compiled_folder, "database_dictionary.csv")
 
 # Define files
-
-## Config files
 custom_overrides_path <- path("manuscript", "config", "eml_overrides.csv")
-
-## Metadata files
 abstract_path <- path("manuscript", "deposit_metadata", "abstract.md")
 methods_path <- path("manuscript", "deposit_metadata", "methods.md")
 keywords_path <- path("manuscript", "deposit_metadata", "keywords.csv")
