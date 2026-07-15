@@ -103,3 +103,43 @@ create_key_constraint <- function(constraint_name,
     )
   )
 }
+
+# ===========================================================================
+# EML KEYWORDS ----
+# ===========================================================================
+
+#' Create EML keyword set from CSV
+#'
+#' @param keyword_path Path to a CSV file of keywords with columns: Keyword, Thesaurus
+#'
+#' @returns A list of EML `keywordSet` objects, where each element in the list represents a grouped set of keywords associated with a specific thesaurus. If no thesaurus is provided, the corresponding `keywordSet` will contain `<keyword>` tags and an empty`<keywordThesaurus>` tag, which will be dropped when writing to XML via `EML::write_eml()`. when If a thesaurus is provided, the `keywordSet` will have values in both tags.
+#'
+
+create_keyword_set <- function(keyword_path) {
+  # Read in keyword CSV
+  keywords <- readr::read_csv(keyword_path, show_col_types = FALSE)
+
+  # Group by thesaurus
+  grouped_keywords <- keywords %>%
+    dplyr::group_by(Thesaurus) %>%
+    dplyr::summarize(
+      keywords_list = list(Keyword),
+      .groups = "drop"
+    )
+
+  # Construct EML keywordSet for each thesaurus group
+
+  keyword_sets <- purrr::map(1:nrow(grouped_keywords), function(i) {
+    thesaurus <- grouped_keywords$Thesaurus[i]
+    words <- grouped_keywords$keywords_list[[i]]
+
+    if (thesaurus == "None") {
+      EML::eml$keywordSet(keyword = words) # Leave thesaurus undefined for local vocabularies
+    } else {
+      EML::eml$keywordSet(
+        keyword = words,
+        keywordThesaurus = thesaurus
+      )
+    }
+  })
+}
