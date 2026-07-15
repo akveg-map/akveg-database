@@ -337,7 +337,7 @@ for (i in 1:length(compiled_fields_list)) {
   }
 
   # Read in CSV to obtain row count
-  row_count <- as.character(nrow(read_csv(path(compiled_folder, current_filename),
+  row_count <- as.character(nrow(read_csv(path(compiled_folder, "data_package", current_filename),
     show_col_types = FALSE
   )))
 
@@ -458,7 +458,7 @@ geographic_coverage <- list(bbox_west, bbox_east)
 # Define temporal coverage ----
 
 # Get min/max dates from compiled table
-site_visit_dates <- read_csv(path(compiled_folder, "site_visit.csv"),
+site_visit_dates <- read_csv(path(compiled_folder, "data_package", "site_visit.csv"),
   col_select = "observe_date",
   col_types = "D"
 ) |> # Set to Date
@@ -557,11 +557,7 @@ validation_result <- eml_validate(eml_doc)
 print(validation_result)
 
 # Write EML XML to disk
-xml_folder <- path(
-  drive, root_folder, "Projects", "AKVEG_Database",
-  "Data_Deposit", full_version_string
-)
-write_eml(eml_doc, path(xml_folder, "akveg_metadata.xml"))
+write_eml(eml_doc, path(compiled_folder, "akveg_metadata.xml"))
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
