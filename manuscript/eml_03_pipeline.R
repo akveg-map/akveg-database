@@ -23,37 +23,17 @@ library(yaml)
 
 # Source utility scripts
 source(here::here("user_tools", "utils_init.R"))
-source(path("user_tools", "connect_database_postgresql.R"))
+source(path("user_tools", "utils_database.R"))
+source(path("manuscript", "utils.R"))
 
 # Define directories
 local_paths <- load_system_paths("paths.yaml")
-
-# Define config files
-custom_overrides_path <- path("manuscript", "config", "eml_overrides.csv")
-
-# Define data package metadata files
-abstract_path <- path("manuscript", "deposit_metadata", "abstract.md")
-methods_path <- path("manuscript", "deposit_metadata", "methods.md")
-keywords_path <- path("manuscript", "deposit_metadata", "keywords.csv")
 
 # Connect to the AKVEG Database ----
 database_connection <- connect_database_postgresql(local_paths$credentials)
 dbExecute(database_connection, "SET search_path TO public;") ## Define default schema
 
-# Read in files ----
-
-## Read functions and config files
-source(path("manuscript", "utils.R"))
-custom_overrides <- read_csv(custom_overrides_path,
-  show_col_types = FALSE
-)
-## Read metadata files
-keywords <- read_csv(keywords_path,
-  show_col_types = FALSE
-)
-
-# Dynamically set folder path ----
-## Using latest database version
+# Define archive folder path using latest database version
 full_version_string <- get_latest_version(db_conn = database_connection)
 compiled_folder <- path(local_paths$archive_folder, full_version_string, "data_package")
 
@@ -61,7 +41,19 @@ compiled_folder <- path(local_paths$archive_folder, full_version_string, "data_p
 schema_compiled_path <- path(compiled_folder, "database_schema.csv")
 dictionary_compiled_path <- path(compiled_folder, "database_dictionary.csv")
 
-# Read in compiled schema and dictionary
+# Define files
+
+## Config files
+custom_overrides_path <- path("manuscript", "config", "eml_overrides.csv")
+
+## Metadata files
+abstract_path <- path("manuscript", "deposit_metadata", "abstract.md")
+methods_path <- path("manuscript", "deposit_metadata", "methods.md")
+keywords_path <- path("manuscript", "deposit_metadata", "keywords.csv")
+
+# Read in files ----
+custom_overrides <- read_csv(custom_overrides_path, show_col_types = FALSE)
+keywords <- read_csv(keywords_path, show_col_types = FALSE)
 schema_compiled <- read_csv(schema_compiled_path, show_col_types = FALSE)
 dictionary_compiled <- read_csv(dictionary_compiled_path, show_col_types = FALSE)
 
