@@ -74,8 +74,6 @@ attribute_columns <- c(
 
 # Define fields requiring custom classification
 text_tables <- c("database_dictionary", "database_schema", "taxonomy")
-year_fields <- c("year_start", "year_end")
-
 
 attribute_table <- schema_compiled |>
   rename(
@@ -88,9 +86,8 @@ attribute_table <- schema_compiled |>
     domain = coalesce(
       customDomain,
       case_when(
-        attributeName %in% year_fields ~ "dateTimeDomain",
         data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
-        grepl(pattern = "_id|_description|name|observer|recorder", attributeName) ~ "textDomain",
+        grepl(pattern = "name|observer", attributeName) ~ "textDomain",
         data_type == "date" ~ "dateTimeDomain",
         data_type %in% c("text", "serial") ~ "textDomain",
         data_type %in% c("smallint", "decimal") ~ "numericDomain",
@@ -98,38 +95,41 @@ attribute_table <- schema_compiled |>
         .default = NA
       )
     ),
-    measurementScale = case_when(
-      attributeName == "horizon_order" ~ "ordinal",
-      grepl("_dd$", attributeName) ~ "interval", # For coordinate fields
-      domain == "dateTimeDomain" ~ "dateTime",
-      domain == "enumeratedDomain" ~ "nominal",
-      domain == "textDomain" ~ "nominal",
-      domain == "numericDomain" ~ "ratio",
-      .default = NA
+    measurementScale = coalesce(
+      customScale,
+      case_when(
+        domain == "dateTimeDomain" ~ "dateTime",
+        domain == "enumeratedDomain" ~ "nominal",
+        domain == "textDomain" ~ "nominal",
+        domain == "numericDomain" ~ "ratio",
+        .default = NA
+      )
     ),
     definition = case_when(
       measurementScale %in% c("nominal", "ordinal") ~ attributeDefinition,
       .default = NA
     ),
-    formatString = case_when(
-      data_type == "date" ~ "YYYY-mm-dd",
-      attributeName %in% year_fields ~ "YYYY",
-      .default = NA
+    formatString = coalesce(
+      customFormat,
+      case_when(
+        data_type == "date" ~ "YYYY-mm-dd",
+        .default = NA
+      )
     ),
     unit = coalesce(
       customUnit,
       case_when(
-        grepl(pattern = "_percent$|_chroma$|_value$|^number_", attributeName) ~ "dimensionless",
+        grepl(pattern = "_percent$|_value$", attributeName) ~ "dimensionless",
         grepl(pattern = "_cm$", attributeName) & domain == "numericDomain" ~ "centimeter",
         .default = NA
       )
     ),
-    numberType = case_when(
-      data_type == "decimal" ~ "real",
-      grepl(pattern = "_chroma", attributeName) ~ "real",
-      attributeName == "number_stems" ~ "natural",
-      attributeName == "disturbance_time_y" ~ "integer",
-      .default = NA
+    numberType = coalesce(
+      customNumType,
+      case_when(
+        data_type == "decimal" ~ "real",
+        .default = NA
+      )
     ),
     primary_key_constraint = case_when(
       schema_table == "database_schema" & attributeName %in% c("schema_table", "field") ~ TRUE,
