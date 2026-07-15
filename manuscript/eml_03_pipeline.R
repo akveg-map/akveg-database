@@ -26,7 +26,7 @@ source(here::here("user_tools", "utils_init.R"))
 source(path("user_tools", "connect_database_postgresql.R"))
 
 # Define directories
-local_paths <- load_system_paths("manuscript/paths.yaml")
+local_paths <- load_system_paths("paths.yaml")
 
 # Define config files
 custom_overrides_path <- path("manuscript", "config", "eml_overrides.csv")
