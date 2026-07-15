@@ -66,7 +66,7 @@ dictionary_compiled <- read_csv(dictionary_compiled_path, show_col_types = FALSE
 # Add primary keys only for tables with fields that serve as foreign keys for other tables
 
 # Define columns of final attribute table
-attribute_columns <- c(
+attribute_full_columns <- c(
   "schema_table", "attributeName", "attributeDefinition", "domain", "measurementScale",
   "unit", "numberType", "definition", "formatString", "schema_table", "primary_key_constraint",
   "data_type"
@@ -136,7 +136,7 @@ attribute_table <- schema_compiled |>
       .default = is_primary_key
     )
   ) |>
-  select(all_of(attribute_columns))
+  select(all_of(attribute_full_columns))
 
 ## Validate attribute list
 
@@ -219,7 +219,7 @@ missing_values <- schema_compiled |>
 # Create EML data tables ----
 all_data_tables <- list() # Initialize empty list for storing results
 
-attribute_table_columns <- c(
+attribute_final_columns <- c(
   "attributeName", "attributeDefinition", "domain",
   "measurementScale", "unit", "numberType", "definition",
   "formatString"
@@ -251,7 +251,7 @@ for (i in 1:length(compiled_fields_list)) {
     filter(schema_table == current_table)
 
   current_attributes <- current_schema |>
-    select(all_of(attribute_table_columns))
+    select(all_of(attribute_final_columns))
 
   # Get factors table
   current_factors <- factors_table |>
