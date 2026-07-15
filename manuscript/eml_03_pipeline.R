@@ -45,11 +45,10 @@ dictionary_compiled_path <- path(compiled_folder, "database_dictionary.csv")
 custom_overrides_path <- path("manuscript", "config", "eml_overrides.csv")
 abstract_path <- path("manuscript", "deposit_metadata", "abstract.md")
 methods_path <- path("manuscript", "deposit_metadata", "methods.md")
-keywords_path <- path("manuscript", "deposit_metadata", "keywords.csv")
+keywords_path <- path(here("manuscript", "deposit_metadata", "keywords.csv"))
 
 # Read in files ----
 custom_overrides <- read_csv(custom_overrides_path, show_col_types = FALSE)
-keywords <- read_csv(keywords_path, show_col_types = FALSE)
 schema_compiled <- read_csv(schema_compiled_path, show_col_types = FALSE)
 dictionary_compiled <- read_csv(dictionary_compiled_path, show_col_types = FALSE)
 
@@ -482,32 +481,8 @@ global_coverage <- eml$coverage(
 )
 
 # Create EML keywords set ----
-
-## Group by thesaurus
-grouped_keywords <- keywords %>%
-  group_by(Thesaurus) %>%
-  summarize(keywords_list = list(Keyword), .groups = "drop")
-
-# Construct EML keywordSet for each thesaurus group
-keyword_sets <- map(1:nrow(grouped_keywords), function(i) {
-  thesaurus <- grouped_keywords$Thesaurus[i]
-  words <- grouped_keywords$keywords_list[[i]]
-
-  # Leave thesaurus undefined for local vocabularies
-  if (thesaurus == "None") {
-    eml$keywordSet(
-      keyword = words
-    )
-  } else {
-    eml$keywordSet(
-      keyword = words,
-      keywordThesaurus = thesaurus
-    )
-  }
-})
-
-## Verify that keywords were correctly parsed
-print(keyword_sets)
+keyword_sets <- create_keyword_set(keywords_path)
+print(keyword_sets) ## Verify results
 
 # Parse EML abstract ----
 
