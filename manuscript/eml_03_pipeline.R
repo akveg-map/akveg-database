@@ -58,6 +58,19 @@ schema_compiled <- read_csv(schema_compiled_path, show_col_types = FALSE)
 dictionary_compiled <- read_csv(dictionary_compiled_path, show_col_types = FALSE)
 
 # Create EML attributes list ----
+# Assume all character fields are enumeratedDomain unless custom override exists
+# Populate measurementScale based on domain
+# Nominal and Ordinal: require definition
+# Date: Require FormatString
+# Numeric Fields: Populate unit and numberType
+# Add primary keys only for tables with fields that serve as foreign keys for other tables
+
+# Define columns of final attribute table
+attribute_columns <- c(
+  "schema_table", "attributeName", "attributeDefinition", "domain", "measurementScale",
+  "unit", "numberType", "definition", "formatString", "schema_table", "primary_key_constraint",
+  "data_type"
+)
 
 # Define fields requiring custom classification
 text_domain_fields <- c(
@@ -69,80 +82,68 @@ text_domain_fields <- c(
 text_tables <- c("database_dictionary", "database_schema", "taxonomy")
 year_fields <- c("year_start", "year_end")
 
+
 attribute_table <- schema_compiled |>
   rename(
     attributeName = field,
     attributeDefinition = field_description
   ) |>
   left_join(custom_overrides, by = join_by("attributeName")) |>
-  # If specified, overwrite schema definitions with custom ones
-  mutate(attributeDefinition = coalesce(customDefinition, attributeDefinition)) |>
-  # Populate EML domain based on data type and attribute name
-  mutate(domain = case_when(attributeName %in% year_fields ~ "dateTimeDomain",
-    attributeName %in% c("schema_category", "missing_value_code", "data_type") ~ "enumeratedDomain",
-    attributeName %in% text_domain_fields ~ "textDomain",
-    data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
-    grepl(pattern = "_id|_description|name|observer|recorder", attributeName) ~ "textDomain",
-    grepl(pattern = "_version", attributeName) ~ "numericDomain",
-    # Re-classify unambiguous data types
-    data_type == "date" ~ "dateTimeDomain",
-    data_type %in% c("text", "serial") ~ "textDomain",
-    data_type %in% c("smallint", "decimal") ~ "numericDomain",
-    data_type %in% c("boolean", "varchar") ~ "enumeratedDomain", # Assume all character fields are enumeratedDomain unless custom override exists
-    .default = NA
-  )) |>
-  # Populate measurementScale based on domain
-  mutate(measurementScale = case_when(attributeName == "horizon_order" ~ "ordinal",
-    grepl("_dd$", attributeName) ~ "interval", # For coordinate fields
-    domain == "dateTimeDomain" ~ "dateTime",
-    domain == "enumeratedDomain" ~ "nominal",
-    domain == "textDomain" ~ "nominal",
-    domain == "numericDomain" ~ "ratio",
-    .default = NA
-  )) |>
-  # Nominal Fields: Populate definition
-  mutate(definition = case_when(measurementScale %in% c("nominal", "ordinal") ~ attributeDefinition,
-    .default = NA
-  )) |>
-  # dateTime Fields: Populate formatString
-  mutate(formatString = case_when(data_type == "date" ~ "YYYY-mm-dd",
-    attributeName %in% year_fields ~ "YYYY",
-    .default = NA
-  )) |>
-  # Numeric Fields: Populate unit and numberType
   mutate(
+    attributeDefinition = coalesce(customDefinition, attributeDefinition),
+    domain = case_when(
+      attributeName %in% year_fields ~ "dateTimeDomain",
+      attributeName %in% c("schema_category", "missing_value_code", "data_type") ~ "enumeratedDomain",
+      attributeName %in% text_domain_fields ~ "textDomain",
+      data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
+      grepl(pattern = "_id|_description|name|observer|recorder", attributeName) ~ "textDomain",
+      grepl(pattern = "_version", attributeName) ~ "numericDomain",
+      # Re-classify unambiguous data types
+      data_type == "date" ~ "dateTimeDomain",
+      data_type %in% c("text", "serial") ~ "textDomain",
+      data_type %in% c("smallint", "decimal") ~ "numericDomain",
+      data_type %in% c("boolean", "varchar") ~ "enumeratedDomain",
+      .default = NA
+    ),
+    measurementScale = case_when(
+      attributeName == "horizon_order" ~ "ordinal",
+      grepl("_dd$", attributeName) ~ "interval", # For coordinate fields
+      domain == "dateTimeDomain" ~ "dateTime",
+      domain == "enumeratedDomain" ~ "nominal",
+      domain == "textDomain" ~ "nominal",
+      domain == "numericDomain" ~ "ratio",
+      .default = NA
+    ),
+    definition = case_when(
+      measurementScale %in% c("nominal", "ordinal") ~ attributeDefinition,
+      .default = NA
+    ),
+    formatString = case_when(
+      data_type == "date" ~ "YYYY-mm-dd",
+      attributeName %in% year_fields ~ "YYYY",
+      .default = NA
+    ),
     unit = coalesce(
       customUnit,
       case_when(
         grepl(pattern = "_percent$|_chroma$|_value$|^number_", attributeName) ~ "dimensionless",
-        grepl(pattern = "_cm$", attributeName) &
-          domain == "numericDomain" ~ "centimeter",
+        grepl(pattern = "_cm$", attributeName) & domain == "numericDomain" ~ "centimeter",
         .default = NA
       )
     ),
-    numberType = case_when(data_type == "decimal" ~ "real",
+    numberType = case_when(
+      data_type == "decimal" ~ "real",
       grepl(pattern = "_chroma", attributeName) ~ "real",
       attributeName == "number_stems" ~ "natural",
       attributeName == "disturbance_time_y" ~ "integer",
       .default = NA
+    ),
+    primary_key_constraint = case_when(
+      schema_table == "database_schema" & attributeName %in% c("schema_table", "field") ~ TRUE,
+      .default = is_primary_key
     )
   ) |>
-  # Add primary keys only for tables with fields that serve as foreign keys for other tables
-  mutate(
-    primary_key_constraint =
-      case_when(
-        schema_table == "database_schema" & attributeName %in% c(
-          "schema_table",
-          "field"
-        ) ~ TRUE,
-        .default = is_primary_key
-      )
-  ) |>
-  # Select desired columns
-  select(
-    schema_table, attributeName, attributeDefinition, domain, measurementScale,
-    unit, numberType, definition, formatString, schema_table, primary_key_constraint, data_type
-  )
+  select(all_of(attribute_columns))
 
 ## Validate attribute list
 
