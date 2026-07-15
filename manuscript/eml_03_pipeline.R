@@ -73,12 +73,6 @@ attribute_columns <- c(
 )
 
 # Define fields requiring custom classification
-text_domain_fields <- c(
-  "originator", "funder", "manager", "h_datum_epsg",
-  "plot_dimensions_m", "horizon_order", "citation_short",
-  "standards_section", "project_code", "site_code", "site_visit_code",
-  "establishing_project_code"
-)
 text_tables <- c("database_dictionary", "database_schema", "taxonomy")
 year_fields <- c("year_start", "year_end")
 
@@ -91,19 +85,18 @@ attribute_table <- schema_compiled |>
   left_join(custom_overrides, by = join_by("attributeName")) |>
   mutate(
     attributeDefinition = coalesce(customDefinition, attributeDefinition),
-    domain = case_when(
-      attributeName %in% year_fields ~ "dateTimeDomain",
-      attributeName %in% c("schema_category", "missing_value_code", "data_type") ~ "enumeratedDomain",
-      attributeName %in% text_domain_fields ~ "textDomain",
-      data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
-      grepl(pattern = "_id|_description|name|observer|recorder", attributeName) ~ "textDomain",
-      grepl(pattern = "_version", attributeName) ~ "numericDomain",
-      # Re-classify unambiguous data types
-      data_type == "date" ~ "dateTimeDomain",
-      data_type %in% c("text", "serial") ~ "textDomain",
-      data_type %in% c("smallint", "decimal") ~ "numericDomain",
-      data_type %in% c("boolean", "varchar") ~ "enumeratedDomain",
-      .default = NA
+    domain = coalesce(
+      customDomain,
+      case_when(
+        attributeName %in% year_fields ~ "dateTimeDomain",
+        data_type == "varchar" & schema_table %in% text_tables ~ "textDomain",
+        grepl(pattern = "_id|_description|name|observer|recorder", attributeName) ~ "textDomain",
+        data_type == "date" ~ "dateTimeDomain",
+        data_type %in% c("text", "serial") ~ "textDomain",
+        data_type %in% c("smallint", "decimal") ~ "numericDomain",
+        data_type %in% c("boolean", "varchar") ~ "enumeratedDomain",
+        .default = NA
+      )
     ),
     measurementScale = case_when(
       attributeName == "horizon_order" ~ "ordinal",
