@@ -35,22 +35,24 @@ dbExecute(database_connection, "SET search_path TO public;") ## Define default s
 
 # Define archive folder path using latest database version
 full_version_string <- get_latest_version(db_conn = database_connection)
-compiled_folder <- path(local_paths$archive_folder, full_version_string, "data_package")
-
-# Define compiled documentation files
-schema_compiled_path <- path(compiled_folder, "database_schema.csv")
-dictionary_compiled_path <- path(compiled_folder, "database_dictionary.csv")
+compiled_folder <- path(local_paths$archive_folder, full_version_string)
 
 # Define files
-custom_overrides_path <- path("manuscript", "config", "eml_overrides.csv")
-abstract_path <- path("manuscript", "deposit_metadata", "abstract.md")
-methods_path <- path("manuscript", "deposit_metadata", "methods.md")
+custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
+abstract_path <- path(here("manuscript", "deposit_metadata", "abstract.md"))
+methods_path <- path(here("manuscript", "deposit_metadata", "methods.md"))
 keywords_path <- path(here("manuscript", "deposit_metadata", "keywords.csv"))
+
+## Define documentation files
+schema_compiled_path <- path(compiled_folder, "data_package", "database_schema.csv")
+dictionary_compiled_path <- path(compiled_folder, "data_package", "database_dictionary.csv")
+dictionary_full_path <- path(compiled_folder, "full_documentation", "database_dictionary.csv")
 
 # Read in files ----
 custom_overrides <- read_csv(custom_overrides_path, show_col_types = FALSE)
 schema_compiled <- read_csv(schema_compiled_path, show_col_types = FALSE)
 dictionary_compiled <- read_csv(dictionary_compiled_path, show_col_types = FALSE)
+dictionary_full <- read_csv(dictionary_full_path, show_col_types = FALSE)
 
 # Create EML attributes list ----
 # Assume all character fields are enumeratedDomain unless custom override exists
