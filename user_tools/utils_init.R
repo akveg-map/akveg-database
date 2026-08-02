@@ -28,6 +28,7 @@ load_system_paths <- function(config_file = "paths.yaml") {
     archive = fs::path(root_path, raw_config$archive_path),
     plots = fs::path(cloud_path, raw_config$plots_path),
     taxonomy = fs::path(cloud_path, raw_config$taxonomy_path),
+    metadata = fs::path(cloud_path, raw_config$metadata_path),
     credentials = fs::path(cloud_path, raw_config$authentication_file)
   )
 
