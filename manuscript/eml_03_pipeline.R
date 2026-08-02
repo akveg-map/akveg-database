@@ -490,16 +490,7 @@ keyword_sets <- create_keyword_set(keywords_path)
 print(keyword_sets) ## Verify results
 
 # Parse EML abstract ----
-
-# Parse Markdown metadata files
 abstract_eml <- set_TextType(abstract_path)
-
-# Clean abstract formatting
-abstract_eml$para <- map(abstract_eml$para, function(p) {
-  para_clean <- str_replace_all(p, "\\n", " ")
-  para_clean <- str_squish(para_clean) # Strip extra whitespaces
-  return(para_clean)
-})
 
 # Parse EML methods ----
 methods_eml <- set_methods(methods_file = methods_path)
