@@ -1,0 +1,34 @@
+# Define list of creators for the AKVEG Database data deposit
+- individualName:
+    givenName: "Amanda"
+    surName: "Droghini"
+  organizationName: "Alaska Center for Conservation Science"
+  electronicMailAddress: "adroghini@alaska.edu"
+  userId:
+    directory: "https://orcid.org"
+    userId: "https://orcid.org/0000-0001-6692-2348"
+- individualName:
+    givenName: "Timm"
+    surName: "Nawrocki"
+  organizationName: "Alaska Center for Conservation Science"
+  userId:
+    directory: "https://orcid.org"
+    userId: "https://orcid.org/0000-0003-3674-3976"
+- individualName:
+    givenName: "Aaron"
+    surName: "Wells"
+  organizationName: "AECOM Technical Services"
+  userId:
+    directory: "https://orcid.org"
+    userId: "https://orcid.org/0000-0003-1313-0376"
+- individualName:
+    givenName: "Matthew"
+    surName: "Macander"
+  organizationName: "ABR, Inc.—Environmental Research & Services"
+  userId:
+    directory: "https://orcid.org"
+    userId: "https://orcid.org/0000-0003-2808-208X"
+- individualName:
+    givenName: "Lindsey"
+    surName: "Flagstad"
+  organizationName: "Alaska Center for Conservation Science"
