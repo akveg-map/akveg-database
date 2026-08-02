@@ -508,6 +508,11 @@ methods_citation <- list(
   alternateIdentifier = "https://doi.org/10.xxxx/placeholder-doi" ## Need to update
 )
 
+## Wrap inside "sampling" element
+sampling_element <- list(
+  citation = methods_citation
+)
+
 ## Define software
 software_postgres <- list(
   title = "PostgreSQL",
@@ -540,9 +545,9 @@ software_list <- list(
 ## Create methods list
 methods_eml <- set_methods(
   methods_file = methods_path,
-  sampling_citation = methods_citation,
   software = software_list
 )
+methods_eml$sampling <- sampling_element ## Add sampling element that contains sampling citation
 
 # Compile final EML file ----
 akveg_metadata <- eml$dataset(
