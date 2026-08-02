@@ -35,7 +35,7 @@ dbExecute(database_connection, "SET search_path TO public;") ## Define default s
 
 # Define archive folder path using latest database version
 full_version_string <- get_latest_version(db_conn = database_connection)
-compiled_folder <- path(local_paths$archive_folder, full_version_string)
+compiled_folder <- path(local_paths$archive, full_version_string)
 
 # Define files
 custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
