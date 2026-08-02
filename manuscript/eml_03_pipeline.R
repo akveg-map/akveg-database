@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create EML XML file for data archive
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-14
+# Last Updated: 2026-08-02
 # Usage: Script should be executed in R 4.6.1+.
 # Description: "Create EML XML file for data archive" parses AKVEG's database schema and dictionary into an EML XML metadata file.
 # ---------------------------------------------------------------------------
@@ -499,10 +499,22 @@ abstract_eml$para <- map(abstract_eml$para, function(p) {
 })
 
 # Parse EML methods ----
-## set_methods() does not parse Markdown file as expected
-## Need to add samplingCitation and software
+methods_eml <- set_methods(methods_file = methods_path)
+## Define sampling citation
+sampling_citation <- list(
+  title = "Minimum Standards for Field Observation of Vegetation and Related Properties",
+  creator = list(
+    organizationName = "Vegetation Working Group"
+  ),
+  pubDate = "2022",
+  publisher = list(
+    organizationName = "Alaska Geospatial Council"
+  ),
+  edition = "Version 1.1 (August 2022)",
+  alternateIdentifier = "https://doi.org/10.xxxx/placeholder-doi" ## Need to update
+)
 
-# Compile final EML file
+# Compile final EML file ----
 akveg_metadata <- eml$dataset(
   title = "Alaska Vegetation (AKVEG) Database (Version 2.11.0): Harmonized plot-level vegetation observations for Alaska and adjacent Canada, 1975–2025",
   pubDate = "2026",
@@ -524,7 +536,7 @@ akveg_metadata <- eml$dataset(
   abstract = abstract_eml,
   keywordSet = keyword_sets,
   coverage = global_coverage,
-  methods = "",
+  methods = methods_eml,
 
   # Define license
   intellectualRights = "This data package is released to the public domain under the Creative Commons CC0 1.0 Universal public domain dedication (https://creativecommons.org/publicdomain/zero/1.0/). It may be freely copied, modified, distributed, or used for any purpose without explicit permission.",
