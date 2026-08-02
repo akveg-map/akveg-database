@@ -238,19 +238,22 @@ constraints_mapping <- list(
 )
 
 # Iterate over each compiled table
-for (i in 1:length(compiled_fields_list)) {
-  current_table <- unique(compiled_fields_list[[i]]$compiled_table)
+for (i in 1:length(unique(attribute_table$schema_table))) {
+  current_table <- unique(attribute_table$schema_table)[i]
   current_filename <- str_c(current_table, ".csv")
-  current_fields <- compiled_fields_list[[i]]$field
 
   # Get attribute table
   current_schema <- attribute_table |>
     filter(schema_table == current_table)
 
+  # Restrict to valid EML columns
   current_attributes <- current_schema |>
     select(all_of(attribute_final_columns))
 
   # Get factors table
+  current_fields <- current_attributes |>
+    select(attributeName) |>
+    pull() # Extract field names
   current_factors <- factors_table |>
     filter(attributeName %in% current_fields)
 
