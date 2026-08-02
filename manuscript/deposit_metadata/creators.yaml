@@ -2,7 +2,7 @@
 - individualName:
     givenName: "Amanda"
     surName: "Droghini"
-  organizationName: "Alaska Center for Conservation Science"
+  organizationName: "University of Alaska Anchorage - Alaska Center for Conservation Science"
   electronicMailAddress: "adroghini@alaska.edu"
   userId:
     directory: "https://orcid.org"
@@ -10,7 +10,7 @@
 - individualName:
     givenName: "Timm"
     surName: "Nawrocki"
-  organizationName: "Alaska Center for Conservation Science"
+  organizationName: "University of Alaska Anchorage - Alaska Center for Conservation Science"
   userId:
     directory: "https://orcid.org"
     userId: "https://orcid.org/0000-0003-3674-3976"
@@ -31,4 +31,4 @@
 - individualName:
     givenName: "Lindsey"
     surName: "Flagstad"
-  organizationName: "Alaska Center for Conservation Science"
+  organizationName: "University of Alaska Anchorage - Alaska Center for Conservation Science"
