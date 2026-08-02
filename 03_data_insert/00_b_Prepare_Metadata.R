@@ -2,8 +2,8 @@
 # ---------------------------------------------------------------------------
 # Prepare metadata and constraints for upload
 # Authors: Timm Nawrocki, Amanda Droghini, ACCS
-# Last Updated: 2026-07-10
-# Usage: Script should be executed in R 4.6.0+.
+# Last Updated: 2026-08-02
+# Usage: Script should be executed in R 4.6.1+.
 # Description: Dynamically parses metadata and constraints from Excel into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
 
@@ -11,6 +11,7 @@
 library(DBI)
 library(dplyr, warn.conflicts = FALSE)
 library(fs)
+library(here)
 library(readr)
 library(readxl)
 library(RPostgres)
@@ -19,23 +20,23 @@ library(purrr)
 library(tidyr)
 library(tibble)
 
-# Set file and directory paths ----
-root_folder <- "C:/ACCS_Work/OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database"
-data_folder <- path(root_folder, "Data", "Tables_Metadata")
-repository_folder = path('C:/ACCS_Work/Repositories/akveg-database')
-authentication <- path(root_folder, "Credentials", "akveg_private_build", "authentication_akveg_private_build.csv")
+# Source utility functions ----
+source(here("user_tools", "utils_init.R"))
+source(here("user_tools", "utils_database.R"))
 
-# Source functions ----
 helpers <- new.env()
-source(path(repository_folder, "03_data_insert", "helper_functions.R"), local = helpers)
+source(here("03_data_insert", "helper_functions.R"), local = helpers)
 execute_sql_build <- helpers$execute_sql_build
 upload_to_database <- helpers$upload_to_database
 
-# Connect to the AKVEG Database ----
-source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
-database_connection <- connect_database_postgresql(authentication)
+# Define directories ----
+local_paths <- load_system_paths("paths.yaml")
 
-# Define naming exceptions for ID columns
+# Connect to the AKVEG Database ----
+database_connection <- connect_database_postgresql(local_paths$credentials)
+
+# Define naming exceptions ----
+# For ID columns that do not have the same name as its corresponding lookup table
 suffix_exceptions <- c(
   "ground_element" = "_code",
   "h_datum" = "_epsg",
@@ -48,12 +49,12 @@ suffix_exceptions <- c(
   "soil_structure" = "_code"
 )
 
-# Read in data
-dictionary_data <- read_excel(path(data_folder, "database_dictionary.xlsx"), sheet = "dictionary")
-schema_data <- read_excel(path(data_folder, "database_schema.xlsx"), sheet = "schema")
-org_data <- read_excel(path(data_folder, "organization.xlsx"), sheet = "organization")
-citations_data <- read_excel(path(data_folder, "project_source.xlsx"), sheet = "project_citations")
-version_data <- read_excel(path(data_folder, "database_version.xlsx"))
+# Read in data ----
+dictionary_data <- read_excel(path(local_paths$metadata, "database_dictionary.xlsx"), sheet = "dictionary")
+schema_data <- read_excel(path(local_paths$metadata, "database_schema.xlsx"), sheet = "schema")
+org_data <- read_excel(path(local_paths$metadata, "organization.xlsx"), sheet = "organization")
+citations_data <- read_excel(path(local_paths$metadata, "project_source.xlsx"), sheet = "project_citations")
+version_data <- read_excel(path(local_paths$metadata, "database_version.xlsx"))
 
 # Parse constraints
 constraint_tables <- dictionary_data %>%
@@ -83,8 +84,10 @@ constraint_tables <- dictionary_data %>%
 constraint_tables$ground_element <- constraint_tables$ground_element %>%
   mutate(element_type = case_when(
     ground_element %in% c("rock fragments", "soil") ~ "abiotic",
-    ground_element %in% c("animal litter", "biotic", "gravel", "cobble", "stone", "boulder", 
-                          "mineral soil", "organic soil") ~ "ground",
+    ground_element %in% c(
+      "animal litter", "biotic", "gravel", "cobble", "stone", "boulder",
+      "mineral soil", "organic soil"
+    ) ~ "ground",
     .default = "both"
   ))
 
@@ -103,11 +106,11 @@ database_schema_table <- schema_data %>%
   ) %>%
   left_join(constraint_tables$schema_table, by = "schema_table") %>%
   left_join(constraint_tables$data_type, by = "data_type") %>%
-  left_join(constraint_tables$missing_value_code, by ="missing_value_code") |> 
+  left_join(constraint_tables$missing_value_code, by = "missing_value_code") |>
   rowid_to_column("field_id") %>%
   select(
     field_id, standards_section, schema_category_id, schema_table_id, field, data_type_id,
-    field_length, is_unique, is_primary_key, is_foreign_key, is_required, link_table_id, 
+    field_length, is_unique, is_primary_key, is_foreign_key, is_required, link_table_id,
     field_description, missing_value_code_id, missing_value_description
   )
 
@@ -124,18 +127,20 @@ citations_table <- citations_data |>
   arrange(citation_short)
 
 # Ensure all Name-Year citations are unique
-print(citations_table |> 
-  group_by(citation_short) |> 
-  filter(n()>1) |> 
-  summarize(n=n()))
+print(citations_table |>
+  group_by(citation_short) |>
+  filter(n() > 1) |>
+  summarize(n = n()))
 
 # Parse database version table
 database_version_table <- version_data |>
-  mutate(release_category = str_to_lower(release_category),
-         release_date = as.Date(release_date),
-         private = as.logical(private)) |> 
-  left_join(constraint_tables$release_category, by = "release_category") |> 
-  arrange(across(ends_with("version"))) |> 
+  mutate(
+    release_category = str_to_lower(release_category),
+    release_date = as.Date(release_date),
+    private = as.logical(private)
+  ) |>
+  left_join(constraint_tables$release_category, by = "release_category") |>
+  arrange(across(ends_with("version"))) |>
   select(-release_category)
 
 # Remove organization table in constraint_tables
@@ -164,7 +169,7 @@ final_tables <- c(
 # Run database build scripts
 ## This will drop existing metadata tables and create new (empty) ones
 build_script <- "02_Metadata.sql"
-execute_sql_build(database_connection, repository_folder, build_script)
+execute_sql_build(database_connection, local_paths$repository, build_script)
 
 # Upload metadata tables to database
 upload_to_database(database_connection, final_tables)
