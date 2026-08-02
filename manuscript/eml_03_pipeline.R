@@ -41,7 +41,7 @@ compiled_folder <- path(local_paths$archive, full_version_string)
 abstract_path <- path(here("manuscript", "deposit_metadata", "abstract.md"))
 methods_path <- path(here("manuscript", "deposit_metadata", "methods.md"))
 keywords_path <- path(here("manuscript", "deposit_metadata", "keywords.csv"))
-creators_list <- read_yaml(here("manuscript", "deposit_metadata", "creators.yaml"))
+akveg_creators <- read_yaml(here("manuscript", "deposit_metadata", "creators.yaml"))
 
 ## Define documentation files
 custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
@@ -550,19 +550,18 @@ methods_eml <- set_methods(
 )
 methods_eml$sampling <- sampling_element ## Add sampling element that contains sampling citation
 
+# Define primary contact ----
+primary_contact <- detect(
+  akveg_creators,
+  \(person) person$individualName$surName == "Droghini"
+)
+
 # Compile final EML file ----
 akveg_metadata <- eml$dataset(
   title = "Alaska Vegetation (AKVEG) Database (Version 2.11.0): Harmonized plot-level vegetation observations for Alaska and adjacent Canada, 1975–2025",
   pubDate = "2026",
-  creator = creators_list,
-  contact = list(
-    individualName = list(
-      givenName = "Amanda",
-      surName = "Droghini"
-    ),
-    organizationName = "University of Alaska Anchorage",
-    electronicMailAddress = "adroghini@alaska.edu"
-  ),
+  creator = akveg_creators,
+  contact = primary_contact,
   abstract = abstract_eml,
   keywordSet = keyword_sets,
   coverage = global_coverage,
