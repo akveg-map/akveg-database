@@ -1,0 +1,54 @@
+# Define list of creators for the taxonomic checklist
+- individualName:
+    givenName: "Timm"
+    surName: "Nawrocki"
+  organizationName: "University of Alaska Anchorage - Alaska Center for Conservation Science"
+  userId:
+    directory: "https://orcid.org"
+    userId: "https://orcid.org/0000-0003-3674-3976"
+- individualName:
+    givenName: "Carolyn"
+    surName: "Parker"
+  organizationName: "University of Alaska Fairbanks - University of Alaska Museum Herbarium"
+- individualName:
+    givenName: "James"
+    surName: "Walton"
+  organizationName: "National Park Service - Central Alaska Network Inventory & Monitoring Program"
+- individualName:
+    givenName: "Preston"
+    surName: "Villumsen"
+  organizationName: "University of Alaska Anchorage - Alaska Center for Conservation Science"
+- individualName:
+    givenName: "Bruce"
+    surName: "Bennett"
+  organizationName: "Yukon Conservation Data Center"
+- individualName:
+    givenName: "Matthew"
+    surName: "Carlson"
+  organizationName: "University of Alaska Anchorage - Alaska Center for Conservation Science"
+- individualName:
+    givenName: "John"
+    surName: "DeLapp"
+- individualName:
+    givenName: "Justin"
+    surName: "Fulkerson"
+  organizationName: "University of Alaska Anchorage - Alaska Center for Conservation Science"
+- individualName:
+    givenName: "Martin"
+    surName: "Hutten"
+  organizationName: "Natinal Park Service - Glacier Bay National Park & Preserve"
+- individualName:
+    givenName: "Brian"
+    surName: "Heitz"
+- individualName:
+    givenName: "Stefanie"
+    surName: "Ickert-Bond"
+  organizationName: "University of Alaska Fairbanks - University of Alaska Museum Herbarium"
+- individualName:
+    givenName: "Mary"
+    surName: "Stensvold"
+  organizationName: "USDA Forest Service - Alaska Region (Retired)"
+- individualName:
+    givenName: "Cam"
+    surName: "Webb"
+  organizationName: "University of Alaska Fairbanks - University of Alaska Museum Herbarium"
