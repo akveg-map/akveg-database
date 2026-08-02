@@ -493,9 +493,9 @@ print(keyword_sets) ## Verify results
 abstract_eml <- set_TextType(abstract_path)
 
 # Parse EML methods ----
-methods_eml <- set_methods(methods_file = methods_path)
+
 ## Define sampling citation
-sampling_citation <- list(
+methods_citation <- list(
   title = "Minimum Standards for Field Observation of Vegetation and Related Properties",
   creator = list(
     organizationName = "Vegetation Working Group"
@@ -506,6 +506,42 @@ sampling_citation <- list(
   ),
   edition = "Version 1.1 (August 2022)",
   alternateIdentifier = "https://doi.org/10.xxxx/placeholder-doi" ## Need to update
+)
+
+## Define software
+software_postgres <- list(
+  title = "PostgreSQL",
+  creator = list(organizationName = "PostgreSQL Global Development Group"),
+  version = "17.9",
+  pubDate = "2026"
+)
+
+software_r <- list(
+  title = "R",
+  creator = list(organizationName = "R Core Team"),
+  version = "4.6.1",
+  pubDate = "2026"
+)
+
+software_python <- list(
+  title = "Python",
+  creator = list(organizationName = "Python Software Foundation"),
+  version = "3.13.12",
+  pubDate = "2024"
+)
+
+# Group into a single list
+software_list <- list(
+  software_postgres,
+  software_r,
+  software_python
+)
+
+## Create methods list
+methods_eml <- set_methods(
+  methods_file = methods_path,
+  sampling_citation = methods_citation,
+  software = software_list
 )
 
 # Compile final EML file ----
