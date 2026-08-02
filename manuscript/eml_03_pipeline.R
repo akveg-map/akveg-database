@@ -37,13 +37,14 @@ dbExecute(database_connection, "SET search_path TO public;") ## Define default s
 full_version_string <- get_latest_version(db_conn = database_connection)
 compiled_folder <- path(local_paths$archive, full_version_string)
 
-# Define files
-custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
+# Define metadata files
 abstract_path <- path(here("manuscript", "deposit_metadata", "abstract.md"))
 methods_path <- path(here("manuscript", "deposit_metadata", "methods.md"))
 keywords_path <- path(here("manuscript", "deposit_metadata", "keywords.csv"))
+creators_list <- read_yaml(here("manuscript", "deposit_metadata", "creators.yaml"))
 
 ## Define documentation files
+custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
 schema_compiled_path <- path(compiled_folder, "data_package", "database_schema.csv")
 dictionary_compiled_path <- path(compiled_folder, "data_package", "database_dictionary.csv")
 dictionary_full_path <- path(compiled_folder, "full_documentation", "database_dictionary.csv")
@@ -553,13 +554,7 @@ methods_eml$sampling <- sampling_element ## Add sampling element that contains s
 akveg_metadata <- eml$dataset(
   title = "Alaska Vegetation (AKVEG) Database (Version 2.11.0): Harmonized plot-level vegetation observations for Alaska and adjacent Canada, 1975–2025",
   pubDate = "2026",
-  creator = emld::as_emld(list(
-    individualName = list(
-      givenName = "Amanda",
-      surName = "Droghini"
-    ),
-    organizationName = "University of Alaska Anchorage"
-  )),
+  creator = creators_list,
   contact = list(
     individualName = list(
       givenName = "Amanda",
