@@ -67,7 +67,7 @@ map_to_schema_fields <- function(unmatched_fields_df,
             ) # Replace schema definition with custom one
         )
       } else {
-        # Use existing description is one is not specified in the YAML file
+        # Use existing description if one is not specified in the YAML file
         return(
           base_query |>
             dplyr::mutate(
