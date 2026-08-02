@@ -42,6 +42,7 @@ abstract_path <- path(here("manuscript", "deposit_metadata", "abstract.md"))
 methods_path <- path(here("manuscript", "deposit_metadata", "methods.md"))
 keywords_path <- path(here("manuscript", "deposit_metadata", "keywords.csv"))
 akveg_creators <- read_yaml(here("manuscript", "deposit_metadata", "creators.yaml"))
+taxonomic_creators <- read_yaml(here("manuscript", "deposit_metadata", "taxonomic_creators.yaml"))
 
 ## Define documentation files
 custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
@@ -382,23 +383,6 @@ taxonomic_classification_list <- list(
   )
 )
 
-# Define checklist authors
-checklist_creators <- list(
-  list(individualName = list(givenName = "Timm", surName = "Nawrocki")),
-  list(individualName = list(givenName = "Caroline", surName = "Parker")),
-  list(individualName = list(givenName = "James", surName = "Walton")),
-  list(individualName = list(givenName = "Preston", surName = "Villumsen")),
-  list(individualName = list(givenName = "Bruce", surName = "Bennett")),
-  list(individualName = list(givenName = "Matthew", surName = "Carlson")),
-  list(individualName = list(givenName = "John", surName = "DeLapp")),
-  list(individualName = list(givenName = "Justin", surName = "Fulkerson")),
-  list(individualName = list(givenName = "Martin", surName = "Hutten")),
-  list(individualName = list(givenName = "Brian", surName = "Heitz")),
-  list(individualName = list(givenName = "Stefanie", surName = "Ickert-Bond")),
-  list(individualName = list(givenName = "Mary", surName = "Stensvold")),
-  list(individualName = list(givenName = "Campbell", surName = "Webb"))
-)
-
 # Assemble taxonomic coverage
 taxonomic_coverage <- eml$taxonomicCoverage(
   generalTaxonomicCoverage = "Taxonomic coverage includes vascular plants, bryophytes, and lichens, but varies by project and individual site visit. Among the 44,324 unique site visits in the AKVEG Database, 65% recorded exhaustive, species-level data of vascular plants. In contrast, bryophyte and lichen records are generally limited to dominant species (55% of site visits) or absent (29% of visits). Taxonomic coverage of individual site visits is documented in this data package's `site_visit` table with separate fields for vascular plants, bryophytes, and lichens.",
@@ -406,7 +390,7 @@ taxonomic_coverage <- eml$taxonomicCoverage(
     classificationSystem = list(
       classificationSystemCitation = list(
         title = "Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska",
-        creator = checklist_creators,
+        creator = taxonomic_creators,
         pubDate = "2024",
         distribution = list(
           online = list(
