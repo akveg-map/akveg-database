@@ -21,12 +21,12 @@ library(tibble)
 library(tidyr)
 library(yaml)
 
-# Source utility scripts
-source(here::here("user_tools", "utils_init.R"))
-source(path("user_tools", "utils_database.R"))
-source(path("manuscript", "utils.R"))
+# Source utility functions ----
+source(here("user_tools", "utils_init.R"))
+source(here("user_tools", "utils_database.R"))
+source(here("manuscript", "utils.R"))
 
-# Define directories
+# Define directories ----
 local_paths <- load_system_paths("paths.yaml")
 
 # Connect to the AKVEG Database ----
