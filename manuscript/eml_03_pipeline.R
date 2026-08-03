@@ -569,11 +569,17 @@ methods_eml <- set_methods(
 )
 methods_eml$sampling <- sampling_element ## Add sampling element
 
-# Define primary contact ----
+# Define contacts ----
 primary_contact <- detect(
   akveg_creators,
   \(person) person$individualName$surName == "Droghini"
 )
+
+pi_contacts <- keep(akveg_creators, \(person) person$individualName$surName %in% c("Nawrocki", "Flagstad"))
+pi_contacts <- map(pi_contacts, function(person) {
+  person$role <- "principalInvestigator"
+  return(person) ## Role is required for project block
+})
 
 # Define metadata for Minimum Standards PDF ----
 standards_entity <- list(
@@ -608,7 +614,16 @@ akveg_metadata <- eml$dataset(
       url = list("https://akveg.org", `function` = "information")
     )
   ),
-  dataTable = all_data_tables
+
+  # Add attributes for compiled tables
+  dataTable = all_data_tables,
+
+  # Add funding narrative within a project block
+  project = list(
+    title = "Alaska Vegetation Database Project",
+    personnel = pi_contacts,
+    funding = "The AKVEG Database was supported by the U.S. Fish and Wildlife Service (grant number F23AC02253) and the Bureau of Land Management (grant numbers L22AC00519, L23AC00710)."
+  )
 )
 
 # Compile EML document structure
