@@ -505,22 +505,43 @@ sampling_element <- list(
 software_postgres <- list(
   title = "PostgreSQL",
   creator = list(organizationName = "PostgreSQL Global Development Group"),
-  version = "17.9",
-  pubDate = "2026"
+  pubDate = "2026",
+  implementation = list(
+    distribution = list(
+      online = list(
+        url = "https://www.postgresql.org/"
+      )
+    )
+  ),
+  version = "17.9"
 )
 
 software_r <- list(
   title = "R",
   creator = list(organizationName = "R Core Team"),
-  version = "4.6.1",
-  pubDate = "2026"
+  pubDate = "2026",
+  implementation = list(
+    distribution = list(
+      online = list(
+        url = "https://www.r-project.org/"
+      )
+    )
+  ),
+  version = "4.6.1"
 )
 
 software_python <- list(
   title = "Python",
   creator = list(organizationName = "Python Software Foundation"),
-  version = "3.13.12",
-  pubDate = "2024"
+  pubDate = "2024",
+  implementation = list(
+    distribution = list(
+      online = list(
+        url = "https://www.python.org/"
+      )
+    )
+  ),
+  version = "3.13.12"
 )
 
 # Group into a single list
