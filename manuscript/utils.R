@@ -143,3 +143,40 @@ create_keyword_set <- function(keyword_path) {
     }
   })
 }
+
+# ===========================================================================
+# FIX FOREIGN KEY SEQUENCE ----
+# ===========================================================================
+
+
+#' Fix Foreign Key Sequence for Fully Compliant EML XML
+#'
+#' @param xml_file_path Path to the compiled EML XML file.
+#' @return File path of the corrected EML XML file path with compliant foreignKey ordering.
+
+fix_foreign_keys <- function(xml_file_path) {
+  # Parse as XML doc
+  xml_doc <- xml2::read_xml(xml_file_path)
+
+  # Find all foreignKey elements across the dataset
+  foreign_keys <- xml2::xml_find_all(xml_doc, "//foreignKey")
+
+  # Reorder <entityReference> so that it comes after <key>
+  for (fk in foreign_keys) {
+    key_node <- xml2::xml_find_first(fk, "./key")
+    entity_ref_node <- xml2::xml_find_first(fk, "./entityReference")
+
+    if (!inherits(key_node, "xml_missing") && !inherits(entity_ref_node, "xml_missing")) {
+      # Extract entity reference text
+      entity_ref_text <- xml2::xml_text(entity_ref_node)
+      # Remove existing node
+      xml2::xml_remove(entity_ref_node)
+      # Add entityReference node to the end of <foreignKey> (default behavior for add_child)
+      xml2::xml_add_child(fk, entity_ref_node)
+    }
+  }
+
+  xml2::write_xml(xml_doc, xml_file_path)
+  message("Reordered foreignKey elements in: ", xml_file_path)
+  return(invisible(xml_file_path))
+}
