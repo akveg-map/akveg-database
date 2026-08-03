@@ -10,46 +10,41 @@
 # Load required packages ----
 library(dplyr, warn.conflicts = FALSE)
 library(fs)
+library(here)
 library(RPostgres)
 library(readr)
 library(tidyr)
 
-# Define files and directories ----
-drive <- "C:"
-root_folder <- "ACCS_Work"
-repository_folder <- path(drive, root_folder, "Repositories", "akveg-database")
-archive_folder <- path(drive, root_folder, "Projects", "AKVEG_Database", "Data_Deposit")
+# Source utility functions ----
+source(here("user_tools", "utils_init.R"))
+source(path("user_tools", "utils_database.R"))
+source(path("manuscript", "utils.R"))
 
-## SQL authentication file
-authentication <- path(drive, root_folder, "OneDrive - University of Alaska",
-                       "ACCS_Teams", "Vegetation", "AKVEG_Database", "Credentials",
-                       "akveg_private_build", "authentication_akveg_private_build.csv")
+# Define directories & files ----
+local_paths <- load_system_paths("paths.yaml")
 
-## Dictionary query
-dictionary_file <- path(repository_folder, "user_tools", "queries", "00_database_dictionary.sql")
+# SQL query file
+dictionary_file <- here("user_tools", "queries", "00_database_dictionary.sql")
 
-## Dictionary mapping for boolean fields
-boolean_dictionary_path <- path(repository_folder, "manuscript", "config", "dictionary_boolean.csv")
-
-# Source in functions
-source(path(repository_folder, "pull_functions", "connect_database_postgresql.R"))
-source(path(repository_folder, "manuscript", "utils.R"))
+# Dictionary mapping for boolean fields
+boolean_dictionary_path <- here("manuscript", "config", "dictionary_boolean.csv")
 
 # Connect to the AKVEG Database ----
-database_connection <- connect_database_postgresql(authentication)
+database_connection <- connect_database_postgresql(local_paths$credentials)
 dbExecute(database_connection, "SET search_path TO public;") ## Define default schema
 
 # Dynamically set folder path ----
 ## Using latest database version
 full_version_string <- get_latest_version(db_conn = database_connection)
-compiled_folder <- path(archive_folder, full_version_string, "data_package")
+compiled_folder <- path(local_paths$archive, full_version_string, "data_package")
 
 # Read in files ----
 boolean_dictionary <- read_csv(boolean_dictionary_path,
-                               col_types = cols(.default = "c"),  # Force boolean column to be read as character
-                               show_col_types = FALSE)
+  col_types = cols(.default = "c"), # Force boolean column to be read as character
+  show_col_types = FALSE
+)
 
-## Execute query
+# Execute SQL query ----
 dictionary_query <- read_file(dictionary_file)
 dictionary_full <- dbGetQuery(database_connection, dictionary_query)
 
@@ -95,20 +90,23 @@ dictionary_compiled <- dictionary_full |>
   ) |>
   select(-duplicate_id) |>
   # Bring in custom boolean dictionary
-  bind_rows(boolean_dictionary) |> 
+  bind_rows(boolean_dictionary) |>
   # Drop fields that are being treated as textDomain
-  filter(!(field %in% c("personnel", "plot_dimensions_m",
-                        "schema_table",
-                        "release_category",
-                        "organization", 
-                        "organization_type",
-                        "crown_class"))) |>
-  arrange(field) 
+  filter(!(field %in% c(
+    "personnel", "plot_dimensions_m",
+    "schema_table",
+    "release_category",
+    "organization",
+    "organization_type",
+    "crown_class"
+  ))) |>
+  arrange(field)
 
 # Export as CSV ----
-write_csv(dictionary_compiled, 
-          file = path(compiled_folder, "database_dictionary.csv"),
-          na = "")
+write_csv(dictionary_compiled,
+  file = path(compiled_folder, "database_dictionary.csv"),
+  na = ""
+)
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
