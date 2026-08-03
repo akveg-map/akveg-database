@@ -34,7 +34,7 @@ The harmonization workflow was executed using R (version 4.6.1; R Core Team, 202
 
 ## Field Sampling Design
 
-The original datasets integrated in the AKVEG Database reflect a wide variety of field sampling designs and protocols. Our processing workflow extracts key methodological metadata and documents them in the SITE and SITE_VISIT tables, which are included in this data package. These metadata fields are designed to capture attributes that are most relevant for vegetation mapping and classification, including:
+The original datasets integrated in the AKVEG Database reflect a variety of field sampling designs and protocols. Our processing workflow extracts methodological metadata and documents them in the SITE and SITE_VISIT tables, which are included in this data package. These metadata fields are designed to capture attributes that are most relevant for vegetation mapping and classification, including:
 
 Sampling strategy (location_type): Distinguishes between randomized sampling designs and subjective, targeted plot placements (such as plots intentionally placed within a specific vegetation community type).
 
