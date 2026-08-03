@@ -4,9 +4,9 @@
 # Author: Amanda Droghini, Alaska Center for Conservation Science
 # Last Updated: 2026-08-02
 # Usage: Execute in Python 3.13+.
-# Description: "Export database tables" verifies completeness of the database schema metadata and assigns a folder
-# name to each table in the AKVEG Database, before exporting all tables in the AKVEG Database to CSVs in their
-# assigned folders.
+# Description: "Export database tables" verifies completeness of the database schema metadata, creates a set of
+# compiled database tables by resolving references to lookup tables, and exports the compiled tables to
+# CSVs for upload to a data repository.
 # ---------------------------------------------------------------------------
 
 # Import libraries
