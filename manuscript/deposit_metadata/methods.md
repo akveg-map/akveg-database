@@ -1,10 +1,11 @@
+
 ## Database Design and Structure
 
 The AKVEG Database schema was built by translating the _"Minimum Standards for Field Observation of Vegetation and Related Properties"_ into a relational database schema with structured attributes and constrained vocabularies.
 
 ### Relationship to Federal Standards
 
-* The _Minimum Standards_ were derived from the Federal Geographic Data Committee (FGDC) [U.S. National Vegetation Classification Standard Version 2](https://www.fgdc.gov/standards/projects/vegetation/index_html), ensuring compatibility with federal standards.
+* The _Minimum Standards_ were derived from the Federal Geographic Data Committee's U.S. National Vegetation Classification Standard Version 2 (https://www.fgdc.gov/standards/projects/vegetation/index_html), ensuring compatibility with federal standards.
 * A copy of the Minimum Standards is archived as a reference document in this data package (`VWG_2022_Minimum_Standards_v1_1.pdf`).
 
 ### Software Implementation
