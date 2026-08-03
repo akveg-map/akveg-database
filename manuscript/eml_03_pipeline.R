@@ -487,18 +487,26 @@ methods_citation <- list(
     organizationName = "Vegetation Working Group"
   ),
   pubDate = "2022",
-  publisher = list(
-    organizationName = "Alaska Geospatial Council"
+  distribution = list(
+    online = list(
+      url = "https://doi.org/10.xxxx/placeholder-doi" ## Need to update
+    )
   ),
-  edition = "Version 1.1 (August 2022)",
-  online = list(
-    url = "https://doi.org/10.xxxx/placeholder-doi" ## Need to update
+  generic = list(
+    publisher = list(
+      organizationName = "Alaska Geospatial Council"
+    ),
+    edition = "Version 1.1 (August 2022)"
   )
 )
 
-## Wrap inside "sampling" element
+## Wrap inside "sampling" element. studyExtent and samplingDescription is required if a citation is provided
 sampling_element <- list(
-  citation = methods_citation
+  studyExtent = list(
+    description = "The AKVEG Database includes field datasets from Alaska and adjacent Canada."
+  ),
+  samplingDescription = "Datasets integrated in the AKVEG Database reflect a variety of field sampling designs and protocols. Methodological metadata is provided in the SITE and SITE_VISIT tables. References to specific field protocols can be found in the PROJECT_CITATIONS table.",
+  citation = list(methods_citation)
 )
 
 ## Define software
