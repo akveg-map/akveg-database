@@ -121,36 +121,6 @@ schema_df = pl.read_database(query=query_schema, connection=engine)
 # Verify completeness of database_schema table
 check_schema_fields(schema_df, schema_columns)
 
-# --- Export uncompiled database tables ---
-
-# Map each SQL table to the name of the folder it will be exported to
-folder_dictionary = map_sql_tables(sql_build_folder)
-
-# Ensure number of files in each folder matches expectations
-folder_counts = Counter(folder_dictionary.values())
-print(folder_counts)
-
-# Export tables in defined sub-folders
-with engine.connect() as conn:
-    for table, subfolder in folder_dictionary.items():
-
-        # Define output path
-        target_dir = output_folder / subfolder
-        target_dir.mkdir(parents=True, exist_ok=True)  # Create folders if they don't exist
-        output_path = target_dir / f"{table}.csv"
-
-        print(f"Exporting {table}...")
-
-        # Query table from database
-        query = f"SELECT * FROM {table}"
-        df = pl.read_database(query=query, connection=conn, infer_schema_length=None)   # Do not infer schema length
-        # to avoid problems from tables that have a lot of NULLs
-
-        # Export as CSV
-        df.write_csv(output_path)
-
-    print("Export complete.")
-
 # --- Export compiled database tables ---
 
 with engine.connect() as conn:
