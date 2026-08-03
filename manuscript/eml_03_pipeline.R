@@ -33,23 +33,26 @@ local_paths <- load_system_paths("paths.yaml")
 database_connection <- connect_database_postgresql(local_paths$credentials)
 dbExecute(database_connection, "SET search_path TO public;") ## Define default schema
 
-# Define archive folder path using latest database version
+# Define folder path using latest database version ----
 full_version_string <- get_latest_version(db_conn = database_connection)
 compiled_folder <- path(local_paths$archive, full_version_string)
 
-# Define metadata files
+# Define metadata files ----
 abstract_path <- path(here("manuscript", "deposit_metadata", "abstract.md"))
 methods_path <- path(here("manuscript", "deposit_metadata", "methods.md"))
 keywords_path <- path(here("manuscript", "deposit_metadata", "keywords.csv"))
 akveg_creators <- read_yaml(here("manuscript", "deposit_metadata", "creators.yaml"))
 taxonomic_creators <- read_yaml(here("manuscript", "deposit_metadata", "taxonomic_creators.yaml"))
 
-## Define documentation files
+# Define documentation files ----
 custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
 schema_compiled_path <- path(compiled_folder, "data_package", "database_schema.csv")
 dictionary_compiled_path <- path(compiled_folder, "data_package", "database_dictionary.csv")
 dictionary_full_path <- path(compiled_folder, "full_documentation", "database_dictionary.csv")
 standards_path <- path(compiled_folder, "VWG_2022_Minimum_Standards_v1_1.pdf")
+
+# Define output ----
+eml_xml_output <- path(compiled_folder, "akveg_metadata.xml")
 
 # Read in files ----
 custom_overrides <- read_csv(custom_overrides_path, show_col_types = FALSE)
@@ -564,7 +567,7 @@ methods_eml <- set_methods(
   methods_file = methods_path,
   software = software_list
 )
-methods_eml$sampling <- sampling_element ## Add sampling element that contains sampling citation
+methods_eml$sampling <- sampling_element ## Add sampling element
 
 # Define primary contact ----
 primary_contact <- detect(
@@ -615,14 +618,17 @@ eml_doc <- eml$eml(
   dataset = akveg_metadata
 )
 
+# Write EML XML to disk
+write_eml(eml_doc, eml_xml_output)
+
+# Fix foreignKey ordering
+fix_foreign_keys(eml_xml_output) ## Overwrites existing file
+
 # Validate EML file
-validation_result <- eml_validate(eml_doc)
+validation_result <- eml_validate(eml_xml_output)
 
 # Look at errors
-print(attr(validation_result, "errors"))
-
-# Write EML XML to disk
-write_eml(eml_doc, path(compiled_folder, "akveg_metadata.xml"))
+print(attr(validation_result, "errors")) # If TRUE, no validation errors
 
 # Clean up workspace ----
 dbDisconnect(database_connection)
