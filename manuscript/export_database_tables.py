@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Export database tables
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-13
+# Last Updated: 2026-08-02
 # Usage: Execute in Python 3.13+.
 # Description: "Export database tables" verifies completeness of the database schema metadata and assigns a folder
 # name to each table in the AKVEG Database, before exporting all tables in the AKVEG Database to CSVs in their
@@ -28,7 +28,7 @@ query_folder = repository_folder / 'user_tools' / 'queries'
 output_root = root / 'Projects' / 'AKVEG_Database' / 'Data_Deposit'
 
 # Define inputs
-credential_file = (credential_folder / "akveg_private_build" / "authentication_akveg_private_build.csv")
+credential_file = (credential_folder / "akveg_public_read" / "authentication_akveg_public_read.csv")
 
 # Read in data
 db_credentials = pl.read_csv(credential_file)
