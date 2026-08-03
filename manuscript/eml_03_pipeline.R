@@ -490,11 +490,6 @@ methods_citation <- list(
     organizationName = "Vegetation Working Group"
   ),
   pubDate = "2022",
-  distribution = list(
-    online = list(
-      url = "https://doi.org/10.xxxx/placeholder-doi" ## Need to update
-    )
-  ),
   generic = list(
     publisher = list(
       organizationName = "Alaska Geospatial Council"
@@ -587,6 +582,39 @@ standards_entity <- list(
   entityDescription = "Minimum Standards for Field Observation of Vegetation and Related Properties Version 1.1 (August 2022). Establishes minimum field data collection standards for vegetation mapping and classification in Alaska, and serves as the foundational schema for the AKVEG Database.",
   entityType = "application/pdf"
 )
+
+# Define metadata for RMarkdown vignette ----
+
+## .Rmd source file
+vignette_source <- list(
+  entityName = "akveg_database_vignette.Rmd",
+  entityDescription = "R Markdown source file with examples for navigating and querying the AKVEG data tables.",
+  physical = list(
+    objectName = "akveg_database_vignette.Rmd",
+    dataFormat = list(
+      externallyDefinedFormat = list(
+        formatName = "text/x-rmarkdown"
+      )
+    )
+  ),
+  entityType = "code"
+)
+
+## Rendered HTML output
+vignette_html <- list(
+  entityName = "akveg_database_vignette.html",
+  entityDescription = "Rendered HTML user guide for navigating and querying the AKVEG data tables.",
+  physical = list(
+    objectName = "akveg_database_vignette.html",
+    dataFormat = list(
+      externallyDefinedFormat = list(
+        formatName = "text/html"
+      )
+    )
+  ),
+  entityType = "document"
+)
+
 # Compile final EML file ----
 akveg_metadata <- eml$dataset(
   title = "Alaska Vegetation (AKVEG) Database (Version 2.11.0): Harmonized plot-level vegetation observations for Alaska and adjacent Canada, 1975–2025",
@@ -597,7 +625,7 @@ akveg_metadata <- eml$dataset(
   keywordSet = keyword_sets,
   coverage = global_coverage,
   methods = methods_eml,
-  otherEntity = list(standards_entity),
+  otherEntity = list(standards_entity, vignette_source, vignette_html),
 
   # Define license
   intellectualRights = "This data package is released to the public domain under the Creative Commons CC0 1.0 Universal public domain dedication (https://creativecommons.org/publicdomain/zero/1.0/). It may be freely copied, modified, distributed, or used for any purpose without explicit permission.",
