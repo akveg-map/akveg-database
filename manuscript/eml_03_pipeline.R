@@ -491,7 +491,9 @@ methods_citation <- list(
     organizationName = "Alaska Geospatial Council"
   ),
   edition = "Version 1.1 (August 2022)",
-  alternateIdentifier = "https://doi.org/10.xxxx/placeholder-doi" ## Need to update
+  online = list(
+    url = "https://doi.org/10.xxxx/placeholder-doi" ## Need to update
+  )
 )
 
 ## Wrap inside "sampling" element
