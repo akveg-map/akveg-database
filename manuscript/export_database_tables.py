@@ -13,7 +13,6 @@
 import polars as pl
 import sqlalchemy as sa
 import urllib.parse
-from collections import Counter
 from pathlib import Path
 from utils import *
 
@@ -123,6 +122,14 @@ check_schema_fields(schema_df, schema_columns)
 
 # --- Export compiled database tables ---
 
+# Create output folders
+target_dir = output_folder / 'data_package'
+docs_dir = output_folder / 'full_documentation'
+
+for output_folder in (docs_dir, target_dir):
+    output_folder.mkdir(parents=True, exist_ok=True)
+
+# Create compiled tables using SQL query files
 with engine.connect() as conn:
     compiled_dict = compile_sql_tables(folder_path=query_folder, conn=conn)
 
@@ -133,14 +140,6 @@ for table_name, table_df in compiled_dict.items():
         file_name = 'taxonomy.csv'
     else:
         file_name = table_name + ".csv"
-
-    # Define output folders
-    target_dir = output_folder / 'data_package'
-    docs_dir = output_folder / 'full_documentation'
-
-    # Create output folders
-    for output_folder in (docs_dir, target_dir):
-        output_folder.mkdir(parents=True, exist_ok=True)
 
     # Define output file paths
     if table_name in ('database_dictionary', 'database_schema'):
