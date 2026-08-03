@@ -11,7 +11,7 @@ The AKVEG Database schema was built by translating the _"Minimum Standards for F
 ### Software Implementation
 
 * The database model was implemented in a PostgreSQL (v17.9) system hosted in Google Cloud SQL.
-* The SQL scripts used to build the AKVEG Database structure are permanently archived as version 2.9.2 on Zenodo: https://zenodo.org/records/20635288.
+* The SQL scripts used to build the AKVEG Database structure are permanently archived as version 2.9.2 on Zenodo: https://doi.org/10.5281/zenodo.20635288.
 
 ## Data Acquisition
 
@@ -43,7 +43,7 @@ Standardized quality control checks were executed within each processing script.
 
 ### Software and Code Availability
 
-The harmonization workflow was executed using R (version 4.6.1; R Core Team, 2026) and Python (version 3.13.12; Python Software Foundation, 2024). The data processing scripts are permanently archived as version 2.9.2 on Zenodo: https://zenodo.org/records/20635288.
+The harmonization workflow was executed using R (version 4.6.1; R Core Team, 2026) and Python (version 3.13.12; Python Software Foundation, 2024). The data processing scripts are permanently archived as version 2.9.2 on Zenodo: https://doi.org/10.5281/zenodo.20635288.
 
 ## Sampling Design and Study Extent
 
