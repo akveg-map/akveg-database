@@ -49,7 +49,7 @@ custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
 schema_compiled_path <- path(compiled_folder, "data_package", "database_schema.csv")
 dictionary_compiled_path <- path(compiled_folder, "data_package", "database_dictionary.csv")
 dictionary_full_path <- path(compiled_folder, "full_documentation", "database_dictionary.csv")
-standards_path <- path(compiled_folder, "data_package", "VWG_2022_Minimum_Standards_v1_1.pdf")
+standards_path <- path(compiled_folder, "VWG_2022_Minimum_Standards_v1_1.pdf")
 
 # Read in files ----
 custom_overrides <- read_csv(custom_overrides_path, show_col_types = FALSE)
@@ -544,12 +544,9 @@ primary_contact <- detect(
 )
 
 # Define metadata for Minimum Standards PDF ----
-standards_physical <- set_physical(objectName = standards_path)
-
 standards_entity <- list(
   entityName = path_file(standards_path),
   entityDescription = "Minimum Standards for Field Observation of Vegetation and Related Properties Version 1.1 (August 2022). Establishes minimum field data collection standards for vegetation mapping and classification in Alaska, and serves as the foundational schema for the AKVEG Database.",
-  physical = standards_physical,
   entityType = "application/pdf"
 )
 # Compile final EML file ----
@@ -562,7 +559,7 @@ akveg_metadata <- eml$dataset(
   keywordSet = keyword_sets,
   coverage = global_coverage,
   methods = methods_eml,
-  otherEntity = standards_entity,
+  otherEntity = list(standards_entity),
 
   # Define license
   intellectualRights = "This data package is released to the public domain under the Creative Commons CC0 1.0 Universal public domain dedication (https://creativecommons.org/publicdomain/zero/1.0/). It may be freely copied, modified, distributed, or used for any purpose without explicit permission.",
@@ -592,7 +589,8 @@ eml_doc <- eml$eml(
 # Validate EML file
 validation_result <- eml_validate(eml_doc)
 
-print(validation_result)
+# Look at errors
+print(attr(validation_result, "errors"))
 
 # Write EML XML to disk
 write_eml(eml_doc, path(compiled_folder, "akveg_metadata.xml"))
