@@ -31,7 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed 
 
-- Encoded database password in `export_database_tables.py` to provide support for passwords that contain certain special characters.
+- Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special characters.
 
 ## [2.9.2] - 2026-06-10 
 
