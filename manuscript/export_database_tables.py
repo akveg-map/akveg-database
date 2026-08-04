@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Export database tables
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-08-02
+# Last Updated: 2026-08-04
 # Usage: Execute in Python 3.13+.
 # Description: "Export database tables" verifies completeness of the database schema metadata, creates a set of
 # compiled database tables by resolving references to lookup tables, and exports the compiled tables to
@@ -122,12 +122,9 @@ check_schema_fields(schema_df, schema_columns)
 
 # --- Export compiled database tables ---
 
-# Create output folders
-target_dir = output_folder / 'data_package'
+# Create output folder
 docs_dir = output_folder / 'full_documentation'
-
-for output_folder in (docs_dir, target_dir):
-    output_folder.mkdir(parents=True, exist_ok=True)
+docs_dir.mkdir(parents=True, exist_ok=True)
 
 # Create compiled tables using SQL query files
 with engine.connect() as conn:
@@ -145,7 +142,7 @@ for table_name, table_df in compiled_dict.items():
     if table_name in ('database_dictionary', 'database_schema'):
         output_path = docs_dir / file_name
     else:
-        output_path = target_dir / file_name
+        output_path = output_folder / file_name
 
     # Export as CSV
     table_df.write_csv(output_path)

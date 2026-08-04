@@ -46,8 +46,8 @@ taxonomic_creators <- read_yaml(here("manuscript", "deposit_metadata", "taxonomi
 
 # Define documentation files ----
 custom_overrides_path <- path(here("manuscript", "config", "eml_overrides.csv"))
-schema_compiled_path <- path(compiled_folder, "data_package", "database_schema.csv")
-dictionary_compiled_path <- path(compiled_folder, "data_package", "database_dictionary.csv")
+schema_compiled_path <- path(compiled_folder, "database_schema.csv")
+dictionary_compiled_path <- path(compiled_folder, "database_dictionary.csv")
 dictionary_full_path <- path(compiled_folder, "full_documentation", "database_dictionary.csv")
 standards_path <- path(compiled_folder, "VWG_2022_Minimum_Standards_v1_1.pdf")
 
@@ -346,7 +346,7 @@ for (i in 1:length(unique(attribute_table$schema_table))) {
   }
 
   # Read in CSV to obtain row count
-  row_count <- as.character(nrow(read_csv(path(compiled_folder, "data_package", current_filename),
+  row_count <- as.character(nrow(read_csv(path(compiled_folder, current_filename),
     show_col_types = FALSE
   )))
 
@@ -450,7 +450,7 @@ geographic_coverage <- list(bbox_west, bbox_east)
 # Define temporal coverage ----
 
 # Get min/max dates from compiled table
-site_visit_dates <- read_csv(path(compiled_folder, "data_package", "site_visit.csv"),
+site_visit_dates <- read_csv(path(compiled_folder, "site_visit.csv"),
   col_select = "observe_date",
   col_types = "D"
 ) |> # Set to Date

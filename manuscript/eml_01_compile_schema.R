@@ -41,7 +41,7 @@ dbExecute(database_connection, "SET search_path TO public;") ## Define default s
 # Dynamically set folder path ----
 ## Using latest database version
 full_version_string <- get_latest_version(db_conn = database_connection)
-compiled_folder <- path(local_paths$archive, full_version_string, "data_package")
+compiled_folder <- path(local_paths$archive, full_version_string)
 
 # Query metadata tables from database ----
 schema_query <- read_file(schema_file)
