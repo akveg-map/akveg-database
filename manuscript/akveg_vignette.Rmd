@@ -1,0 +1,532 @@
+---
+title: "Getting Started with the AKVEG Database (Version 2.11.1)"
+author: "Amanda Droghini, Timm Nawrocki"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: lumen
+    highlight: pygments
+    number_sections: true
+    toc: yes
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    code_folding: show
+---
+
+```{css, echo=FALSE}
+/* Increase body font size and line spacing */
+body {
+  font-size: 16px;
+  line-height: 1.6;
+/* Force line wrapping for code chunks in HTML output */
+pre code {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+```
+
+```{r global-options, include=FALSE}
+# Internal knitr configuration hidden from HTML output
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+## Introduction ▶️
+
+The Alaska Vegetation (AKVEG) Database is a cloud-hosted, PostgreSQL database of vegetation field surveys in Alaska and adjacent Canada. The database contains data from 100 survey and monitoring projects that have been harmonized to a common standard. The current version (v2.11.1) includes 44,324 unique site visits and 701,216 records of foliar cover for vascular plants, bryophytes, and lichens. In addition to vegetation cover data, the database also includes measurements of abiotic top cover, ground cover, environmental characteristics, and soil properties.
+
+This vignette will show you how to load, filter, and join the compiled data tables that are in this deposit.
+
+### Accessing the Live Database
+
+The files in this data deposit provide a citable, static snapshot of Version 2.11.1 of the database. If you intend to use these data for scientific analyses, we recommend connecting to the cloud-hosted, Postgres database, which is actively maintained. Access to the Postgres database is free and open to anyone; it only requires SQL credentials. You can request SQL credentials by visiting the [AKVEG website](https://www.akveg.org).
+
+## Navigating the Deposit 🧭
+
+This data deposit consists of 19 files:
+
+* **Tabular Files (16 CSV files)**: Compiled tables exported from the live AKVEG Database. These include 4 reference tables and 12 data tables.
+
+* **Data Standards Protocol** (`VWG_2022_Minimum_Standards_v1_1.pdf`): This document establishes data collection standards for field vegetation observations in Alaska, and defines a data schema that formed the basis for the AKVEG Database. The _Minimum Standards_ were written by members of the Alaska Geospatial Council's Vegetation Working Group.
+
+* **User Vignette & Source Code** (`akveg_vignette.Rmd` & `akveg_vignette.html`): R Markdown source code and compiled HTML user guide to help researchers navigate the dataset and perform operations such as spatial filtering, table joining, and taxonomic reconciliation.
+
+## Description of Tables 📋
+
+The tabular files in this deposit are compiled, CSV exports from the live AKVEG Database, and consist of 12 data tables and 4 reference tables. To make the CSV files immediately usable, we resolved foreign key IDs into human-readable text values, and removed primary keys used only for internal tracking. 
+
+> Note: Because these tables were compiled, some column names in the CSV files differ from the fields in the live PostgreSQL database. If you are querying the live database, refer to the [AKVEG Docs](https://docs.akveg.org) and the `database_schema` table that is in the database.
+
+### Reference Tables
+
+The 4 reference tables provide definitions, taxonomic standard, and bibliographic citations to help users interpret the dataset.
+
+| File Name | Join Keys | Description |
+| :--- | :--- | :--- |
+| `database_schema.csv` | `field` | Lists data types, field descriptions, foreign key constraints, and missing value codes for all tables. |
+| `database_dictionary.csv` | `field`, `data_attribute` | Controlled vocabulary and definitions for all constrained categorical values. |
+| `project_citations.csv` | `project_code` | Bibliographic references linking each project code to companion publications, reports, or source datasets. |
+| `taxonomy.csv` | `taxon_name` | The AKVEG taxonomic standard that maps taxon concepts to current accepted scientific names, taxonomic hierarchy, and growth habits. |
+
+> Note: In the exercises below, we will use all four of these reference tables to decode schema definitions, standardize taxonomics names to currently accepted taxonomy, and obtain project citations.
+
+### Data Tables
+
+The 12 data tables contain field observation data and accompanying sampling metadata. They can be broadly classified into three groups: 
+
+* **Project & Site Data**: `project.csv`, `site.csv`, `site_visit.csv`
+* **Cover & Structure Data**: `abiotic_top_cover.csv`, `ground_cover.csv`, `shrub_structure.csv`, `structural_group_cover.csv`, `vegetation_cover.csv`, `whole_tussock_cover.csv`
+* **Environment & Soils Data**: `environment.csv`, `soil_metrics.csv`, `soil_horizons.csv`
+
+The table below describes the four data tables used in this vignette:
+
+| File Name | Join Fields | Description |
+| :--- | :--- | :--- |
+| `project.csv` | `project_code` | Project-level metadata including project descriptions, funding sources, and sampling years. | 
+| `site.csv` | `site_code`, `establishing_project_code` | Location and sampling metadata including spatial coordinates (NAD83 / EPSG 4269), positional accuracy, plot dimensions, and sampling perspective (ground vs. aerial). |
+| `site_visit.csv` | `site_visit_code`, `site_code`, `project_code` | Sampling event metadata including survey date, personnel, and taxonomic scope. Establishes `site_visit_code`, which is used as the primary key that links all observation tables. |
+| `vegetation_cover.csv` | `site_visit_code`, `name_accepted` | Percent cover for vascular plants, bryophytes, and lichens. |
+
+>Note: In the exercises below, we will use `project.csv`, `site.csv`, `site_visit.csv`, and `vegetation_cover.csv`. Like the `vegetation_cover` table, all other observation tables use `site_visit_code` to link field observations to a unique sampling event.
+
+Complete table descriptions, including field descriptions, data types, relational constraints, and missing value codes, are documented in `database_schema.csv`.
+
+### Relational Structure: Site vs. Site Visit {#relational-structure}
+
+To correctly join and analyze the tables in AKVEG, it is important to distinguish between two terms:
+
+* **Site** (`site_code`): Represents a specific physical area that has been sampled at least once.
+* **Site Visit** (`site_visit_code`): Represents an individual sampling event conducted at a site on a specific date.
+
+Because a site can be re-surveyed over time, establishing a `site_visit_code` ensures that repeat visits can easily be identified as unique, date-specific sampling events.
+
+All observation tables, such as vegetation cover and environment, record measurements at the site-visit level. These tables use `site_visit_code` as their primary foreign key and do not contain site or project identifiers. The `site_visit.csv` table therefore acts as a bridge, allowing you to link field observations back to site- or project-level metadata:
+
+* Join observations to site visit: Join your observation table to `site_visit.csv` using `site_visit_code`.
+* Scale up to site and project: Join `site_visit.csv` to `site.csv` using `site_code`, or to `project.csv` using `project_code`.
+
+>See [Section 8 (Joining Tables)](#joining-tables) for an example of linking site coordinates to vegetation cover records via `site_visit.csv`.
+
+## Configuring Your Environment 🧰
+
+To execute the code in this vignette, install and load the R packages listed below. 
+
+``` {r setup-environment}
+
+# Un-comment the line below to install any missing packages:
+# install.packages(c("dplyr", "fs", "ggplot2", "here", "readr", "sf", "stringr"))
+
+# Load required packages
+library(dplyr)
+library(fs)
+library(ggplot2)
+library(here)
+library(readr)
+library(sf)
+library(stringr)
+```
+
+## Loading Data 📂
+
+To begin analyzing the AKVEG data, we will load the relevant data tables (CSV files) into R.
+
+This vignette uses an R Project and the `here` package to reference relative file paths. In this example, the CSV files are stored in a folder named `v2_11_0` that is inside the project directory.
+
+>Note: If you are not using an R Project, you can replace `here("v2_11_0")` with an absolute file path to the folder where the CSV files are stored (for example, path("C:/Users/your_username/akveg_data/v2_11_0")).
+
+```{r load-data}
+
+# Define path to the directory containing the CSV files
+data_dir <- path(here("v2_11_0"))
+
+# Load reference tables
+schema <- read_csv(path(data_dir, "database_schema.csv"))
+dictionary <- read_csv(path(data_dir, "database_dictionary.csv"))
+taxonomy <- read_csv(path(data_dir, "taxonomy.csv"))
+project_citations <- read_csv(path(data_dir, "project_citations.csv"))
+
+# Load data tables
+# Restrict 'site' and 'site_visit' tables to only those columns that will be used in the vignette
+project <- read_csv(path(data_dir, "project.csv"))
+site <- read_csv(path(data_dir, "site.csv"), 
+                  col_select = c("establishing_project_code", "site_code", "latitude_dd", 
+                                 "longitude_dd", "cover_method", "h_datum"))
+site_visit <- read_csv(path(data_dir, "site_visit.csv"), 
+                   col_select = c("site_code", "site_visit_code"))
+veg_cover <- read_csv(path(data_dir, "vegetation_cover.csv"))
+```
+
+## Consulting Metadata 🔍
+
+Once we have loaded our data tables, we can use `database_schema.csv` and `database_dictionary.csv` to inspect field definitions, data types, and controlled vocabularies used in AKVEG.
+
+### Query the Database Schema
+
+With the `site` table as an example, we can extract the data types and definitions for the five columns that we've loaded in our environment:
+
+```{r consult-metadata}
+
+# Explore schema attributes for the loaded columns
+site_schema <- schema |> 
+  filter(schema_table == "site" & field %in% colnames(site))
+
+# Display field data types and descriptions
+site_schema |>
+  select(field, data_type, field_description) |> 
+  knitr::kable(
+  col.names = c("Field", "Data Type", "Description"),
+  caption = "Table 1. Data types and descriptions for the site table."
+)
+```
+
+We can also explore this table's relational structure by examining which fields serve as links to other tables:
+
+```{r consult-keys}
+# Display primary key and foreign key relationships
+site_schema |>
+  select(field, is_primary_key, is_foreign_key, link_table) |> 
+  knitr::kable(
+  col.names = c("Field", "Primary Key", "Join Key", "Link Table"),
+  caption = "Table 2. Relational constraints for the site table."
+)
+```
+
+>**Your turn:** Repeat this exercise with the `vegetation_cover.csv` table. Do any of the fields have a missing value code (e.g., empty cells or -999)? Does that change how you would calculate mean percent cover?
+
+### Query the Database Dictionary
+
+Finally, we can query `database_dictionary.csv` to extract allowable values and definitions for the fields that use controlled vocabularies.
+
+``` {r consult-dictionary}
+
+# Get allowable values and definitions for the cover_method field
+dictionary |> 
+  filter(field == "cover_method") |> 
+  # Restrict to 3 most common attributes for brevity
+  filter(data_attribute %in% c("semi-quantitative visual estimate", 
+                               "line-point intercept", 
+                               "braun-blanquet visual estimate")) |> 
+  select(field, data_attribute, definition) |> 
+  # Display for HTML output
+  knitr::kable(
+    col.names = c("Field", "Allowable Value", "Definition"),
+    caption = "Table 3. Allowable values and definitions for the cover_method field."
+  )
+```
+
+## Spatial Filtering & Mapping 🗺
+
+Now that we understand how the data tables relate to one another, we'll explore how to work with AKVEG as spatial data. In this section, we will restrict the `site` table to only include sites that are located within the Arctic bioclimatic zone of Alaska and adjacent Canada. We will conclude this section by mapping the spatial distribution of these Arctic sites.
+
+### Download the Spatial Boundary Dataset
+
+For this exercise, we will use the dataset published by Nawrocki et al. (2026):
+
+1. Visit the landing page: [Bioclimatic zones and vegetation regions of Alaska and adjacent Canada for U.S. National Vegetation Classification, 2025-2026](https://doi.org/10.18739/A2NP1WM5K)
+2. Download the GeoPackage file: `AlaskaYukon_USNVC_ZonesRegions_v2p1_3338.gpkg`
+3. Place the downloaded file into a sub-folder named `spatial_data` inside your R Project directory.
+
+**Dataset citation:**
+T. Nawrocki, L. Flagstad, A. Wells, G. Frost, T. Jorgenson, M. Macander, and T. Boucher. (2026). *Bioclimatic zones and vegetation regions of Alaska and adjacent Canada for U.S. National Vegetation Classification, 2025-2026*. (v2.1). Arctic Data Center. https://doi.org/10.18739/A2NP1WM5K
+
+### Prepare the Spatial Boundary Layers
+
+We begin by loading the spatial layer and extracting the polygons associated with the Arctic zone. Because the Arctic zone consists of two polygons (representing the Arctic Northwen and Arctic Western regions), We use `sf::st_union()` to dissolve these polygons into a single polygons, which speeds up the spatial filtering process in the next step. We also create an outline of the study area boundary (Alaska and adjacent Canada), which we will use in our map. 
+
+```{r prep-spatial-boundaries}
+
+# Read spatial layer from Nawrocki et al. (2026)
+biomes_path <- path(here("spatial_data/AlaskaYukon_USNVC_ZonesRegions_v2p1_3338.gpkg"))
+biomes <- st_read(biomes_path, quiet = TRUE)
+
+# Restrict spatial layer to Arctic zones
+arctic_zone <- biomes |> 
+  filter(zone == "Arctic") |> 
+  st_union()
+
+# Create study area boundary outline for plotting
+region_outline <- biomes |> 
+  st_union()
+```
+
+### Filter the Site Data
+
+The `site` table can be converted to a spatial objective using the two coordinate fields, `latitude_dd` and `longitude_dd`. Before performing our spatial intersection, we will project the site coordinates from NAD83 (EPSG: 4269) to Alaska Albers Equal Area (EPSG:3338) to match the projection of our spatial boundary file.
+
+> Note: Coordinates for all sites in AKVEG are projected to **NAD83 / EPSG:4269**. This information is specified in the `h_datum` column of the `site` table. 
+
+```{r filter-site-data}
+
+# Convert site table to spatial object and re-project to EPSG:3338
+sites_3338 <- site |>
+  st_as_sf(coords = c("longitude_dd", "latitude_dd"), crs = 4269, remove = FALSE) |> 
+  st_transform(crs = 3338)
+
+# Restrict sites to those that intersect with the Arctic zone
+arctic_sites <- sites_3338 |> 
+  st_filter(arctic_zone, .predicate = st_intersects)
+```
+
+### Visualize the Spatial Distribution
+
+Finally, we map the filtered Arctic sites over the study region outline and color-code the site points by `cover_method`.
+
+```{r map-arctic-sites, fig.width=8, fig.height=5, fig.align='center', out.width='90%', dpi=300, fig.cap="Figure 1. Spatial distribution of site visits in the AKVEG Database that are in the Arctic zone, as defined by Nawrocki et al. (2026)."}
+                                              
+# Recode cover_method into broader categories for plotting
+arctic_sites_recode <- arctic_sites |> 
+  mutate(cover_method_recode = case_when(cover_method %in% c("braun-blanquet visual estimate", 
+                                                             "custom classification visual estimate") ~ "Cover Class",
+                                          cover_method %in% c("line-point intercept",
+                                                              "grid-point intercept") ~ "Point Intercept",
+                                          cover_method %in% c("semi-quantitative visual estimate", 
+                                                              "subplot transect visual estimate") ~ "Visual Estimate"))
+
+# Define custom fill colors using a colorblind friendly palette
+custom_palette = c(
+  'Visual Estimate' = '#0072B2',
+  'Point Intercept' = '#E69F00',
+  'Cover Class' = '#D81B60'
+)
+
+# Plot the distribution of AKVEG sites within the Arctic study area
+map_plot <- ggplot() +
+  geom_sf(
+    data = region_outline, 
+    color = "black", 
+    fill = "#F2F2F2", 
+    linewidth = 0.2
+  ) +
+  geom_sf(
+    data = arctic_sites_recode,
+    aes(fill = cover_method_recode),
+    color = "black",
+    linewidth = 0.25,
+    shape = 21,
+    size = 1.8
+  ) +
+  scale_fill_manual(
+    values = custom_palette,
+    name = "Cover Method"
+  ) +
+  guides(
+    fill = guide_legend(override.aes = list(size = 3.5))
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold", size = 10),
+    legend.text = element_text(size = 9)
+  )
+
+map_plot
+```
+
+## Joining Tables 🔗
+
+In [Section 3.3 (Relational Structure)](#relational-structure), we covered how the `site_visit.csv` table acts as a bridge between physical site locations (`site_code`) and date-specific field observations (`site_visit_code`).
+
+In this section, we will link our spatially filtered `arctic_sites` layer to individual plant observations in the `vegetation_cover` table. Because observation tables record data at the site-visit level, connecting species cover to our site coordinates requires a two-step join:
+
+1. Join `arctic_sites` to `site_visit` using `site_code` to retrieve the corresponding site_visit_codes. The resulting table may contain more rows than the initial site list if some sites were revisited over time.
+
+2. Join the resulting table to `veg_cover` using `site_visit_code` to get individual species observations.
+
+We begin by converting our spatial object back into a standard data frame using `sf::st_drop_geometry()`. With the exception of the coordinates in the `site` table, all data in the AKVEG Database are non-spatial. Handling them as standard data frames makes table operations, such as joining and filtering, faster and easier to run in R.
+
+```{r join-by-visit-code}
+arctic_veg <- arctic_sites |> 
+  st_drop_geometry() |> 
+  # Join with site_visit to obtain site_visit_code
+  left_join(site_visit, by = "site_code") |> 
+  # Join with vegetation_cover to associate cover observations with coordinates and other site metadata
+  left_join(veg_cover, by = "site_visit_code") |> 
+  # Keep vegetation cover field and site coordinates
+  select(all_of(colnames(veg_cover)), latitude_dd, longitude_dd)
+```
+
+## Working with Taxonomy 🌿
+
+The AKVEG Database uses the *Checklist of Vascular Plants, Bryophytes, Lichens, and Lichenicolous Fungi of Alaska* (Nawrocki et al. 2024) as its taxonomic standard. A compiled version of this standard is provided as the `taxonomy.csv` table.
+
+Species observation tables such as `vegetation_cover.csv` include three name fields:
+
+* **`name_original`:** Name as recorded in the field, inclusive of original errors.
+* **`name_adjudicated`:** Cleaned field name that matches a valid concept in the taxonomic standard.
+* **`name_accepted`:** Currently accepted scientific name according to the standard.
+
+In this exercise, we will use `name_accepted` to join our Arctic vegetation records to `taxonomy.csv`, attaching taxonomic attributes, such as family and growth habit, to the table. We'll use this information to generate a regional summary of the taxa that were surveyed in the region.
+
+>Note: In the live PostgreSQL database, observation tables do not include `name_accepted`. Users must join `name_adjudicated` to the taxonomy tables and aggregate by `taxon_accepted` to resolve synonyms before performing species-level calculations.
+
+``` {r get-taxon-list, message=FALSE, warning=FALSE} 
+
+# Get number of unique site visits for frequency calculation
+visit_number <- arctic_veg |> 
+  distinct(site_visit_code) |> 
+  nrow()
+
+# Filter taxonomy reference table to distinct accepted taxa only
+taxonomy_accepted <- taxonomy |> 
+  filter(taxon_name == taxon_accepted) |> 
+  distinct(taxon_accepted, .keep_all = TRUE) |> 
+  select(-c(code_akveg, taxon_name, taxon_author))
+
+# Calculate species frequency and mean cover when present
+arctic_taxa_metrics = arctic_veg |>
+  # Exclude dead vegetation records and true absences (-999)
+  filter(dead_status == FALSE, cover_percent != -999) |>
+  # Group by accepted name to ensure synonyms are treated as a single taxon
+  group_by(name_accepted) |>
+  summarize(site_n = n_distinct(site_visit_code),
+            frequency_pct = round((n()/visit_number) * 100, 1),
+            mean_cover_present = round(mean(cover_percent), 1)) |> 
+  # Attach taxonomic attributes
+  left_join(taxonomy_accepted, by = join_by(name_accepted == taxon_accepted)) |> 
+  # Exclude broad classifications and unknown codes
+  filter(!taxon_level %in% c('genus', 'unknown', 'functional group'))
+```
+
+Now, we can explore the taxa that were most frequently observed across all site visits in our Arctic study area. Before we do, however, it's important to understand what these metrics represent.
+
+The summary metrics calculated above (site frequency and mean cover when present) describe the composition of the field data in AKVEG. They are not an unbiased sample of the Arctic region. Both project selection (which datasets have been integrated) and field sampling designs introduce bias. For example, the high frequency of dwarf birch (*Betula nana*) partly reflects heavier sampling effort in specific vegetation types. 
+
+>Note: While these values offer a useful synthesis of common species across sites, they should not be used to derive regional estimates of abundance without accounting for sampling bias.
+
+``` {r most-frequent-taxa}
+top_frequent_taxa <- arctic_taxa_metrics |> 
+  arrange(desc(frequency_pct), desc(mean_cover_present)) |> 
+  head(10) |> 
+  select(name_accepted, taxon_family, taxon_habit, site_n, frequency_pct, mean_cover_present)
+
+# Display table for HTML output
+top_frequent_taxa |> 
+  # Format scientific names in italics
+  mutate(name_accepted = str_c("*", name_accepted, "*")) |> 
+  knitr::kable(
+  col.names = c("Scientific Name", "Family", "Growth Habit", "Plots (N)", "Site Frequency (%)", "Mean Cover (%)"),
+  caption = "Table 4. Top 10 most frequently observed taxa in the AKVEG Database for sites in the Arctic region of Alaska and adjacent Canada.",
+  align = c("l", "l", "l", "r", "r", "r")
+)
+```
+
+Beyond individual species names, `taxonomy.csv` allows us to summarize data by broader ecological groups. To wrap up our taxonomic exploration, let's visualize how species richness is structured across the major growth habits in our study area.
+
+```{r group-by-habit, fig.width=7, fig.height=4, fig.align='center', dpi=300, fig.cap="Figure 2. Number of unique taxa across the top six growth habits in Arctic Alaska and adjacent Canada."}
+# Summarize species richness by growth habit for top 6 habits
+arctic_habit_summary <- arctic_taxa_metrics |> 
+  group_by(taxon_habit) |> 
+  summarize(species_count = n()) |> 
+  arrange(desc(species_count)) |> 
+  head(6)
+
+# Display as bar graph
+ggplot(arctic_habit_summary, aes(x = reorder(taxon_habit, species_count), y = species_count)) +
+  geom_col(fill = "#2B5C8F") +
+  coord_flip() +
+  labs(
+    x = "Growth Habit",
+    y = "Number of Unique Taxa (N)"
+  ) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+```
+
+## Extracting Project Information & References 📚
+
+In the previous section, we discussed the importance of accounting for sampling design when analyzing AKVEG data. To identify the research projects, primary funding sources, and timeframes behind our Arctic sites, we can link our subset of Arctic sites to `project.csv` by joining `establishing_project_code` to `project_code`.
+
+The site records in our Arctic study region originate from 43 research projects. The table below summarizes the top 10 projects ranked by the total number of contributing sites:
+
+```{r get-project-info}
+# Summarize top 10 contributing projects by total site count
+arctic_projects <- arctic_sites |> 
+  st_drop_geometry() |> 
+  group_by(establishing_project_code) |> 
+  summarize(site_n = n_distinct(site_code)) |> 
+  left_join(project, by = join_by(establishing_project_code == project_code)) |> 
+  # Format year range and convert -999 code used for ongoing projects
+  mutate(years_active = str_c(year_start, "–", 
+                              ifelse(year_end == -999, "Present", year_end)
+                              )
+         ) |> 
+  arrange(desc(site_n)) |> 
+  head(10) |> 
+  select(establishing_project_code, project_name, funder, site_n, years_active)
+
+# Display table for HTML output
+knitr::kable(arctic_projects,
+             col.names = c("Project Code", "Project Name", "Funder", "Sites (N)", "Collection Years"),
+             caption = "Table 5. Top 10 projects in the Arctic region ranked by total number of contributing sites.",
+             align = c("l", "l", "l", "r", "c")
+  )
+```
+
+Finally, we can filter `project_citations` using the project codes from our Arctic projects to retrieve the canonical references (peer-reviewed publications, reports, and data releases) associated with these field efforts.
+
+Consulting these references provides valuable context about the original project motivations, field methodologies, and research outputs. Note that a single project may link to multiple citations.
+
+```{r get-project-citations}
+# Filter citations for projects in our Arctic study area
+arctic_citations <- project_citations |> 
+  filter(project_code %in% arctic_projects$establishing_project_code) |> 
+  select(project_code, citation_short, citation_url) |>
+  # Truncate to first 5 reference for HTML output
+  head(5)
+
+# Render complete table of project citations
+knitr::kable(
+  arctic_citations,
+  col.names = c("Project Code", "Reference", "URL"),
+  caption = "Table 6. Selected canonical references for projects in the Arctic spatial subset (first 5 records shown).",
+  align = c("l", "l", "l")
+)
+```
+## Summary & Next Steps 🎉
+ 
+We have reached the end of our introductory walkthrough for querying and synthesizing data in the AKVEG Database. In this guide, we demonstrated how to:
+
+1. **Consult core reference tables** to understand table structure, join keys, and controlled vocabularies.
+2. **Spatially filter sites** using a geographic boundary layer file.
+3. **Summarize taxonomic composition** by linking species records to taxonomic attributes.
+4. **Trace data provenance** by linking sites back to original project details and associated literature.
+ 
+To continue exploring AKVEG, we encourage you to query the [live AKVEG Database](https://akveg.org) directly, which provides access to the most up-to-date version. Access is free and open to everyone.
+
+## Resources 🌐
+
+* [AKVEG Project Website](https://www.akveg.org): Learn about the AKVEG Project, request access to the live database, and download the AKVEG vegetation maps.
+
+* [AKVEG Database Documentation](https://docs.akveg.org): Documentation for the live AKVEG Database, including connection instructions and Entity-Relationship Diagrams for all data tables.
+
+* [AKVEG Database GitHub repository](https://www.github.com/akveg-map/akveg-database): Active repository contains data processing scripts, helper functions for connecting to the database, and example query scripts in R and Python. 
+
+* [Archived Code Repository](https://doi.org/10.5281/zenodo.20635288): Static snapshot of the codebase used to compile the AKVEG Database Version 2.11.1 released on the Arctic Data Center.
+
+## Recommended Citations 📄
+
+The AKVEG Database is released into the public domain under a CC0 waiver. While attribution is not legally required, citing the database helps others discover this resource and allows us to track its impact.
+
+Depending on how you accessed AKVEG data for your analysis, please use the appropriate citation format below:
+
+If you downloaded and analyzed a versioned snapshot of this database from the Arctic Data Center repository, please cite the DOI associated with that release:
+
+> Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. (2026). *Alaska Vegetation Database (AKVEG), Version 2.11.1* [Data set]. Arctic Data Center. [DOI pending deposit release].
+
+If you queried data from the live PostgreSQL database, use the citation below and include your access date and the version number. You can find the current version number by querying the `database_version` table:
+
+> Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. (2026). *Alaska Vegetation (AKVEG) Database: Harmonized vegetation field observations from Alaska and adjacent Canada* [Version X.X]. Available: https://www.akveg.org (Accessed: [Insert Date]).
+
+*Note: Once our primary database manuscript is published, its citation will be added to this section as the main reference for AKVEG methods and data.*
+
+## Appendix: Computational Environment {.unnumbered}
+
+The operational environment, package versions, and system architecture used to execute this analysis are documented below.
+
+<details>
+  <summary><strong>Click to expand R Session details</strong></summary>
+
+```{r session-info, echo=FALSE, comment=""}
+# Print detailed R environment info
+  sessionInfo()
+```
