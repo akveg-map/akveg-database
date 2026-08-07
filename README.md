@@ -104,7 +104,7 @@ If you use these scripts to process data for your research, you can cite this so
 
 > Droghini, A., and T.W. Nawrocki. 2026. Code Repository for the AKVEG Database: Harmonized vegetation field observations from Alaska and adjacent Canada (v2.9.2). Zenodo. https://doi.org/10.5281/zenodo.20635288.
 
-If you use data from the AKVEG Database, please cite the database itself. The version number can be found in this repository's [CHANGELOG](CHANGELOG.md).
+If you use data from the AKVEG Database, please cite the database itself. The version number can be found in the `database_version` table of the database.
 
 > Droghini, A., T.W. Nawrocki, A.F. Wells, M.J. Macander, and L.A. Flagstad. 2026. Alaska Vegetation (AKVEG) Database: Harmonized vegetation field observations from Alaska and adjacent Canada [insert version number]. Alaska Geospatial Council, Vegetation Working Group. Available: [https://www.akveg.org](https://www.akveg.org). Data downloaded on [date of query].
 
@@ -116,7 +116,7 @@ If you would like to contribute a dataset, consult the [Become a contributor](ht
 
 ## Acknowledgments 🫶
 
-The AKVEG Database is supported by the U.S. Fish and Wildlife Service and the Bureau of Land Management. We are grateful to all the organizations and scientists who contributed the datasets processed by the scripts in this repository. This work would not be possible without them. The full list of data contributors can be found in the `projects` table of the AKVEG Database.
+The AKVEG Database is supported by the U.S. Fish and Wildlife Service and the Bureau of Land Management. We are grateful to all the organizations and scientists who contributed the datasets processed by the scripts in this repository, as this work would not be possible without them. The full list of data contributors can be found in the `projects` table of the AKVEG Database.
 
 ## Authors
 
