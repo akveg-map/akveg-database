@@ -9,9 +9,9 @@
 #'
 #' @return A data frame with the same structure as the master schema table but populated with the unmatched fields and their attributes.
 
-map_to_schema_fields <- function(unmatched_fields_df,
-                                 database_schema_df,
-                                 field_map) {
+map_schema_fields <- function(unmatched_fields_df,
+                              database_schema_df,
+                              field_map) {
   # Loop over each field
   purrr::map_df(seq_len(nrow(unmatched_fields_df)), function(i) {
     target_table <- unmatched_fields_df$compiled_table[i]
