@@ -2,9 +2,9 @@
 # ---------------------------------------------------------------------------
 # Create compiled schema for data archive
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-08-02
+# Last Updated: 2026-08-11
 # Usage: Script should be executed in R 4.6.1+.
-# Description: "Create compiled schema for data archive" aligns the AKVEG Database schema with the tables and fields included in the data package.
+# Description: "Create compiled schema for data archive" aligns the AKVEG Database schema with the tables and fields included in the data package. The resulting CSV is processed in Excel to ensure the table exactly matches the schema of the compiled tables.
 # ---------------------------------------------------------------------------
 
 # Load required packages ----
@@ -111,7 +111,7 @@ unmatched_fields <- compiled_fields_df |>
   ))
 
 # Map unmatched fields to existing schema entries
-healed_fields <- map_to_schema_fields(
+healed_fields <- map_schema_fields(
   unmatched_fields,
   schema_full,
   field_map
@@ -136,7 +136,8 @@ schema_compiled <- schema_full |>
       field == field
     )
   ) |>
-  bind_rows(healed_fields) # Add 'unmatched' fields
+  bind_rows(healed_fields) |> # Add 'unmatched' fields
+  arrange(schema_table)
 
 # Export as CSV ----
 write_csv(schema_compiled,
