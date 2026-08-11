@@ -63,7 +63,8 @@ map_schema_fields <- function(unmatched_fields_df,
             dplyr::mutate(
               schema_table = target_table,
               field = target_field,
-              field_description = pointer$definition
+              field_description = pointer$definition,
+              is_unique = FALSE
             ) # Replace schema definition with custom one
         )
       } else {
@@ -72,7 +73,8 @@ map_schema_fields <- function(unmatched_fields_df,
           base_query |>
             dplyr::mutate(
               schema_table = target_table,
-              field = target_field
+              field = target_field,
+              is_unique = FALSE
             )
         )
       }
