@@ -151,7 +151,7 @@ create_keyword_set <- function(keyword_path) {
 # ===========================================================================
 
 
-#' Fix Foreign Key Sequence for Fully Compliant EML XML
+#' Fix foreign key sequence for compliance with EML XML schema
 #'
 #' @param xml_file_path Path to the compiled EML XML file.
 #' @return File path of the corrected EML XML file path with compliant foreignKey ordering.
@@ -181,4 +181,84 @@ fix_foreign_keys <- function(xml_file_path) {
   xml2::write_xml(xml_doc, xml_file_path)
   message("Reordered foreignKey elements in: ", xml_file_path)
   return(invisible(xml_file_path))
+}
+
+# ===========================================================================
+# BULK ADD FILES TO DATA PACKAGE ----
+# ===========================================================================
+
+
+#' Bulk add files to a DataPackage object.
+#'
+#' @param deposit_path Path to the folder that contains all files to be included in the deposit. Assumes that a single XML file exists in the directory, which is the EML XML file.
+#' @return A complete DataPackage object
+#'
+create_data_package <- function(deposit_path) {
+  # Get path of XML file
+  xml_path <- fs::dir_ls(deposit_path, glob = "*.xml")
+
+  # Validate EML schema before continuing
+  is_valid <- EML::eml_validate(as.character(xml_path))
+
+  if (!is_valid) {
+    validation_errors <- attr(is_valid, "errors")
+
+    message("EML validation failed\n")
+    print(validation_errors)
+
+    stop("Execution stopped")
+  }
+
+  message("EML schema validated successfully")
+
+  # Extract packageId (urn:uuid) from EML file
+  eml_doc <- EML::read_eml(xml_path)
+  eml_id <- eml_doc$packageId
+
+  # Create metadata object
+  ## Pass package ID as an argument
+  message("Creating metadata from... ", path_file(xml_path))
+
+  metadata_object <- new(
+    "DataObject",
+    id       = eml_id,
+    format   = "https://eml.ecoinformatics.org/eml-2.2.0",
+    filename = xml_path
+  )
+
+  # Create empty DataPackage object and add metadata object
+  dp <- new("DataPackage")
+  dp <- addMember(dp, metadata_object)
+
+  # Get list of files in deposit, excluding XML file
+  all_files <- fs::dir_ls(deposit_path, type = "file")
+  data_files <- all_files[all_files != xml_path]
+
+  # Create data objects for remaining files
+  for (file_path in data_files) {
+    file_ext <- tolower(fs::path_ext(file_path))
+
+    # Map file extension to DataONE format type
+    format_type <- switch(file_ext,
+      "csv"     = "text/csv",
+      "pdf"     = "application/pdf",
+      "rmd"     = "text/x-rmarkdown",
+      "html"    = "text/html",
+      "r"       = "text/plain",
+      "txt"     = "text/plain",
+      "zip"     = "application/zip",
+      NULL
+    )
+
+    # Create source objects with appropriate file format
+    if (is.null(format_type)) {
+      message("Undefined file format. Skipping... ", path_file(file_path))
+    } else {
+      source_object <- new("DataObject", format = format_type, filename = file_path)
+      # Add to data package and associate with metadata
+      dp <- addMember(dp, source_object, metadata_object)
+    }
+  }
+  # Return data package
+  return(dp)
 }
