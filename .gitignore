@@ -34,6 +34,7 @@ Thumbs.db
 .Rproj.user
 *.Rproj
 .Ruserdata
+.Renviron
 
 # Config Files #
 #################
