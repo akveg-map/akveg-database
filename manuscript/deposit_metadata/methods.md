@@ -66,4 +66,4 @@ At the request of the original data contributors, some datasets are not included
 
 ## Lineage
 
-This data package represents the Version 2.11.0 release of the Alaska Vegetation (AKVEG) Database.
+This data package represents the Version 2.11.1 release of the Alaska Vegetation (AKVEG) Database.
