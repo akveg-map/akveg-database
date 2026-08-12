@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Create EML XML file for data archive
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-08-02
+# Last Updated: 2026-08-11
 # Usage: Script should be executed in R 4.6.1+.
 # Description: "Create EML XML file for data archive" parses AKVEG's database schema and dictionary into an EML XML metadata file.
 # ---------------------------------------------------------------------------
@@ -19,6 +19,7 @@ library(readr)
 library(stringr)
 library(tibble)
 library(tidyr)
+library(uuid)
 library(yaml)
 
 # Source utility functions ----
@@ -617,7 +618,7 @@ vignette_html <- list(
 
 # Compile final EML file ----
 akveg_metadata <- eml$dataset(
-  title = "Alaska Vegetation (AKVEG) Database (Version 2.11.0): Harmonized plot-level vegetation observations for Alaska and adjacent Canada, 1975–2025",
+  title = "Alaska Vegetation (AKVEG) Database (Version 2.11.1): Harmonized plot-level vegetation observations for Alaska and adjacent Canada, 1975–2025",
   pubDate = "2026",
   creator = akveg_creators,
   contact = primary_contact,
@@ -655,8 +656,12 @@ akveg_metadata <- eml$dataset(
 )
 
 # Compile EML document structure
+
+## Generate unique identifier for the data package
+dataset_uuid <- str_c("urn:uuid:", uuid::UUIDgenerate())
+
 eml_doc <- eml$eml(
-  packageId = "urn:uuid:9b07dc26-594c-4bbe-aef5-3f766d5e8edd",
+  packageId = dataset_uuid,
   system = "knb",
   dataset = akveg_metadata
 )
