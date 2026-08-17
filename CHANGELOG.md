@@ -12,24 +12,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-* **Separated database from code versioning**: Moved database change tracking to a dedicated `database_version` table. Future changelog entries in the GitHub repository will focus only on tracking changes to the ETL pipeline, including changes to processing functions and transformation logic.
+* **Separated database from code versioning**: Moved database change tracking to a dedicated `database_version` table. Future changelog entries in the GitHub repository will focus on tracking changes to the SQL scripts and the ETL pipeline.
 
-### Updated
+### SQL Build & Queries Scripts
 
+#### Added
+- Added `database_version` table to track version changes to the database.
+- Added 1 lookup table (`release_category`) that provides a constrained vocabulary for `database_version`.
+- Added 1 lookup table (`missing_value_code`) that provides a constrained vocabulary for `database_schema`.
+
+#### Updated
 - Enforced `NOT NULL` constraints in `taxon_source`, `tree_structure`, and `shrub_structure` tables.
-- Processed new `database_version` table in data insert pipeline.
-- Appended `missing_value_code_id` foreign key and `missing_value_description` to `database_schema` table in data insert pipeline.
 - Renamed `required` field in `database_schema` to `is_required` to align with the names of other Boolean fields in this table.
-- Aligned queries in `user_tools/queries` to mirror the field names and structure of the original tables. Ensured new and renamed fields were included in the query files.
+- Updated `database_schema` build to include two new fields (`missing_value_code_id`, `missing_value_description`) and a `CHECK` constraint that specify how missing values are coded and defined by different fields.
+- Updated queries in `user_tools/queries` to align with the field names and order of the database tables.
 
-### Added
-- Created the `create_eml_xml` script to parse the database's `database_schema` and `database_dictionary` tables into a valid EML XML document. This document will be uploaded in a data repository alongside compiled data tables. 
-- Added helper utility to `manuscript/utils.R` to map fields in compiled data tables to their corresponding fields in the `database_schema`.
-- Created `database_version` table and associated `release_category` lookup table.
-- Added `missing_value_code_id` and `missing_value_description` to `database_schema` to explicitly track how missing values are handled by different fields. Created `missing_value_code` lookup table to enforce a standardized vocabulary for missing value codes. 
-- Added check constraint to the `database_schema` table to ensure that all entries with a `missing_value_code_id` have a corresponding entry in the `missing_value_description` field.
+### ETL Pipeline
 
-### Fixed 
+#### Updated
+- `03_data_insert/00b_Prepare_Metadata.R`: Parse `database_version` table into SQL statement and insert into database.
+- `03_data_insert/00b_Prepare_Metadata.R`: Processed new missing value fields in `database_schema`.
+- Refactored `03_data_insert/00a_Prepare_Taxonomy.R` and `03_data_insert/00b_Prepare_Metadata.R` to use relative file paths instead of absolute paths.
+
+#### Added
+- Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
+- Created `user_tools/utils_database.R` to compile two database functions under a single script.
+- Created `user_tools/utils_init.R` that includes a function for reading a file path config file.
+
+#### Fixed 
 
 - Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special characters.
 
