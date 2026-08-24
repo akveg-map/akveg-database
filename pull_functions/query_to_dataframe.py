@@ -2,12 +2,12 @@
 # ---------------------------------------------------------------------------
 # Query PostgreSQL database to return data frame
 # Author: Timm Nawrocki, Alaska Center for Conservation Science
-# Last Updated: 2024-07-26
+# Last Updated: 2026-08-24
 # Usage: Can be executed in a Python 3.9+ distribution.
 # Description: "Query PostgreSQL database to return data frame" is a function that queries a PostgreSQL connection and returns the query results as a Pandas dataframe.
 # ---------------------------------------------------------------------------
 
-# Define a function to create a connection to a PostgreSQL database
+# Define a function to query a PostgreSQL database and return that results as a Pandas dataframe
 def query_to_dataframe(connection, query):
     """
     Description: queries a PostgreSQL connection and returns results as a dataframe.
