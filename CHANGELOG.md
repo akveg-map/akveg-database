@@ -36,12 +36,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Added
 - Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
-- Created `user_tools/utils_database.R` to compile two database functions under a single script.
-- Created `user_tools/utils_init.R` that includes a function for reading a file path config file.
 
 #### Fixed 
 
 - Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special characters.
+
+### User Tools
+
+#### Added
+- `user_tools/utils_database.R`: Compiles two database functions into a single script file.
+- `user_tools/utils_init.R`: Includes a function for reading a file path config file, allowing users to use relative 
+  file paths instead of absolute paths.
+- `user_tools/utils_database.py`: Compiles two existing scripts (connect_database_postgres.py,  
+  query_to_dataframe.py) into a single script.
+- `user_tools/akveg_vignette.html`: Introductory guide to help users familiarize themselves with some of 
+  the tables in the database. This guide was created to accompany a data deposit (currently unreleased). The 
+  compiled tables can be reproduced by running the `manuscript/export_compiled_tables.py` script or the queries in the 
+  `user_tools/queries` folder.
 
 ## [2.9.2] - 2026-06-10 
 
