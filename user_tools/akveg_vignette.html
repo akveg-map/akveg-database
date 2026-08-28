@@ -11,7 +11,7 @@
 
 <meta name="author" content="Amanda Droghini, Timm Nawrocki" />
 
-<meta name="date" content="2026-08-07" />
+<meta name="date" content="2026-08-28" />
 
 <title>Getting Started with the AKVEG Database (Version 2.11.1)</title>
 
@@ -1676,7 +1676,7 @@ border-radius: 0px;
 <h1 class="title toc-ignore">Getting Started with the AKVEG Database
 (Version 2.11.1)</h1>
 <h4 class="author">Amanda Droghini, Timm Nawrocki</h4>
-<h4 class="date">2026-08-07</h4>
+<h4 class="date">2026-08-28</h4>
 
 </div>
 
@@ -1695,7 +1695,7 @@ word-break: break-word !important;
 <div id="introduction" class="section level2" number="1">
 <h2><span class="header-section-number">1</span> Introduction ▶️</h2>
 <p>The Alaska Vegetation (AKVEG) Database is a cloud-hosted, PostgreSQL
-database of vegetation field surveys in Alaska and adjacent Canada. The
+database of vegetation field surveys for Alaska and adjacent Canada. The
 database contains data from 100 survey and monitoring projects that have
 been harmonized to a common standard. The current version (v2.11.1)
 includes 44,324 unique site visits and 701,216 records of foliar cover
@@ -1704,7 +1704,16 @@ cover data, the database also includes measurements of abiotic top
 cover, ground cover, environmental characteristics, and soil
 properties.</p>
 <p>This vignette will show you how to load, filter, and join the
-compiled data tables that are in this deposit.</p>
+compiled tables that are in this deposit. Together, we will:</p>
+<ul>
+<li>Explore the documentation to help you interpret the tables’ fields
+and values</li>
+<li>Map the distribution of sites that are in the Arctic</li>
+<li>Create a regional list of taxa based on the plots in the
+dataset</li>
+<li>Extract project information and associated bibliographic
+references</li>
+</ul>
 <div id="accessing-the-live-database" class="section level3" number="1.1">
 <h3><span class="header-section-number">1.1</span> Accessing the Live
 Database</h3>
@@ -1727,7 +1736,7 @@ and 12 data tables.</p></li>
 <li><p><strong>Data Standards Protocol</strong>
 (<code>VWG_2022_Minimum_Standards_v1_1.pdf</code>): This document
 establishes data collection standards for field vegetation observations
-in Alaska, and defines a data schema that formed the basis for the AKVEG
+in Alaska, and defines a data schema that forms the basis for the AKVEG
 Database. The <em>Minimum Standards</em> were written by members of the
 Alaska Geospatial Council’s Vegetation Working Group.</p></li>
 <li><p><strong>User Vignette &amp; Source Code</strong>
@@ -1791,8 +1800,8 @@ companion publications, reports, or source datasets.</td>
 <tr class="even">
 <td align="left"><code>taxonomy.csv</code></td>
 <td align="left"><code>taxon_name</code></td>
-<td align="left">The AKVEG taxonomic standard that maps taxon concepts
-to current accepted scientific names, taxonomic hierarchy, and growth
+<td align="left">AKVEG taxonomic standard that maps taxon concepts to
+current accepted scientific names, taxonomic hierarchy, and growth
 habits.</td>
 </tr>
 </tbody>
@@ -1938,16 +1947,16 @@ listed below.</p>
 tables (CSV files) into R.</p>
 <p>This vignette uses an R Project and the <code>here</code> package to
 reference relative file paths. In this example, the CSV files are stored
-in a folder named <code>v2_11_0</code> that is inside the project
+in a folder named <code>v2_11_1</code> that is inside the project
 directory.</p>
 <blockquote>
 <p>Note: If you are not using an R Project, you can replace
-<code>here(&quot;v2_11_0&quot;)</code> with an absolute file path to the folder
+<code>here(&quot;v2_11_1&quot;)</code> with an absolute file path to the folder
 where the CSV files are stored (for example,
-path(“C:/Users/your_username/akveg_data/v2_11_0”)).</p>
+path(“C:/Users/your_username/akveg_data/v2_11_1”)).</p>
 </blockquote>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Define path to the directory containing the CSV files</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>data_dir <span class="ot">&lt;-</span> <span class="fu">path</span>(<span class="fu">here</span>(<span class="st">&quot;v2_11_0&quot;</span>))</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>data_dir <span class="ot">&lt;-</span> <span class="fu">path</span>(<span class="fu">here</span>(<span class="st">&quot;v2_11_1&quot;</span>))</span>
 <span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
 <span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># Load reference tables</span></span>
 <span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>schema <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">path</span>(data_dir, <span class="st">&quot;database_schema.csv&quot;</span>))</span>
@@ -2006,30 +2015,16 @@ table.</caption>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">establishing_project_code</td>
-<td align="left">varchar</td>
-<td align="left">Foreign key value that identifies the project during
-which the site or plot was first established and observed.</td>
-</tr>
-<tr class="even">
-<td align="left">latitude_dd</td>
-<td align="left">decimal</td>
-<td align="left">Latitude in decimal degrees with at least 5 decimal
-places (i.e., precision of approximately 1 m). Positive values used for
-northern hemisphere.</td>
-</tr>
-<tr class="odd">
-<td align="left">longitude_dd</td>
-<td align="left">decimal</td>
-<td align="left">Longitude in decimal degrees with at least 5 decimal
-places (i.e., precision of approximately 1 m). Positive values used for
-eastern hemisphere; negative values used for western hemisphere.</td>
-</tr>
-<tr class="even">
 <td align="left">site_code</td>
 <td align="left">varchar</td>
 <td align="left">Unique alphanumeric identifier assigned to the site or
 plot in the project.</td>
+</tr>
+<tr class="even">
+<td align="left">establishing_project_code</td>
+<td align="left">varchar</td>
+<td align="left">Foreign key value that identifies the project during
+which the site or plot was first established and observed.</td>
 </tr>
 <tr class="odd">
 <td align="left">cover_method</td>
@@ -2042,6 +2037,20 @@ estimate cover.</td>
 <td align="left">varchar</td>
 <td align="left">Abbreviated name of the geographic horizontal
 datum.</td>
+</tr>
+<tr class="odd">
+<td align="left">latitude_dd</td>
+<td align="left">decimal</td>
+<td align="left">Latitude in decimal degrees with at least 5 decimal
+places (i.e., precision of approximately 1 m). Positive values used for
+northern hemisphere.</td>
+</tr>
+<tr class="even">
+<td align="left">longitude_dd</td>
+<td align="left">decimal</td>
+<td align="left">Longitude in decimal degrees with at least 5 decimal
+places (i.e., precision of approximately 1 m). Positive values used for
+eastern hemisphere; negative values used for western hemisphere.</td>
 </tr>
 </tbody>
 </table>
@@ -2066,28 +2075,16 @@ which fields serve as links to other tables:</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">establishing_project_code</td>
-<td align="left">FALSE</td>
-<td align="left">TRUE</td>
-<td align="left">project</td>
-</tr>
-<tr class="even">
-<td align="left">latitude_dd</td>
-<td align="left">FALSE</td>
-<td align="left">FALSE</td>
-<td align="left">NA</td>
-</tr>
-<tr class="odd">
-<td align="left">longitude_dd</td>
-<td align="left">FALSE</td>
-<td align="left">FALSE</td>
-<td align="left">NA</td>
-</tr>
-<tr class="even">
 <td align="left">site_code</td>
 <td align="left">TRUE</td>
 <td align="left">FALSE</td>
 <td align="left">NA</td>
+</tr>
+<tr class="even">
+<td align="left">establishing_project_code</td>
+<td align="left">FALSE</td>
+<td align="left">TRUE</td>
+<td align="left">project</td>
 </tr>
 <tr class="odd">
 <td align="left">cover_method</td>
@@ -2097,6 +2094,18 @@ which fields serve as links to other tables:</p>
 </tr>
 <tr class="even">
 <td align="left">h_datum</td>
+<td align="left">FALSE</td>
+<td align="left">FALSE</td>
+<td align="left">NA</td>
+</tr>
+<tr class="odd">
+<td align="left">latitude_dd</td>
+<td align="left">FALSE</td>
+<td align="left">FALSE</td>
+<td align="left">NA</td>
+</tr>
+<tr class="even">
+<td align="left">longitude_dd</td>
 <td align="left">FALSE</td>
 <td align="left">FALSE</td>
 <td align="left">NA</td>
@@ -2133,9 +2142,9 @@ vocabularies.</p>
 <caption>Table 3. Allowable values and definitions for the cover_method
 field.</caption>
 <colgroup>
-<col width="6%" />
-<col width="16%" />
-<col width="77%" />
+<col width="5%" />
+<col width="14%" />
+<col width="80%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -2149,7 +2158,8 @@ field.</caption>
 <td align="left">cover_method</td>
 <td align="left">braun-blanquet visual estimate</td>
 <td align="left">Cover class was visually estimated using standardized
-Braun-Blanquet methods and ordinal classes.</td>
+Braun-Blanquet methods and ordinal classes. Plot-level cover estimates
+represent the midpoint percentage of the assigned ordinal class.</td>
 </tr>
 <tr class="even">
 <td align="left">cover_method</td>
@@ -2793,8 +2803,8 @@ AKVEG Database Version 2.11.1 released on the Arctic Data
 Center.</p></li>
 </ul>
 </div>
-<div id="recommended-citation" class="section level2" number="13">
-<h2><span class="header-section-number">13</span> Recommended Citation
+<div id="recommended-citations" class="section level2" number="13">
+<h2><span class="header-section-number">13</span> Recommended Citations
 📄</h2>
 <p>The AKVEG Database is released into the public domain under a CC0
 waiver. While attribution is not legally required, citing the database
@@ -2869,9 +2879,9 @@ loaded via a namespace (and not attached):
 [33] proxy_0.4-29       lifecycle_1.0.5    classInt_0.4-11    bit_4.6.0         
 [37] vroom_1.7.1        pkgconfig_2.0.3    pillar_1.11.1      bslib_0.10.0      
 [41] gtable_0.3.6       glue_1.8.1         Rcpp_1.1.1-1.1     xfun_0.57         
-[45] tibble_3.3.1       tidyselect_1.2.1   knitr_1.51         farver_2.1.2      
-[49] htmltools_0.5.9    labeling_0.4.3     rmarkdown_2.31     compiler_4.6.1    
-[53] S7_0.2.2          </code></pre>
+[45] tibble_3.3.1       tidyselect_1.2.1   rstudioapi_0.19.0  knitr_1.51        
+[49] farver_2.1.2       htmltools_0.5.9    labeling_0.4.3     rmarkdown_2.31    
+[53] compiler_4.6.1     S7_0.2.2          </code></pre>
 </div>
 
 
