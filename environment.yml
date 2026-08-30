@@ -32,5 +32,4 @@ dependencies:
   - sqlalchemy=2.0.50
   - xlsx2csv=0.8.6
   - xlsxwriter=3.2.9
-  - pip:
-      - akutils==1.0.2
+  - pip
