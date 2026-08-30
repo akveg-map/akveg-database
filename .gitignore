@@ -39,3 +39,14 @@ Thumbs.db
 # Config Files #
 #################
 paths.yaml
+.env
+*.env
+
+# Local Files #
+#################
+input_data/
+spatial_data/
+output_scripts/
+templates/
+credentials/
+.hermes/
