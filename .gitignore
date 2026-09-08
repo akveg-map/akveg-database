@@ -46,5 +46,5 @@ paths.yaml
 #################
 input_data/
 output_scripts/
-MEMORY.md
+HERMES.md
 .hermes/
