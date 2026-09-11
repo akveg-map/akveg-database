@@ -14,9 +14,9 @@ GRANT USAGE ON SCHEMA public TO read_access;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO read_access;
 
 -- Add a private user with read privileges
-CREATE USER private_read WITH PASSWORD 'private_password';
+CREATE USER private_read WITH PASSWORD 'private_read_password';
 GRANT read_access TO private_read;
 
 -- Add a public user with read privileges
-CREATE USER public_read WITH PASSWORD 'public_password';
+CREATE USER public_read WITH PASSWORD 'public_build_password';
 GRANT read_access TO public_read;
