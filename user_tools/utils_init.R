@@ -6,7 +6,7 @@
 #' Parses a local YAML configuration file and returns a structured list
 #' of resolved absolute paths.
 #'
-#' @param config_file Path to the YAML file. Defaults to "paths.yml" in the project root.
+#' @param config_file Path to the YAML file. Defaults to "paths.yaml" in the project root.
 #'
 #' @return A named list of class `fs_path` objects.
 #'
