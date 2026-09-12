@@ -56,6 +56,5 @@ visit_formatted <- survey_data %>%
   select(all_of(visit_columns))
 
 # Export data ----
-# Because Excel is useless when it comes to dates, you'll have to import the visit CSV as text and then specify 'text' (instead of General) for the observe_date column
 write_csv(x=site_formatted, file=output_site)
 write_csv(x=visit_formatted,file=output_visit)
