@@ -41,9 +41,8 @@ template_input = path(template_folder, "02_site.xlsx")
 site_output = path(plot_folder, '02_site_abrvarious2019.csv')
 
 # Define functions ----
-# Import database connection function
 plotting_script = path(repository_folder,
-                       'package_DataProcessing','map_spatial_outliers.R')
+                       '02_data_format', 'utils', 'plot_site_coordinates.R')
 source(plotting_script)
 
 # Read in data ----
