@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils_database.py
 # Author: Timm Nawrocki, Alaska Center for Conservation Science
-# Last Updated: 2026-08-24
+# Last Updated: 2026-09-12
 # Usage: Can be executed in a Python 3.9+ distribution.
 # ---------------------------------------------------------------------------
 
@@ -15,6 +15,10 @@ Functions include:
 
 """
 
+# Import packages
+import psycopg2
+import pandas as pd
+
 # --- Function 1 ---
 
 # Define a function to create a connection to a PostgreSQL database
@@ -25,10 +29,6 @@ def connect_database_postgresql(authentication):
     Returned Value: function returns connection to PostgreSQL database.
     Preconditions: requires an existing PostgreSQL database with proper authentication by SSL set up and authentication files with the client
     """
-
-    # Import packages
-    import psycopg2
-    import pandas as pd
 
     # Parse authentication parameters from csv
     parameters = pd.read_csv(authentication)
@@ -68,10 +68,6 @@ def query_to_dataframe(connection, query):
     Returned Value: Function returns connection to PostgreSQL database.
     Preconditions: requires an existing PostgreSQL connection created with the create_connection_postgresql function
     """
-
-    # Import packages
-    import psycopg2
-    import pandas as pd
 
     # Create a cursor object to execute the query
     cursor = connection.cursor()
