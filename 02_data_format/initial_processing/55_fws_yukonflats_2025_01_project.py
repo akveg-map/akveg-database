@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Project table for USFWS Yukon Flats data
 # Author: Amanda Droghini, Alaska Center for Conservation
-# Last Updated: 2026-01-29
+# Last Updated: 2026-09-12
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: "Format Project table for USFWS Yukon Flats data" populates required fields for the AKVEG project table.
 # The output is a CSV file that can be used for upload to the AKVEG database.
@@ -11,7 +11,7 @@
 # Import packages
 import polars as pl
 from pathlib import Path
-from utils import get_template
+from utils.utils import get_template
 
 # Define directories
 drive = Path('C:/')
