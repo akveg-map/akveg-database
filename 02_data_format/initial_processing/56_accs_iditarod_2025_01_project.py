@@ -11,7 +11,7 @@
 # Import packages
 import polars as pl
 from user_tools.utils_init import load_system_paths
-from initial_processing.utils import get_template
+from utils.utils import get_template
 
 # Load absolute file paths
 paths = load_system_paths()
