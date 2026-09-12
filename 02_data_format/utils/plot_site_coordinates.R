@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Map location of vegetation surveys
+# Plot site locations
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2024-09-25
+# Last Updated: 2026-09-12
 # Usage: Script should be executed in R 4.4.1+.
-# Description: "Map location of vegetation surveys" is a function that allows users to identify spatial outliers by mapping locations of vegetation surveys. The output is a map of point coordinates on a basemap from Google Maps that will be printed in the Plots pane.
+# Description: A function that outputs a map (plot) of site coordinates on a Google Maps basemap, to help users
+identify spatial outliers.
 
 # Parameters
 # @param sf_data An sf object with the appropriate coordinate reference system specified
