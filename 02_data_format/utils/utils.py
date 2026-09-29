@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-06-16
+# Last Updated: 2026-09-29
 # ---------------------------------------------------------------------------
 
 """
@@ -75,8 +75,10 @@ for file in Path(TEMPLATE_DIR).glob('[0-9][0-9]_*'):
 # Define schema for specific template tables
 # If table is not listed, uses default Polars type
 SCHEMA_OVERRIDES = {
-        "project": {"year_start": pl.Int64,
-                    "year_end": pl.Int64
+        "project": {"year_start": pl.Int16,
+                    "year_end": pl.Int16,
+                    "source_date": pl.Date,
+                    "acquisition_date": pl.Date
                     },
         "site": {"latitude_dd": pl.Decimal(precision=19, scale=16),
                  "longitude_dd": pl.Decimal(precision=19, scale=16),
