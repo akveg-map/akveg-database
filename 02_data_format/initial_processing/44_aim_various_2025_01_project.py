@@ -18,7 +18,7 @@ from utils.utils import get_template
 # Load absolute file paths
 paths = load_system_paths()
 
-# Define constant values
+# Define constants
 FOLDER_ID = "44_aim_various_2025"
 
 # Define inputs
@@ -36,7 +36,7 @@ template = get_template("project")
 plots = gpd.read_file(gdb_input, layer='AIM_Wetland__F_PlotCharacterization',
                       columns=["Project"], ignore_geometry=True)
 
-# Parse project name
+# Format project table
 project = ((
     pl.from_pandas(plots)
     .lazy()
