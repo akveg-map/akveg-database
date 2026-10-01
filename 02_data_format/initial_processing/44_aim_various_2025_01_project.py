@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Format Project table for BLM AIM data
+# Format Project table for BLM AIM 2022-2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation
 # Last Updated: 2026-10-01
 # Usage: Must be executed in a Python 3.13+ distribution.
