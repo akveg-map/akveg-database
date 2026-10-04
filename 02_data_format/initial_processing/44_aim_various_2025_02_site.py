@@ -8,13 +8,14 @@
 # to a CSV file. The script standardizes project and site codes, checks for spatial outliers, formats plot dimension
 # values, and aligns data with the AKVEG schema.
 # Notes: For plot dimensions, we assumed all plots that used a spoke layout had a plot dimension of 30 m radius (Page
-# 24 of Protocols).
+# 24 of Protocols). Dimensions of transverse layouts were simplified to 30×100.
 # Bureau of Land Management. 2024. AIM National Aquatic Monitoring Framework: Field Protocol for Lentic Riparian and
 # Wetland Systems. Tech Reference 1735-3. U.S. Department of the Interior, Bureau of Land Management, National
 # Operations Center, Denver, CO.
 # ---------------------------------------------------------------------------
 
 # Import packages
+import geopandas as gpd
 import polars as pl
 from pathlib import Path
 from user_tools.utils_init import load_system_paths
@@ -32,7 +33,7 @@ gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_202604
 project_input = plot_folder / "01_project_aimvarious2025.csv"
 
 # Define output
-project_output = plot_folder / '02_site_aimvarious2025.csv'
+site_output = plot_folder / '02_site_aimvarious2025.csv'
 
 # Get template file
 template = get_template("site")
@@ -49,6 +50,10 @@ project_original = pl.read_csv(project_input)
 ## No changes made since CRS was already 4269
 site_filtered = filter_sites_in_alaska(site_original)
 
+# Explore plot dimensions
+(site_filtered.filter(pl.col("PlotLayout") == "Transverse").select(["AvgWidthArea", "ActualPlotLength"])
+ .group_by(["AvgWidthArea", "ActualPlotLength"]).len(name="plot_count"))
+
 # Format site table
 site = (
     site_filtered.lazy()
@@ -62,7 +67,7 @@ site = (
     .with_columns(pl.col("Project")
                   .str.replace_all(r"([a-z])([A-Z])", r"${1}_${2}", literal=False)
                   .str.to_lowercase()
-                  .alias("project_code")
+                  .alias("establishing_project_code")
                   )
     # Remove date from EvaluationID
     .with_columns(pl.col("EvaluationID").str.split_exact("_", 1)
@@ -73,12 +78,10 @@ site = (
     # Format plot dimensions (see Notes in script header)
     .with_columns(pl.when(pl.col("PlotLayout") == "Spoke")
                   .then(pl.lit("30 radius"))
-                  .when((pl.col("PlotLayout") == "Transverse")
-                  .then(pl.lit("30×100")) ## Update this to concatenate AvgWidthArea x ActualPlotLength, add to plot
-                        # dimensions
+                  .when(pl.col("PlotLayout") == "Transverse")
+                  .then(pl.lit("30×100"))
                   .otherwise(pl.lit("unknown"))
                   .alias("plot_dimensions_m"))
-
     # Populate remaining columns
     .with_columns(pl.lit("ground").alias("perspective"),
                   pl.lit("line-point intercept").alias("cover_method"),
@@ -91,31 +94,36 @@ site = (
     .with_columns(pl.when(pl.col("h_error_m") < 2)
                   .then(pl.lit("mapping grade GPS"))
                   .otherwise(pl.lit("consumer grade GPS"))
-                  .alias("positional_accuracy"))
-)
+                  .alias("positional_accuracy")
+                  )
              # Match template columns
              .select(template.columns)
-             .collect())
+             .collect()
+)
 
-# Ensure site code prefixes are consistent
-site_filtered = site_filtered.with_columns(pl.col("PlotID")
-                                  .str.extract(pattern=r"(^[a-zA-Z]*-[a-zA-z]*)")
-                                  .alias("site_prefix"))
-print(site['site_prefix'].unique())
+# Quality checks
 
+# Explore site code prefixes to ensure codes are consistently formatted
+## For traceability, keep original site codes unless there is an obvious error or major inconsistency
+site_prefixes = (site.with_columns(pl.col("site_code")
+                  .str.replace(pattern=r"-\d+$",value="")
+                  .alias("site_prefix"))
+ .group_by("site_prefix").len(name="count").sort("count")
+ )
+## Explore sites associated with project code for AK-UNST (n=1)
+kobuk_seward = site.filter(pl.col("establishing_project_code").str.contains("kobuk_seward_2022"))
 
-# QC
-with pl.Config(tbl_cols=12):
-   print(site_final.describe())
+# Verify plot dimensions
+print(site["plot_dimensions_m"].value_counts())  # None with 'unknown'
 
-## Ensure that project codes match with those listed in the Project table
-print(site_final["establishing_project_code"].unique().sort().equals(project_original["project_code"].sort()))
+# Check for null values
+print(site.null_count().glimpse())
 
-## Ensure that all site codes are unique (false indicates all codes are unique)
-print(site_final['site_code'].is_duplicated().value_counts())
+# Ensure project codes match those in Project table
+print(site["establishing_project_code"].unique().sort().equals(project_original["project_code"].sort()))
 
-## Verify values
-print(site_final["plot_dimensions_m"].value_counts())  # None with 'unknown'
+# Ensure all site codes are unique (should only be false)
+print(site['site_code'].is_duplicated().value_counts())
 
 # Export as CSV
-site_final.write_csv(site_output)
+site.write_csv(site_output)
