@@ -2,13 +2,14 @@
 -- ---------------------------------------------------------------------------
 -- Query database dictionary
 -- Author: Amanda Droghini, Alaska Center for Conservation Science
--- Last Updated: 2026-06-02
+-- Last Updated: 2026-10-04
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Query database dictionary" queries the database dictionary table, joining foreign key fields with their respective reference tables.
 -- ---------------------------------------------------------------------------
 
 -- Compile database dictionary
 SELECT database_schema.field as field
+     , database_dictionary.data_attribute_id as data_attribute_id
      , database_dictionary.data_attribute as data_attribute
      , database_dictionary.definition as definition
 FROM database_dictionary
