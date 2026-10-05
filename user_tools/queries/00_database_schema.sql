@@ -2,13 +2,14 @@
 -- ---------------------------------------------------------------------------
 -- Query database schema
 -- Author: Amanda Droghini, Alaska Center for Conservation Science
--- Last Updated: 2026-07-12
+-- Last Updated: 2026-10-04
 -- Usage: Script should be executed in a PostgreSQL 17+ database.
 -- Description: "Query database schema" queries the database schema table, joining foreign key fields with their respective reference table.
 -- ---------------------------------------------------------------------------
 
 -- Compile database schema
-SELECT database_schema.standards_section as standards_section
+SELECT database_schema.field_id as field_id
+     , database_schema.standards_section as standards_section
      , schema_category.schema_category as schema_category
      , schema_table.schema_table as schema_table
      , database_schema.field as field
