@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Format Site Table for BLM AIM 2022-2025 data
+# Format Site Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
 # Last Updated: 2026-10-01
 # Usage: Must be executed in a Python 3.13+ distribution.
