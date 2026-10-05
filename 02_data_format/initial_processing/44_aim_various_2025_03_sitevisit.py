@@ -1,110 +1,89 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Format Site Table for BLM AIM Various 2023 data
+# Format Site Visit Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2025-10-29
+# Last Updated: 2026-10-05
 # Usage: Must be executed in a Python 3.13+ distribution.
-# Description: "Format Site Visit Table for BLM AIM Various 2023 data" formats information about site visits for
-# ingestion into the AKVEG Database. The script depends on the output from the 44_aim_various_2023_00_extract_data.py
-# script. The script formats dates, creates site visit codes, re-classifies structural class data, and populates
-# required metadata. The output is a CSV table that can be converted and included in a SQL INSERT statement.
+# Description: "Format Site Visit Table for BLM AIM 2022–2025 data" formats site visit metadata for
+# ingestion into the AKVEG Database. The script aligns the dataframe to the AKVEG schema by parsing dates,
+# creating site visit codes, re-classifying structural classes, and populating missing values with appropriate null
+# values. The script ends by performing quality control checks and exporting the dataframe as a CSV file.
 # ---------------------------------------------------------------------------
 
 # Import packages
+import geopandas as gpd
 import polars as pl
 import plotly.io as pio
 from pathlib import Path
-from utils import plot_survey_dates
+from utils.utils import get_template, plot_survey_dates
+from user_tools.utils_init import load_system_paths
 
 # Set default plot renderer
 pio.renderers.default = 'browser'
 
-# Define directories
-drive = Path('C:/')
-root_folder = drive / 'ACCS_Work'
+# Load absolute file paths
+paths = load_system_paths()
 
-# Define folders
-project_folder = root_folder / 'OneDrive - University of Alaska/ACCS_Teams' / 'Vegetation' / 'AKVEG_Database' / 'Data'
-plot_folder = project_folder / 'Data_Plots' / '44_aim_various_2023'
-template_folder = project_folder / 'Data_Entry'
+# Define constants
+FOLDER_ID = "44_aim_various_2025"
 
 # Define inputs
-visit_input = plot_folder / 'working' / '44_aim_2023_site_export.csv'
-site_input = plot_folder / '02_site_aimvarious2023.csv'
-template_input = template_folder / '03_site_visit.xlsx'
+plot_folder = paths.cloud_assets.plots / FOLDER_ID
+gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
+site_input = plot_folder / '02_site_aimvarious2025.csv'
+ecotype_input = plot_folder / working / 'ecotype_class_mapping.csv'
 
 # Define output
-visit_output = plot_folder / '03_sitevisit_aimvarious2023.csv'
+visit_output = plot_folder / '03_sitevisit_aimvarious2025.csv'
+
+# Get template file
+template = get_template("site_visit")
 
 # Read in data
-visit_original = pl.read_csv(visit_input, try_parse_dates=True, columns=["PlotID", "EstablishmentDate",
-                                                                       "Observer", "AdditionalObservers",
-                                                                         "WetlandType",
-                                                                         "AlaskaEcotypeClassification"])
-site_original = pl.read_csv(site_input, columns=["establishing_project_code", "site_code"])
-template = pl.read_excel(template_input)
+site_original = pl.read_csv(site_input, columns=["establishing_project_code", "site_code"]).lazy()
+ecotype_lookup = pl.read_csv(ecotype_input)
+visit_original = gpd.read_file(gdb_input, layer="AIM_Wetland__F_PlotCharacterization",
+                               columns=["EvaluationID",
+                                        "AlaskaEcotypeClassification"])
 
-# Obtain project code by joining with site data
-visit = visit_original.join(site_original, how='right', left_on="PlotID", right_on="site_code")
+# Convert gpd to Polars DataFrame
+visit_df = pl.from_pandas(visit_original.drop(columns=['geometry']))
 
-# Format date and check for outliers
-visit = visit.with_columns(pl.col("EstablishmentDate").dt.date().alias("observe_date"))
+# Explore structural class categories
+struct_class_groups = (
+    visit_df
+    .group_by("AlaskaEcotypeClassification")
+    .len(name="count")
+    .sort("count", descending=True)
+)
+
+# Format site visit table
+visit = (visit_df
+         .lazy()
+         # Parse site code and observation date from Evaluation ID
+         .with_columns(pl.col("EvaluationID").str.split_exact("_", 1)
+              .struct.rename_fields(["site_code", "observe_date"])
+              .alias("fields")
+              )
+         .unnest("fields")
+         # Concatenate site code and observe date to create site visit code
+         .with_columns(pl.col("observe_date").str.replace_all(pattern="-", value="").alias("date_string"))
+         .with_columns((pl.col("site_code") + "_" + pl.col("date_string")).alias("site_visit_code"))
+         # Cast date field
+         .with_columns(pl.col("observe_date").cast(pl.Date).alias("observe_date"))
+         # Join with site code to obtain project code
+         .join(site_original, how='right', on="site_code")
+         # Join with Alaska Ecotype lookup table to map to structural class
+         .join(wetland_lookup, how="left", left_on="AlaskaEcotypeClassification", right_on="alaska_ecotype")
+         .collect()
+         )
+
+
+# Check for date outliers
 print(visit["observe_date"].describe())
 print(visit['observe_date'].dt.month().unique())  # Date range is reasonable
 hist_date = plot_survey_dates(visit)
 # print(hist_date.show())
-
-# Create site visit code
-visit = visit.with_columns(pl.col("observe_date").cast(pl.String).str.replace_all(pattern="-", value="").alias(
-    "date_string"))
-visit = visit.with_columns((pl.col("site_code") + "_" + pl.col("date_string")).alias("site_visit_code"))
-
-# Format structural class
-## Unable to determine whether 'post-fire scrub' refers to 'low' or 'tall' shrub
-visit = visit.with_columns(pl.when(pl.col("AlaskaEcotypeClassification").str.contains(r"Tall S[a-z]rub"))
-                           .then(pl.lit("tall shrub"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Low and Tall Shrub"))
-                           .then(pl.lit("tall shrub"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Low S[a-z]rub"))  # Prioritize
-                           # low shrub even if original classification mentions dwarf shrub
-                           .then(pl.lit("low shrub"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Spruce (Forest|Woodland)"))
-                           .then(pl.lit("needleleaf forest"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Aspen (Forest|Woodland)"))
-                           .then(pl.lit("broadleaf forest"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Spruce-Birch Forest"))
-                           .then(pl.lit("mixed forest"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Barrens"))
-                           .then(pl.lit("barrens or partially vegetated"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Dwarf"))
-                           .then(pl.lit("dwarf shrub"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Bluejoint"))
-                           .then(pl.lit("grass meadow"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Lichen Tundra"))
-                           .then(pl.lit("lichen tundra"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Wet Sedge"))
-                           .then(pl.lit("sedge emergent"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Spruce-Birch Woodland"))
-                           .then(pl.lit("mixed forest"))
-
-                           .when(pl.col("AlaskaEcotypeClassification").str.contains(r"Moist Tussock Meadow"))
-                           .then(pl.lit("tussock meadow"))
-
-                           .otherwise(pl.lit("not available"))
-
-                           .alias("structural_class")
-                           )
 
 ## Review classification scheme
 contingency_table = (
