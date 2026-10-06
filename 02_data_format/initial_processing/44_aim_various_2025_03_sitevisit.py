@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Site Visit Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-05
+# Last Updated: 2026-10-06
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: "Format Site Visit Table for BLM AIM 2022–2025 data" formats site visit metadata for
 # ingestion into the AKVEG Database. The script aligns the dataframe to the AKVEG schema by parsing dates,
@@ -30,8 +30,9 @@ FOLDER_ID = "44_aim_various_2025"
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
+observer_input = plot_folder / "archive" / "44_aim_various_2023" / "source" / "RW_AKSDEExport_20241021clean.gdb"
 site_input = plot_folder / '02_site_aimvarious2025.csv'
-ecotype_input = plot_folder / working / 'ecotype_class_mapping.csv'
+ecotype_input = plot_folder / "working" / 'ecotype_class_mapping.csv'
 
 # Define output
 visit_output = plot_folder / '03_sitevisit_aimvarious2025.csv'
@@ -41,25 +42,34 @@ template = get_template("site_visit")
 
 # Read in data
 site_original = pl.read_csv(site_input, columns=["establishing_project_code", "site_code"]).lazy()
-ecotype_lookup = pl.read_csv(ecotype_input)
-visit_original = gpd.read_file(gdb_input, layer="AIM_Wetland__F_PlotCharacterization",
-                               columns=["EvaluationID",
-                                        "AlaskaEcotypeClassification"])
+ecotype_lookup = pl.read_csv(ecotype_input).lazy()
+visit_lazy = pl.from_pandas(gpd.read_file(gdb_input,
+                                        layer="AIM_Wetland__F_PlotCharacterization",
+                                        columns=["EvaluationID", "AlaskaEcotypeClassification"],
+                                        ignore_geometry=True)
+                          ).lazy()
+observer_lazy = pl.from_pandas(gpd.read_file(observer_input,
+                                           layer="F_PlotCharacterization",
+                                           ## "AdditionalObservers" column is all null and therefore ignored
+                                           columns=["EvaluationID", "Observer"],
+                                           ignore_geometry=True)
+                             ).lazy()
 
-# Convert gpd to Polars DataFrame
-visit_df = pl.from_pandas(visit_original.drop(columns=['geometry']))
-
-# Explore structural class categories
-struct_class_groups = (
-    visit_df
-    .group_by("AlaskaEcotypeClassification")
-    .len(name="count")
-    .sort("count", descending=True)
-)
+# Format observer names
+observer_lazy = (observer_lazy.with_columns(pl.when(pl.col("Observer") == "Gerald V Frost")
+                           .then(pl.lit("Gerald Frost"))
+                           .when(pl.col("Observer") == "Robert W McNown")
+                           .then(pl.lit("Robert McNown"))
+                           .when(pl.col("Observer") == "Sue L Ives")
+                           .then(pl.lit("Susan Ives"))
+                           .otherwise(pl.col("Observer"))
+                           .alias("veg_observer")
+                           ).drop("Observer"))
 
 # Format site visit table
-visit = (visit_df
-         .lazy()
+visit = (visit_lazy
+         # Obtain observer names by joining with observer_df
+         .join(observer_lazy, how="left", on="EvaluationID")
          # Parse site code and observation date from Evaluation ID
          .with_columns(pl.col("EvaluationID").str.split_exact("_", 1)
               .struct.rename_fields(["site_code", "observe_date"])
@@ -74,9 +84,38 @@ visit = (visit_df
          # Join with site code to obtain project code
          .join(site_original, how='right', on="site_code")
          # Join with Alaska Ecotype lookup table to map to structural class
-         .join(wetland_lookup, how="left", left_on="AlaskaEcotypeClassification", right_on="alaska_ecotype")
+         .join(ecotype_lookup, how="left", left_on="AlaskaEcotypeClassification", right_on="alaska_ecotype")
+         # Populate remaining columns
+         .with_columns(pl.lit("map development & verification").alias("data_tier"),
+                       pl.col("veg_observer").fill_null(pl.lit("unknown")).alias("veg_observer"),
+                       pl.lit("unknown").alias("veg_recorder"),
+                       pl.lit("unknown").alias("env_observer"),
+                       pl.lit("unknown").alias("soils_observer"),
+                       pl.lit("exhaustive").alias("scope_vascular"),
+                       pl.lit("common species").alias("scope_bryophyte"),
+                       pl.lit("common species").alias("scope_lichen"),
+                       pl.lit("TRUE").alias("homogeneous"))
+         # Rename columns
+         .rename({"establishing_project_code": "project_code"})
          .collect()
          )
+
+# QC
+
+# Review ecotype re-classification
+contingency_table = (
+    visit
+    .group_by("AlaskaEcotypeClassification", "structural_class")
+    .len(n="count")
+    .sort("count", descending=True)
+)
+
+## Explore entries listed as "not available"
+missing_class = visit.filter(pl.col("structural_class") == "not available" | "no data")
+
+
+
+
 
 
 # Check for date outliers
@@ -85,51 +124,18 @@ print(visit['observe_date'].dt.month().unique())  # Date range is reasonable
 hist_date = plot_survey_dates(visit)
 # print(hist_date.show())
 
-## Review classification scheme
-contingency_table = (
-    visit
-    .group_by("AlaskaEcotypeClassification", "structural_class")
-    .agg(pl.len().alias("Count"))
-)
 
-## Explore entries listed as "not available"
-missing_class = visit.filter(pl.col("structural_class") == "not available")
-
-# Format observer names
-print(visit["AdditionalObservers"].unique())  # All null
-visit = visit.with_columns(pl.when(pl.col("Observer") == "Gerald V Frost")
-                           .then(pl.lit("Gerald Frost"))
-                           .when(pl.col("Observer") == "Robert W McNown")
-                           .then(pl.lit("Robert McNown"))
-                           .when(pl.col("Observer") == "Sue L Ives")
-                           .then(pl.lit("Susan Ives"))
-                           .otherwise(pl.col("Observer"))
-                           .alias("veg_observer")
-                           )
-
-# Populate remaining columns
-visit = (visit.with_columns(pl.lit("map development & verification").alias("data_tier"),
-                           pl.lit("unknown").alias("veg_recorder"),
-                           pl.lit("unknown").alias("env_observer"),
-                           pl.lit("unknown").alias("soils_observer"),
-                           pl.lit("exhaustive").alias("scope_vascular"),
-                           pl.lit("common species").alias("scope_bryophyte"),
-                           pl.lit("common species").alias("scope_lichen"),
-                           pl.lit("TRUE").alias("homogeneous"))
-         .rename({"establishing_project_code": "project_code"})
-         )
-
-# Match template formatting
-visit_final = visit[template.columns]
-
-# QC
 missing_values = visit_final.null_count()  # Review null counts
 
 # Verify personnel names
 print(visit_final["veg_observer"].unique().sort())
 
 # Verify that all structural class values match a constrained value
+## Use get valid vlaues
 struct_classes = visit_final["structural_class"].value_counts().sort(by="structural_class")
+
+# Match template formatting
+visit_final = visit[template.columns]
 
 # Export as CSV
 visit_final.write_csv(visit_output)
