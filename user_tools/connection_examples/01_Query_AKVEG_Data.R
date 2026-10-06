@@ -43,7 +43,7 @@ region_input <- path(input_folder, "AlaskaYukon_Regions_v2.0_3338.shp")
 fireyear_input <- path(input_folder, "AlaskaYukon_FireYear_10m_3338.tif")
 
 # Define queries
-## Can be modified or expanded to include queries for other data tables
+## Can be modified or expanded to include other queries
 taxa_file <- path(query_folder, "00_taxonomy.sql")
 project_file <- path(query_folder, "01_project.sql")
 site_visit_file <- path(query_folder, "03_site_visit.sql")
