@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Prepare metadata and constraints for upload
 # Authors: Timm Nawrocki, Amanda Droghini, ACCS
-# Last Updated: 2026-08-02
+# Last Updated: 2026-10-06
 # Usage: Script should be executed in R 4.6.1+.
 # Description: Dynamically parses metadata and constraints from Excel into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
@@ -56,9 +56,19 @@ org_data <- read_excel(path(local_paths$metadata, "organization.xlsx"), sheet = 
 citations_data <- read_excel(path(local_paths$metadata, "project_source.xlsx"), sheet = "project_citations")
 version_data <- read_excel(path(local_paths$metadata, "database_version.xlsx"))
 
-# Parse constraints
+# Dynamically generate numeric attribute IDs
+dictionary_data <- dictionary_data |>
+  arrange(field, data_attribute) |>
+  group_by(field) |>
+  mutate(numeric_id = row_number()) |>
+  mutate(numeric_id = as.character(numeric_id)) |>
+  mutate(data_attribute_id = case_when(is.na(data_attribute_id) ~ numeric_id,
+    .default = data_attribute_id
+  )) |>
+  ungroup()
+
+# Parse lookup tables from dictionary
 constraint_tables <- dictionary_data %>%
-  arrange(field) %>%
   split(.$field) %>%
   imap(function(df, field_name) {
     # Create suffix for id column (end in "_id" or "_code" for most exceptions)
