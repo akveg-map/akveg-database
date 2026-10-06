@@ -8,15 +8,11 @@
 # ---------------------------------------------------------------------------
 
 # Import packages
+# utils_database available in user_tools folder of AKVEG Database GitHub repo: https://github.com/akveg-map/akveg-database/tree/main/user_tools
 import os
 import pandas as pd
 import geopandas as gpd
-from akutils import connect_database_postgresql  # Optional (see below)
-from akutils import query_to_dataframe  # Optional (see below)
-
-# IF NOT USING AKUTILS, UNCOMMENT LINES BELOW (FOR IDE THAT AUTO-RECOGNIZES INIT FILE)
-# from pull_functions import connect_database_postgresql
-# from pull_functions import query_to_dataframe
+from user_tools.utils_database import connect_database_postgresql, query_to_dataframe
 
 #### SET UP DIRECTORIES AND FILES
 ####------------------------------
