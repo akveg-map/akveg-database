@@ -15,8 +15,9 @@ import geopandas as gpd
 import polars as pl
 import plotly.io as pio
 from pathlib import Path
-from utils.utils import get_template, plot_survey_dates
+from utils.utils import get_template, plot_survey_dates, get_valid_values
 from user_tools.utils_init import load_system_paths
+from user_tools.utils_database import connect_database_postgresql
 
 # Set default plot renderer
 pio.renderers.default = 'browser'
@@ -33,9 +34,13 @@ gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_202604
 observer_input = plot_folder / "archive" / "44_aim_various_2023" / "source" / "RW_AKSDEExport_20241021clean.gdb"
 site_input = plot_folder / '02_site_aimvarious2025.csv'
 ecotype_input = plot_folder / "working" / 'ecotype_class_mapping.csv'
+credentials_input = paths.cloud_assets.credentials
 
 # Define output
 visit_output = plot_folder / '03_sitevisit_aimvarious2025.csv'
+
+# Connect to AKVEG Database
+db_conn = connect_database_postgresql(credentials_input)
 
 # Get template file
 template = get_template("site_visit")
@@ -125,11 +130,19 @@ hist_date = plot_survey_dates(visit)
 # Check for null values
 print(visit.null_count().glimpse())
 
-# Verify personnel names
-print(visit.select("veg_observer").unique())
+# Verify constrained values
+## Personnel
+personnel_full = get_valid_values(db_conn, table_name="personnel", field_name="personnel")
+personnel_visit = set(visit.select("veg_observer").unique().to_series())
+print(personnel_visit.difference(personnel_full)) ## Should be empty
 
-# Verify that all structural class values match a constrained value
-struct_classes = visit["structural_class"].value_counts().sort(by="structural_class")
+## Structural class
+structural_class_full = get_valid_values(db_conn, table_name="structural_class", field_name="structural_class")
+structural_class_visit = set(visit.select("structural_class").unique().to_series())
+print(structural_class_visit.difference(structural_class_full)) ## Should be empty
 
 # Export as CSV
 visit.write_csv(visit_output)
+
+# Close database connection
+db_conn.close()
