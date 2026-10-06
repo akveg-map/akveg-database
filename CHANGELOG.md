@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Updated
 - Enforced `NOT NULL` constraints in `taxon_source`, `tree_structure`, and `shrub_structure` tables.
-- Renamed `required` field in `database_schema` to `is_required` to align with the names of other Boolean fields in this table.
+- Renamed `required` field in `database_schema` to `is_required` to align with the names of other Boolean fields in the table.
 - Updated `database_schema` build to include two new fields (`missing_value_code_id`, `missing_value_description`) and a `CHECK` constraint that specify how missing values are coded and defined by different fields.
 - Updated queries in `user_tools/queries` to align with the field names and order of the database tables.
 
@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Refactored `03_data_insert/00a_Prepare_Taxonomy.R` and `03_data_insert/00b_Prepare_Metadata.R` to use relative file paths instead of absolute paths.
 
 #### Added
+- `02_data_format/initial_processing`: Added Project, Site, Site Visit, and Vegetation Cover tables for `44_aim_various_2025`. Replaces and adds to `44_aim_various_23`.
 - Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
 
 #### Fixed 
@@ -47,8 +48,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `user_tools/utils_database.R`: Compiles two database functions into a single script file.
 - `user_tools/utils_init.R`: Includes a function for reading a file path config file, allowing users to use relative 
   file paths instead of absolute paths.
-- `user_tools/utils_database.py`: Compiles two existing scripts (connect_database_postgres.py,  
-  query_to_dataframe.py) into a single script.
+- `user_tools/utils_database.py`: Compiles two existing scripts (`connect_database_postgres.py`,  
+  `query_to_dataframe.py`) into a single script.
+- `user_tools/utils_init.py`: Added `load_system_paths()` function to facilitate the use of relative file paths in processing scripts.
 - `user_tools/akveg_vignette.html`: Introductory guide to help users familiarize themselves with some of 
   the tables in the database. This guide was created to accompany a data deposit (currently unreleased). The 
   compiled tables can be reproduced by running the `manuscript/export_compiled_tables.py` script or the queries in the 
