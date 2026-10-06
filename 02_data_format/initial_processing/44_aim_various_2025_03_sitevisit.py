@@ -42,7 +42,7 @@ template = get_template("site_visit")
 
 # Read in data
 site_original = pl.read_csv(site_input, columns=["establishing_project_code", "site_code"]).lazy()
-ecotype_lookup = pl.read_csv(ecotype_input).lazy()
+ecotype_lookup = pl.read_csv(ecotype_input, null_values="null").lazy()
 visit_lazy = pl.from_pandas(gpd.read_file(gdb_input,
                                         layer="AIM_Wetland__F_PlotCharacterization",
                                         columns=["EvaluationID", "AlaskaEcotypeClassification"],
@@ -88,6 +88,7 @@ visit = (visit_lazy
          # Populate remaining columns
          .with_columns(pl.lit("map development & verification").alias("data_tier"),
                        pl.col("veg_observer").fill_null(pl.lit("unknown")).alias("veg_observer"),
+                       pl.col("structural_class").fill_null(pl.lit("no data")).alias("structural_class"),
                        pl.lit("unknown").alias("veg_recorder"),
                        pl.lit("unknown").alias("env_observer"),
                        pl.lit("unknown").alias("soils_observer"),
@@ -100,23 +101,20 @@ visit = (visit_lazy
          .collect()
          )
 
-# QC
+# Quality checks
 
-# Review ecotype re-classification
-contingency_table = (
+# Review entries with missing values for structural class
+missing_classes = (
     visit
-    .group_by("AlaskaEcotypeClassification", "structural_class")
-    .len(n="count")
-    .sort("count", descending=True)
+    .select("AlaskaEcotypeClassification", "structural_class")
+    .unique()
+    .filter((pl.col("structural_class") == "not available") |
+            (pl.col("structural_class") == "no data") |
+            pl.col("structural_class").is_null())
 )
 
-## Explore entries listed as "not available"
-missing_class = visit.filter(pl.col("structural_class") == "not available" | "no data")
-
-
-
-
-
+# Match template formatting
+visit = visit.select(template.columns)
 
 # Check for date outliers
 print(visit["observe_date"].describe())
@@ -124,18 +122,14 @@ print(visit['observe_date'].dt.month().unique())  # Date range is reasonable
 hist_date = plot_survey_dates(visit)
 # print(hist_date.show())
 
-
-missing_values = visit_final.null_count()  # Review null counts
+# Check for null values
+print(visit.null_count().glimpse())
 
 # Verify personnel names
-print(visit_final["veg_observer"].unique().sort())
+print(visit.select("veg_observer").unique())
 
 # Verify that all structural class values match a constrained value
-## Use get valid vlaues
-struct_classes = visit_final["structural_class"].value_counts().sort(by="structural_class")
-
-# Match template formatting
-visit_final = visit[template.columns]
+struct_classes = visit["structural_class"].value_counts().sort(by="structural_class")
 
 # Export as CSV
-visit_final.write_csv(visit_output)
+visit.write_csv(visit_output)
