@@ -28,7 +28,6 @@ input_folder = os.path.join(drive, root_folder, 'Example/Data_Input')
 output_folder = os.path.join(input_folder, 'plot_data')
 
 # Define input files
-domain_input = os.path.join(input_folder, 'region_data/AlaskaYukon_ProjectDomain_v2.0_3338.shp')
 region_input = os.path.join(input_folder, 'region_data/AlaskaYukon_Regions_v2.0_3338.shp')
 fireyear_input = os.path.join(input_folder, 'ancillary_data/AlaskaYukon_FireYear_10m_3338.tif')
 
@@ -47,7 +46,6 @@ site_visit_file = os.path.join(database_repository, 'queries/03_site_visit.sql')
 vegetation_file = os.path.join(database_repository, 'queries/05_vegetation.sql')
 
 # Read local data
-domain_shape = gpd.read_file(domain_input)
 region_shape = gpd.read_file(region_input)
 
 # Get geometry for intersection (example to subset data by Boreal)
@@ -68,7 +66,7 @@ intersect_geometry = region_shape[region_shape['region'].isin(
 #### QUERY AKVEG DATABASE
 ####------------------------------
 
-# Create a connection to the AKVEG PostgreSQL database
+# Connect to the AKVEG PostgreSQL database
 authentication_file = os.path.join(credentials_folder, 'authentication_akveg_public_read.csv')
 database_connection = connect_database_postgresql(authentication_file)
 
@@ -99,9 +97,6 @@ site_visit_data = site_visit_data.to_crs(crs='EPSG:3338')
 # Extract coordinates in EPSG:3338
 site_visit_data['cent_x'] = site_visit_data.geometry.x
 site_visit_data['cent_y'] = site_visit_data.geometry.y
-
-# Subset points to map domain (example to subset using a feature class)
-site_visit_data = gpd.clip(site_visit_data, domain_shape)
 
 # Subset points to those within the target zone (example to subset using a feature class selection)
 site_visit_data = gpd.clip(site_visit_data, intersect_geometry)
