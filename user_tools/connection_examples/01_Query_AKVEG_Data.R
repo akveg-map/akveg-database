@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Query data from AKVEG Database
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-07-08
+# Last Updated: 2026-10-06
 # Usage: Script should be executed in R 4.6.1+.
 # Description: Example script to pull data from the AKVEG Database for all available, non-metadata tables. The script connects to the AKVEG database, executes queries, and performs simple spatial analyses (i.e., subset the data to specific study areas, extract raster values to surveyed plots). The outputs are a series of CSV files (one for each non-metadata table in the database) whose results are restricted to the study area in the script.
 # ---------------------------------------------------------------------------
@@ -39,7 +39,6 @@ input_folder <- path(local_paths$root, "Example/Data_Input")
 output_folder <- path(local_paths$root, "Example/Data_Output")
 
 # Define input files
-domain_input <- path(input_folder, "AlaskaYukon_ProjectDomain_v2.0_3338.shp")
 region_input <- path(input_folder, "AlaskaYukon_Regions_v2.0_3338.shp")
 fireyear_input <- path(input_folder, "AlaskaYukon_FireYear_10m_3338.tif")
 
@@ -58,7 +57,6 @@ site_point_output <- path(output_folder, "03_site_point_3338.shp")
 vegetation_output <- path(output_folder, "05_vegetation.csv")
 
 # Read local data ----
-domain_shape <- st_read(domain_input)
 region_shape <- st_read(region_input)
 fireyear_raster <- rast(fireyear_input)
 
@@ -94,8 +92,6 @@ site_visit_data <- as_tibble(dbGetQuery(database_connection, site_visit_query)) 
     cent_x = st_coordinates(.$geometry)[, 1],
     cent_y = st_coordinates(.$geometry)[, 2]
   ) %>%
-  # Subset points to map domain (example to subset using a feature class)
-  st_intersection(st_geometry(domain_shape)) %>%
   # Subset points to those within the target zone (example to subset using a feature class selection)
   st_intersection(intersect_geometry) %>%
   # Extract raster data to points
