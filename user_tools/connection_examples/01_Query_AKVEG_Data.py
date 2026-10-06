@@ -2,17 +2,17 @@
 # ---------------------------------------------------------------------------
 # Query data from AKVEG Database
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2025-05-06
+# Last Updated: 2026-10-06
 # Usage: Script should be executed in Python 3.12+. Requires psycopg2.
-# Description: "Compile data views" provides an example of compiling a set of data views for a user-specified region from the AKVEG Database.
+# Description: Provides an example of compiling a set of data views for a user-specified region from the AKVEG Database.
 # ---------------------------------------------------------------------------
 
 # Import packages
-# utils_database available in user_tools folder of AKVEG Database GitHub repo: https://github.com/akveg-map/akveg-database/tree/main/user_tools
 import os
 import pandas as pd
 import geopandas as gpd
-from user_tools.utils_database import connect_database_postgresql, query_to_dataframe
+from user_tools.utils_database import connect_database_postgresql, query_to_dataframe # Available from AKVEG Database
+# GitHub repo: https://github.com/akveg-map/akveg-database/tree/main/user_tools
 
 #### SET UP DIRECTORIES AND FILES
 ####------------------------------
@@ -38,28 +38,13 @@ project_output = os.path.join(output_folder, '01_project.csv')
 site_visit_output = os.path.join(output_folder, '03_site_visit.csv')
 site_point_output = os.path.join(output_folder, '03_site_point_3338.shp')
 vegetation_output = os.path.join(output_folder, '05_vegetation.csv')
-abiotic_output = os.path.join(output_folder, '06_abiotic_top_cover.csv')
-tussock_output = os.path.join(output_folder, '07_whole_tussock_cover.csv')
-ground_output = os.path.join(output_folder, '08_ground_cover.csv')
-structural_output = os.path.join(output_folder, '09_structural_group_cover.csv')
-shrub_output = os.path.join(output_folder, '11_shrub_structure.csv')
-environment_output = os.path.join(output_folder, '12_environment.csv')
-soilmetrics_output = os.path.join(output_folder, '13_soil_metrics.csv')
-soilhorizons_output = os.path.join(output_folder, '14_soil_horizons.csv')
 
 # Define queries
+## Can be modified or expanded to include other queries
 taxa_file = os.path.join(database_repository, 'queries/00_taxonomy.sql')
 project_file = os.path.join(database_repository, 'queries/01_project.sql')
 site_visit_file = os.path.join(database_repository, 'queries/03_site_visit.sql')
 vegetation_file = os.path.join(database_repository, 'queries/05_vegetation.sql')
-abiotic_file = os.path.join(database_repository, 'queries/06_abiotic_top_cover.sql')
-tussock_file = os.path.join(database_repository, 'queries/07_whole_tussock_cover.sql')
-ground_file = os.path.join(database_repository, 'queries/08_ground_cover.sql')
-structural_file = os.path.join(database_repository, 'queries/09_structural_group_cover.sql')
-shrub_file = os.path.join(database_repository, 'queries/11_shrub_structure.sql')
-environment_file = os.path.join(database_repository, 'queries/12_environment.sql')
-soilmetrics_file = os.path.join(database_repository, 'queries/13_soil_metrics.sql')
-soilhorizons_file = os.path.join(database_repository, 'queries/14_soil_horizons.sql')
 
 # Read local data
 domain_shape = gpd.read_file(domain_input)
@@ -182,62 +167,6 @@ vegetation_read.close()
 vegetation_query = vegetation_query.replace(';', input_sql)
 vegetation_data = query_to_dataframe(database_connection, vegetation_query)
 
-# Read abiotic top cover data from AKVEG Database for selected site visits
-abiotic_read = open(abiotic_file, 'r')
-abiotic_query = abiotic_read.read()
-abiotic_read.close()
-abiotic_query = abiotic_query.replace(';', input_sql)
-abiotic_data = query_to_dataframe(database_connection, abiotic_query)
-
-# Read whole tussock cover data from AKVEG Database for selected site visits
-tussock_read = open(tussock_file, 'r')
-tussock_query = tussock_read.read()
-tussock_read.close()
-tussock_query = tussock_query.replace(';', input_sql)
-tussock_data = query_to_dataframe(database_connection, tussock_query)
-
-# Read ground cover data from AKVEG Database for selected site visits
-ground_read = open(ground_file, 'r')
-ground_query = ground_read.read()
-ground_read.close()
-ground_query = ground_query.replace(';', input_sql)
-ground_data = query_to_dataframe(database_connection, ground_query)
-
-# Read structural group cover data from AKVEG Database for selected site visits
-structural_read = open(structural_file, 'r')
-structural_query = structural_read.read()
-structural_read.close()
-structural_query = structural_query.replace(';', input_sql)
-structural_data = query_to_dataframe(database_connection, structural_query)
-
-# Read shrub structure data from AKVEG Database for selected site visits
-shrub_read = open(shrub_file, 'r')
-shrub_query = shrub_read.read()
-shrub_read.close()
-shrub_query = shrub_query.replace(';', input_sql)
-shrub_data = query_to_dataframe(database_connection, shrub_query)
-
-# Read environment data from AKVEG Database for selected site visits
-environment_read = open(environment_file, 'r')
-environment_query = environment_read.read()
-environment_read.close()
-environment_query = environment_query.replace(';', input_sql)
-environment_data = query_to_dataframe(database_connection, environment_query)
-
-# Read soil metrics data from AKVEG Database for selected site visits
-soilmetrics_read = open(soilmetrics_file, 'r')
-soilmetrics_query = soilmetrics_read.read()
-soilmetrics_read.close()
-soilmetrics_query = soilmetrics_query.replace(';', input_sql)
-soilmetrics_data = query_to_dataframe(database_connection, soilmetrics_query)
-
-# Read soil horizons data from AKVEG Database for selected site visits
-soilhorizons_read = open(soilhorizons_file, 'r')
-soilhorizons_query = soilhorizons_read.read()
-soilhorizons_read.close()
-soilhorizons_query = soilhorizons_query.replace(';', input_sql)
-soilhorizons_data = query_to_dataframe(database_connection, soilhorizons_query)
-
 # Check number of cover observations per project
 project_check = pd.merge(vegetation_data, site_visit_data, on='site_visit_code', how='left')[['project_code',
                                                                                               'site_visit_code']]
@@ -250,11 +179,3 @@ taxa_data.to_csv(taxa_output, index=False, encoding='utf-8')
 project_data.to_csv(project_output, index=False, encoding='utf-8')
 site_visit_data.to_csv(site_visit_output, index=False, encoding='utf-8')
 vegetation_data.to_csv(vegetation_output, index=False, encoding='utf-8')
-abiotic_data.to_csv(abiotic_output, index=False, encoding='utf-8')
-tussock_data.to_csv(tussock_output, index=False, encoding='utf-8')
-ground_data.to_csv(ground_output, index=False, encoding='utf-8')
-structural_data.to_csv(structural_output, index=False, encoding='utf-8')
-shrub_data.to_csv(shrub_output, index=False, encoding='utf-8')
-environment_data.to_csv(environment_output, index=False, encoding='utf-8')
-soilmetrics_data.to_csv(soilmetrics_output, index=False, encoding='utf-8')
-soilhorizons_data.to_csv(soilhorizons_output, index=False, encoding='utf-8')
