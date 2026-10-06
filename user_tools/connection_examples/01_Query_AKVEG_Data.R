@@ -9,35 +9,46 @@
 
 # Import required libraries ----
 library(dplyr)
+library(here)
 library(fs)
-library(janitor)
-library(lubridate)
+# library(janitor)
+# library(lubridate)
 library(readr)
-library(readxl)
+# library(readxl)
 library(RPostgres)
 library(sf)
 library(stringr)
-library(terra)
+# library(terra)
 library(tibble)
-library(tidyr)
+# library(tidyr)
+library(yaml)
 
-#### Set up directories and files ------------------------------
+# Source utility functions ----
+source(here("user_tools", "utils_init.R"))
+source(path("user_tools", "utils_database.R"))
+source(path("manuscript", "utils.R"))
 
-# Set root directory (modify to your folder structure)
-drive <- "C:"
-root_folder <- "ACCS_Work"
+# Define directories & files ----
+## Modify to your folder structure
+## In this example, here() points to the akveg-database GitHub repository, and local file paths are specified in a "paths.yaml" file
+local_paths <- load_system_paths("paths.yaml")
 
-# Define input folders (modify to your folder structure)
-database_repository <- path(drive, root_folder, "Repositories/akveg-database")
-query_folder <- path(database_repository, "user_tools", "queries")
-credentials_folder <- path(drive, root_folder, "Example/Credentials/akveg_public_read")
-input_folder <- path(drive, root_folder, "Example/Data_Input")
-output_folder <- path(drive, root_folder, "Example/Data_Input", "plot_data")
+# Define input folders
+query_folder <- here("user_tools", "queries")
+input_folder <- path(local_paths$root, "Example/Data_Input")
+output_folder <- path(local_paths$root, "Example/Data_Output")
 
 # Define input files
-domain_input <- path(input_folder, "region_data/AlaskaYukon_ProjectDomain_v2.0_3338.shp")
-region_input <- path(input_folder, "region_data/AlaskaYukon_Regions_v2.0_3338.shp")
-fireyear_input <- path(input_folder, "ancillary_data/AlaskaYukon_FireYear_10m_3338.tif")
+domain_input <- path(input_folder, "AlaskaYukon_ProjectDomain_v2.0_3338.shp")
+region_input <- path(input_folder, "AlaskaYukon_Regions_v2.0_3338.shp")
+fireyear_input <- path(input_folder, "AlaskaYukon_FireYear_10m_3338.tif")
+
+# Define queries
+## Can be modified or expanded to include queries for other data tables
+taxa_file <- path(query_folder, "00_taxonomy.sql")
+project_file <- path(query_folder, "01_project.sql")
+site_visit_file <- path(query_folder, "03_site_visit.sql")
+vegetation_file <- path(query_folder, "05_vegetation.sql")
 
 # Define output files
 taxa_output <- path(output_folder, "00_taxonomy.csv")
@@ -45,33 +56,14 @@ project_output <- path(output_folder, "01_project.csv")
 site_visit_output <- path(output_folder, "03_site_visit.csv")
 site_point_output <- path(output_folder, "03_site_point_3338.shp")
 vegetation_output <- path(output_folder, "05_vegetation.csv")
-abiotic_output <- path(output_folder, "06_abiotic_top_cover.csv")
-tussock_output <- path(output_folder, "07_whole_tussock_cover.csv")
-ground_output <- path(output_folder, "08_ground_cover.csv")
-structural_output <- path(output_folder, "09_structural_group_cover.csv")
-shrub_output <- path(output_folder, "11_shrub_structure.csv")
-environment_output <- path(output_folder, "12_environment.csv")
-soilmetrics_output <- path(output_folder, "13_soil_metrics.csv")
-soilhorizons_output <- path(output_folder, "14_soil_horizons.csv")
-
-# Define queries
-taxa_file <- path(query_folder, "00_taxonomy.sql")
-project_file <- path(query_folder, "01_project.sql")
-site_visit_file <- path(query_folder, "03_site_visit.sql")
-vegetation_file <- path(query_folder, "05_vegetation.sql")
-abiotic_file <- path(query_folder, "06_abiotic_top_cover.sql")
-tussock_file <- path(query_folder, "07_whole_tussock_cover.sql")
-ground_file <- path(query_folder, "08_ground_cover.sql")
-structural_file <- path(query_folder, "09_structural_group_cover.sql")
-shrub_file <- path(query_folder, "11_shrub_structure.sql")
-environment_file <- path(query_folder, "12_environment.sql")
-soilmetrics_file <- path(query_folder, "13_soil_metrics.sql")
-soilhorizons_file <- path(query_folder, "14_soil_horizons.sql")
 
 # Read local data ----
 domain_shape <- st_read(domain_input)
 region_shape <- st_read(region_input)
 fireyear_raster <- rast(fireyear_input)
+
+# Connect to AKVEG PostgreSQL database ----
+database_connection <- connect_database_postgresql(local_paths$credentials)
 
 # Get geometry for intersection (example to subset data by Boreal)
 # intersect_geometry = st_geometry(region_shape[region_shape$region == 'Alaska-Yukon Southern'
@@ -85,14 +77,6 @@ intersect_geometry <- st_geometry(region_shape[region_shape$region == "Arctic No
   region_shape$region == "Arctic Western", ])
 
 #### Query AKVEG database ------------------------------
-
-# Import database connection function
-connection_script <- path(database_repository, "pull_functions", "connect_database_postgresql.R")
-source(connection_script)
-
-# Create a connection to the AKVEG PostgreSQL database
-authentication <- path(credentials_folder, "authentication_akveg_public_read.csv")
-database_connection <- connect_database_postgresql(authentication)
 
 # Read taxonomy standard from AKVEG Database
 taxa_query <- read_file(taxa_file)
@@ -182,52 +166,6 @@ vegetation_query <- read_file(vegetation_file) %>%
   str_replace(., ";", where_statement)
 vegetation_data <- as_tibble(dbGetQuery(database_connection, vegetation_query))
 
-# Read abiotic top cover data from AKVEG Database for selected site visits
-abiotic_query <- read_file(abiotic_file) %>%
-  # Modify query with where statement
-  str_replace(., ";", where_statement)
-abiotic_data <- as_tibble(dbGetQuery(database_connection, abiotic_query))
-
-# Read whole tussock cover data from AKVEG Database for selected site visits
-tussock_query <- read_file(tussock_file) %>%
-  # Modify query with where statement
-  str_replace(., ";", where_statement)
-tussock_data <- as_tibble(dbGetQuery(database_connection, tussock_query))
-
-# Read ground cover data from AKVEG Database for selected site visits
-ground_query <- read_file(ground_file) %>%
-  # Modify query with where statement
-  str_replace(., ";", where_statement)
-ground_data <- as_tibble(dbGetQuery(database_connection, ground_query))
-
-# Read structural group cover data from AKVEG Database for selected site visits
-structural_query <- read_file(structural_file) %>%
-  # Modify query with where statement
-  str_replace(., ";", where_statement)
-structural_data <- as_tibble(dbGetQuery(database_connection, structural_query))
-
-# Read shrub structure data from AKVEG Database for selected site visits
-shrub_query <- read_file(shrub_file) %>%
-  # Modify query with where statement
-  str_replace(., ";", where_statement)
-shrub_data <- as_tibble(dbGetQuery(database_connection, shrub_query))
-
-# Read environment data from AKVEG Database for selected site visits
-environment_query <- read_file(environment_file) %>%
-  # Modify query with where statement
-  str_replace(., ";", where_statement)
-environment_data <- as_tibble(dbGetQuery(database_connection, environment_query))
-
-# Read soil metrics data from AKVEG Database for selected site visits
-soilmetrics_query <- read_file(soilmetrics_file) %>%
-  str_replace(., ";", where_statement)
-soilmetrics_data <- as_tibble(dbGetQuery(database_connection, soilmetrics_query))
-
-# Read soil horizons data from AKVEG Database for selected site visits
-soilhorizons_query <- read_file(soilhorizons_file) %>%
-  str_replace(., ";", where_statement)
-soilhorizons_data <- as_tibble(dbGetQuery(database_connection, soilhorizons_query))
-
 # Check number of cover observations per project
 project_check <- vegetation_data %>%
   left_join(site_visit_data, join_by("site_visit_code")) %>%
@@ -244,19 +182,3 @@ site_visit_data %>%
   write_csv(., file = site_visit_output)
 vegetation_data %>%
   write_csv(., file = vegetation_output)
-abiotic_data %>%
-  write_csv(., file = abiotic_output)
-tussock_data %>%
-  write_csv(., file = tussock_output)
-ground_data %>%
-  write_csv(., file = ground_output)
-structural_data %>%
-  write_csv(., file = structural_output)
-shrub_data %>%
-  write_csv(., file = shrub_output)
-environment_data %>%
-  write_csv(., file = environment_output)
-soilmetrics_data %>%
-  write_csv(., file = soilmetrics_output)
-soilhorizons_data %>%
-  write_csv(., file = soilhorizons_output)
