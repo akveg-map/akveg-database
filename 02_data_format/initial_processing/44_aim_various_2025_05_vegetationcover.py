@@ -15,7 +15,6 @@ import polars as pl
 from pathlib import Path
 from utils.utils import get_template, get_taxonomy, get_usda_codes
 from user_tools.utils_init import load_system_paths
-from user_tools.utils_database import connect_database_postgresql
 
 # Load absolute file paths
 paths = load_system_paths()
@@ -28,16 +27,12 @@ plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 codes_input = plot_folder / 'working' / '2021_AK_AIM_SpeciesList_AKVEG_Formatted 1.xlsx'
-credentials_input = paths.cloud_assets.credentials
 
 # Define output
 cover_output = plot_folder / '05_vegetationcover_aimvarious2025.csv'
 
-# Connect to AKVEG Database
-db_conn = connect_database_postgresql(credentials_input)
-
-# Get template file
-template = get_template("vegetation_cover")
+# Obtain taxonomy checklist from the AKVEG Database
+taxonomy_checklist = get_taxonomy()
 
 # Read in data
 cover_original = pl.from_pandas(gpd.read_file(gdb_input,
@@ -45,14 +40,14 @@ cover_original = pl.from_pandas(gpd.read_file(gdb_input,
                             ).lazy()
 cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input,
                                                     layer="AIM_Wetland__F_LPI",
-                                                    columns=["EvaluationID", "LineLength", "LineNumber"],
+                                                    columns=["LineKey", "LineLength", "LineNumber"],
                                                     ignore_geometry=True))
                        .lazy())
 codes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 
-# Obtain taxonomy checklist from the AKVEG Database
-taxonomy_checklist = get_taxonomy()
+# Get template file
+template = get_template("vegetation_cover")
 
 # Extract unknown codes (ending in '86') from AIM species list
 unknown_codes = (codes_original
@@ -60,10 +55,10 @@ unknown_codes = (codes_original
                  .rename({"name": "usda_code",
                           "scientific_akveg": "name_original"}))
 
-# Join cover tables and perform initial formatting
+# --- Perform initial formatting ---
 vegetation_cover = (
     cover_original
-    .join(cover_metadata, how="left", on="EvaluationID")
+    .join(cover_metadata, how="left", left_on="RecKey", right_on="LineKey")
     .select(
         pl.col(["EvaluationID", "LineLength", "LineNumber", "PointNbr", "ChkboxTop"]),
         pl.col("^ChkboxLower.*$"),  # Use regex to select multiple columns
@@ -100,7 +95,7 @@ print(vegetation_cover["LineLength"].unique())
 # --- Calculate number of points per plot ---
 ## Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
 ## Perform this step prior to any filtering/excluding to ensure no rows are dropped
-number_of_points = (vegcover
+number_of_points = (vegetation_cover
                     .group_by("site_visit_code")
                     .agg(pl.col("point_number")
                          .max())
