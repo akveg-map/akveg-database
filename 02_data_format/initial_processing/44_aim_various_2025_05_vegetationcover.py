@@ -242,12 +242,8 @@ cover_taxa = (cover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
                             )
               )
 
-## Explore USDA scientific names that did not match with AKVEG Checklist
-unmatched_sci_names = (vegcover_taxa
-                       .filter(pl.col("name_adjudicated").is_null())
-                       .unique(subset="name_original")
-                       .select("name_original")
-                       )  ## All names have been corrected
+# Ensure all nulls have been resolved
+print(cover_taxa.select(["name_original", "name_adjudicated"]).null_count().glimpse())
 
 # --- Calculate percent cover ---
 
@@ -302,7 +298,7 @@ vegcover_final = (vegcover_taxa
 
 # QC
 print(vegcover_final.describe())  ## Ensure no null values, range of % cover between 0-100%
-
+vegcover_final.null_count().glimpse()
 # Are the correct number of sites included?
 set_cover = set(vegcover_final.get_column("site_visit_code").unique().to_list())
 set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
