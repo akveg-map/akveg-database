@@ -36,13 +36,13 @@ taxonomy_checklist = get_taxonomy()
 
 # Read in data
 cover_original = pl.from_pandas(gpd.read_file(gdb_input,
-                                          layer="AIM_Wetland__F_LPIDetail")
-                            ).lazy()
+                                              layer="AIM_Wetland__F_LPIDetail")
+                                ).lazy()
 cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input,
-                                                    layer="AIM_Wetland__F_LPI",
-                                                    columns=["LineKey", "LineLength", "LineNumber"],
-                                                    ignore_geometry=True))
-                       .lazy())
+                                               layer="AIM_Wetland__F_LPI",
+                                               columns=["LineKey", "LineLength", "LineNumber"],
+                                               ignore_geometry=True))
+                  .lazy())
 codes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 
@@ -109,28 +109,34 @@ print(number_of_points.describe())
 abiotic_elements = ["HL", "N", "DL", "NL", "WL", "W", "TH"]
 
 # Identify groups of columns
-species_cols = vegcover.select(pl.col(["TopCanopy", "^Lower.*$", "codebasal"])).columns
-chkbox_cols = vegcover.select(pl.col("^Chkbox.*$")).columns  # Indicate dead status
+species_cols = vegetation_cover.select(pl.col(["TopCanopy", "^Lower.*$", "codebasal"])).columns
+chkbox_cols = vegetation_cover.select(pl.col("^Chkbox.*$")).columns  # Indicates dead status
 id_cols = ["site_visit_code", "point_number"]
 
 # Melt species codes columns
 species_long = (
-    vegcover.lazy()
+    vegetation_cover.lazy()
     .unpivot(
         on=species_cols,
         index=id_cols,
         variable_name="strata",
         value_name="usda_code",
     )
+    # Drop abiotic codes and null codes
     .filter(pl.col("usda_code").is_not_null()
             .and_(~pl.col("usda_code").is_in(abiotic_elements))
             )
+    # Create common key to join with dead status
+    .with_columns(pl.col("strata")
+                  .str.replace_many(["TopCanopy", "codebasal"], ["Top", "Basal"])
+                  .alias("strata")
+                  )
     .collect()
 )
 
 # Melt dead status columns
 dead_long = (
-    vegcover.lazy()
+    vegetation_cover
     .unpivot(
         on=chkbox_cols,
         index=id_cols,
@@ -138,41 +144,27 @@ dead_long = (
         value_name="dead_status",
     )
     # Convert Live and Dead codes to Boolean
-    .with_columns(pl.col("dead_status")
-                  .str.replace_many(["D", "L"], ["TRUE", "FALSE"]))
-
-    .collect()
+    ## Assume empty and null cells are supposed to be alive (FALSE)
+    .with_columns(pl.when(pl.col("dead_status") == "D")
+                  .then(pl.lit("TRUE"))
+                  .otherwise(pl.lit("FALSE"))
+                  .alias("dead_status"))
+    # Create common key to join with species codes
+    .with_columns(pl.col("strata")
+                  .str.strip_prefix("Chkbox")
+                  .alias("strata")
+                  )
 )
 
-# Create a common key
-species_long = species_long.with_columns(
-    pl.col("strata")
-    .str.replace_many(["TopCanopy", "codebasal"], ["Top", "Basal"])
-    .alias("strata")
-)
+# Ensure dead_status has been correctly re-classified
+print(dead_long.select(pl.col("dead_status")).to_series().value_counts())
 
-dead_long = dead_long.with_columns(
-    pl.col("strata")
-    .str.strip_prefix("Chkbox")
-    .alias("strata")
-)
-
-# Join tables
-vegcover_long = (species_long.join(
-    dead_long,
-    on=id_cols + ["strata"],
-    how="left"  # Use left join to keep only the valid species rows
-)
-                 .sort(["site_visit_code", "point_number"]))
-
-# Correct entries with null dead_status (n=8)
-## Assume all entries should be live (FALSE)
-vegcover_long = vegcover_long.with_columns(pl.when(pl.col("dead_status").is_null())
-                                           .then(pl.lit("FALSE"))
-                                           .otherwise(pl.col("dead_status"))
-                                           .alias("dead_status"))
-
-print(vegcover_long["dead_status"].value_counts())  ## Ensure no nulls
+# Join tables using left join to keep only valid species rows
+vegetation_cover_long = (species_long.join(dead_long,
+                                           on=id_cols + ["strata"],
+                                           how="left")
+                         .sort(["site_visit_code", "point_number"])
+                         )
 
 # --- Obtain accepted taxonomic names ----
 
