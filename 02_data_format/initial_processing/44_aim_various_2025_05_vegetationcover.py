@@ -10,10 +10,11 @@
 # ---------------------------------------------------------------------------
 
 # Import packages
+import geopandas as gpd
 import polars as pl
 from pathlib import Path
-from utils import get_taxonomy
-from utils import get_usda_codes
+from utils.utils import get_template, get_taxonomy, get_usda_codes
+from user_tools.utils_init import load_system_paths
 
 # Define directories
 drive = Path('C:/')
