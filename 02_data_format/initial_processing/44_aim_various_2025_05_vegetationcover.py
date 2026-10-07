@@ -151,11 +151,11 @@ dead_long = (
 print(dead_long.select(pl.col("dead_status")).to_series().value_counts())
 
 # Join tables using left join to keep only valid species rows
-vegetation_cover_long = (species_long.join(dead_long,
-                                           on=id_cols + ["strata"],
-                                           how="left")
-                         .sort(["site_visit_code", "point_number"])
-                         )
+cover_long = (species_long.join(dead_long,
+                                on=id_cols + ["strata"],
+                                how="left")
+              .sort(["site_visit_code", "point_number"])
+              )
 
 # --- Obtain accepted taxonomic names ----
 
@@ -175,7 +175,7 @@ usda_codes = get_usda_codes()
 usda_codes = pl.concat([usda_codes, unknown_codes])
 
 # Translate USDA codes to accepted scientific names
-cover_taxa = (vegetation_cover_long.lazy()
+cover_taxa = (cover_long.lazy()
               # Join cover df to USDA plant codes to obtain scientific names
               .join(usda_codes.lazy(), how="left", on="usda_code")
               # Fill in names for unknown functional types
@@ -224,16 +224,16 @@ unmatched_codes = (cover_taxa
                    )
 
 ## Reconcile entries to unknown for now (n=370)
-vegcover_taxa = (vegcover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
-                                            .then(pl.lit("unknown"))
-                                            .otherwise(pl.col("name_original"))
-                                            .alias("name_original"))
-                 .with_columns(pl.when(pl.col("name_original") == "unknown")
-                               .then(pl.lit("unknown"))
-                               .otherwise(pl.col("name_adjudicated"))
-                               .alias("name_adjudicated")
-                               )
-                 )
+cover_taxa = (cover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
+                                      .then(pl.lit("unknown"))
+                                      .otherwise(pl.col("name_original"))
+                                      .alias("name_original"))
+              .with_columns(pl.when(pl.col("name_original") == "unknown")
+                            .then(pl.lit("unknown"))
+                            .otherwise(pl.col("name_adjudicated"))
+                            .alias("name_adjudicated")
+                            )
+              )
 
 ## Explore USDA scientific names that did not match with AKVEG Checklist
 unmatched_sci_names = (vegcover_taxa
