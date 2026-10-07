@@ -356,8 +356,8 @@ def get_taxonomy(
         # 4. Create table with accepted names only
         taxonomy_accepted = (
             taxonomy_original.filter(pl.col("taxon_code") == pl.col("taxon_accepted_code"))
-            .rename({"taxon_name": "name_accepted"})
-            .select("taxon_accepted_code", "name_accepted")
+            .rename({"taxon_name": "name_adjudicated"})
+            .select("taxon_accepted_code", "name_adjudicated")
         )
 
         # 5. Include accepted name in synonymized checklist
@@ -366,7 +366,7 @@ def get_taxonomy(
 
         # 6. Drop 'extra' columns if simple = True
         if simple is True:
-            taxonomy_akveg = taxonomy_akveg.select("taxon_code", "taxon_name")
+            taxonomy_akveg = taxonomy_akveg.select("taxon_code", "taxon_name", "name_adjudicated")
 
         return taxonomy_akveg
 
