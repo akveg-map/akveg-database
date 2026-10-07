@@ -16,23 +16,27 @@ from pathlib import Path
 from utils.utils import get_template, get_taxonomy, get_usda_codes
 from user_tools.utils_init import load_system_paths
 
-# Define directories
-drive = Path('C:/')
-root_folder = drive / 'ACCS_Work'
+# Load absolute file paths
+paths = load_system_paths()
 
-# Define folders
-project_folder = root_folder / 'OneDrive - University of Alaska' / 'ACCS_Teams' / 'Vegetation' / 'AKVEG_Database' / 'Data'
-plot_folder = project_folder / 'Data_Plots' / '44_aim_various_2023'
-template_folder = project_folder / 'Data_Entry'
+# Define constants
+FOLDER_ID = "44_aim_various_2025"
 
 # Define inputs
-vegcover_input = plot_folder / 'working' / '44_aim_2023_veg_export.csv'
+plot_folder = paths.cloud_assets.plots / FOLDER_ID
+gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
+visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 codes_input = plot_folder / 'working' / '2021_AK_AIM_SpeciesList_AKVEG_Formatted 1.xlsx'
-visit_input = plot_folder / '03_sitevisit_aimvarious2023.csv'
-template_input = template_folder / '05_vegetation_cover.xlsx'
+credentials_input = paths.cloud_assets.credentials
 
 # Define output
-vegcover_output = plot_folder / '05_vegetationcover_aimvarious2023.csv'
+cover_output = plot_folder / '05_vegetationcover_aimvarious2025.csv'
+
+# Connect to AKVEG Database
+db_conn = connect_database_postgresql(credentials_input)
+
+# Get template file
+template = get_template("vegetation_cover")
 
 # Read in data
 lazy_veg = pl.scan_csv(vegcover_input)
