@@ -31,9 +31,6 @@ codes_input = plot_folder / 'working' / '2021_AK_AIM_SpeciesList_AKVEG_Formatted
 # Define output
 cover_output = plot_folder / '05_vegetationcover_aimvarious2025.csv'
 
-# Obtain taxonomy checklist from the AKVEG Database
-taxonomy_checklist = get_taxonomy()
-
 # Read in data
 cover_original = pl.from_pandas(gpd.read_file(gdb_input,
                                               layer="AIM_Wetland__F_LPIDetail")
@@ -48,12 +45,6 @@ visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code
 
 # Get template file
 template = get_template("vegetation_cover")
-
-# Extract unknown codes (ending in '86') from AIM species list
-unknown_codes = (codes_original
-                 .filter(pl.col("name").str.contains(r"86$"))
-                 .rename({"name": "usda_code",
-                          "scientific_akveg": "name_original"}))
 
 # --- Perform initial formatting ---
 vegetation_cover = (
@@ -115,23 +106,23 @@ id_cols = ["site_visit_code", "point_number"]
 
 # Melt species codes columns
 species_long = (
-    vegetation_cover.lazy()
+    vegetation_cover
     .unpivot(
         on=species_cols,
         index=id_cols,
         variable_name="strata",
         value_name="usda_code",
     )
-    # Drop abiotic codes and null codes
+    # Drop abiotic codes, null and empty cells
     .filter(pl.col("usda_code").is_not_null()
             .and_(~pl.col("usda_code").is_in(abiotic_elements))
+            .and_(pl.col("usda_code") != "")
             )
     # Create common key to join with dead status
     .with_columns(pl.col("strata")
                   .str.replace_many(["TopCanopy", "codebasal"], ["Top", "Basal"])
                   .alias("strata")
                   )
-    .collect()
 )
 
 # Melt dead status columns
@@ -168,63 +159,68 @@ vegetation_cover_long = (species_long.join(dead_long,
 
 # --- Obtain accepted taxonomic names ----
 
-# Format USDA plant codes
+# Obtain taxonomy checklist from the AKVEG Database
+taxonomy_checklist = get_taxonomy(simple=True)
+
+# Extract unknown codes (ending in '86') from AIM species list
+unknown_codes = (codes_original
+                 .filter(pl.col("name").str.contains(r"86$"))
+                 .rename({"name": "usda_code",
+                          "scientific_akveg": "name_original"}))
+
+# Get USDA plant codes
 usda_codes = get_usda_codes()
 
-# Add unknown codes (ending 86)
-usda_codes = pl.concat([usda_codes, unk_codes])
+# Add unknown codes to USDA df
+usda_codes = pl.concat([usda_codes, unknown_codes])
 
 # Translate USDA codes to accepted scientific names
-vegcover_taxa = (vegcover_long.lazy()
+cover_taxa = (vegetation_cover_long.lazy()
+              # Join cover df to USDA plant codes to obtain scientific names
+              .join(usda_codes.lazy(), how="left", on="usda_code")
+              # Fill in names for unknown functional types
+              .with_columns(pl.when(pl.col("usda_code") == "AE")
+                            .then(pl.lit("algae"))
+                            .when(pl.col("usda_code") == "LI")
+                            .then(pl.lit("lichen"))
+                            .when(pl.col("usda_code") == "PF")
+                            .then(pl.lit("forb"))
+                            .otherwise(pl.col("name_original"))
+                            .alias("name_original")
+                            )
+              # Join with AKVEG taxonomy table to obtain accepted names
+              .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
+              # Manually resolve names with no matches in taxonomy table
+              .with_columns(pl.when(pl.col("name_original") == "Cephalozia loitlesbergeri")
+                            .then(pl.lit("Cephalozia"))
+                            .when(pl.col("name_original") == "Vaccinium oxycoccos")
+                            .then(pl.lit("Oxycoccus microcarpus"))
+                            .when(pl.col("name_original") == "Betula ×dugleana")
+                            .then(pl.lit("Betula cf. occidentalis"))
+                            .when(pl.col("name_original") == "Betula ×eastwoodiae")
+                            .then(pl.lit("Betula cf. occidentalis"))
+                            .when(pl.col("name_original") == "Polygonum bistorta")
+                            .then(pl.lit("Bistorta plumosa"))
+                            .when(pl.col("name_original") == "Dryas octopetala")
+                            .then(pl.lit("Dryas ajanensis ssp. beringensis"))
+                            .when(pl.col("name_original") == "Saxifraga bronchialis")
+                            .then(pl.lit("Saxifraga funstonii"))
+                            .when(pl.col("name_original") == "Carex pyrenaica")
+                            .then(pl.lit("Carex micropoda"))
+                            .otherwise(pl.col("name_adjudicated"))
+                            .alias("name_adjudicated")
+                            )
+              .collect()
+              )
 
-                 # Join veg df to USDA plant codes to obtain scientific names
-                 .join(usda_codes.lazy(), how="left", on="usda_code")
-
-                 # Fill in 'taxonomic' names for unknown functional types
-                 .with_columns(pl.when(pl.col("usda_code") == "AE")
-                               .then(pl.lit("algae"))
-                               .when(pl.col("usda_code") == "LI")
-                               .then(pl.lit("lichen"))
-                               .when(pl.col("usda_code") == "PF")
-                               .then(pl.lit("forb"))
-                               .otherwise(pl.col("name_original"))
-
-                               .alias("name_original")
-                               )
-
-                 # Join with AKVEG checklist to obtain accepted names
-                 .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
-
-                 # Manually correct name original with no matches in AKVEG
-                 .with_columns(pl.when(pl.col("name_original") == "Cephalozia loitlesbergeri")
-                               .then(pl.lit("Cephalozia"))
-                               .when(pl.col("name_original") == "Vaccinium oxycoccos")
-                               .then(pl.lit("Oxycoccus microcarpus"))
-                               .when(pl.col("name_original") == "Betula ×dugleana")
-                               .then(pl.lit("Betula cf. occidentalis"))
-                               .when(pl.col("name_original") == "Betula ×eastwoodiae")
-                               .then(pl.lit("Betula cf. occidentalis"))
-                               .when(pl.col("name_original") == "Polygonum bistorta")
-                               .then(pl.lit("Bistorta plumosa"))
-                               .when(pl.col("name_original") == "Dryas octopetala")
-                               .then(pl.lit("Dryas ajanensis ssp. beringensis"))
-                               .when(pl.col("name_original") == "Saxifraga bronchialis")
-                               .then(pl.lit("Saxifraga funstonii"))
-                               .when(pl.col("name_original") == "Carex pyrenaica")
-                               .then(pl.lit("Carex micropoda"))
-                               .otherwise(pl.col("name_adjudicated"))
-                               .alias("name_adjudicated")
-                               )
-
-                 .collect()
-                 )
-
-# Explore BLM species codes that did not match with USDA codes
+# Explore USDA codes that did not return a match when joined with taxonomy table
 ## One 2-letter code (HW, n=4 hits) and several codes that end in '86'. Not sure what those might be?
-unmatched_codes = (vegcover_taxa
+unmatched_codes = (cover_taxa
                    .filter(pl.col("name_original").is_null())
-                   .unique(subset=["usda_code", "name_original"])
-                   .select("usda_code")
+                   .select(["usda_code"])
+                   .to_series()
+                   .value_counts()
+                   .sort("count", descending=True)
                    )
 
 ## Reconcile entries to unknown for now (n=370)
