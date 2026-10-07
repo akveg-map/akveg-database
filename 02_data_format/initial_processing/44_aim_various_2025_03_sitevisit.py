@@ -2,12 +2,11 @@
 # ---------------------------------------------------------------------------
 # Format Site Visit Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-06
+# Last Updated: 2026-10-07
 # Usage: Must be executed in a Python 3.13+ distribution.
-# Description: "Format Site Visit Table for BLM AIM 2022–2025 data" formats site visit metadata for
-# ingestion into the AKVEG Database. The script aligns the dataframe to the AKVEG schema by parsing dates,
-# creating site visit codes, re-classifying structural classes, and populating missing values with appropriate null
-# values. The script ends by performing quality control checks and exporting the dataframe as a CSV file.
+# Description: Formats site visit data by parsing dates, creating site visit codes, re-classifying ecotypes
+# into structural classes, and populating missing values with appropriate null values. The script ends by performing
+# quality control checks and exporting the dataframe as a CSV file.
 # ---------------------------------------------------------------------------
 
 # Import packages
