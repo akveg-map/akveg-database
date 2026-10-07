@@ -181,10 +181,18 @@ cover_taxa = (cover_long.lazy()
               # Fill in names for unknown functional types
               .with_columns(pl.when(pl.col("usda_code") == "AE")
                             .then(pl.lit("algae"))
-                            .when(pl.col("usda_code") == "LI")
+                            .when(pl.col("usda_code").is_in(["LI", "VL"]))
                             .then(pl.lit("lichen"))
                             .when(pl.col("usda_code") == "PF")
                             .then(pl.lit("forb"))
+                            .when(pl.col("usda_code") == "POACEA")
+                            .then(pl.lit("grass (Poaceae)"))
+                            .when(pl.col("usda_code") == "M")  # Unresolvable (moss, hornwort, or liverwort)
+                            .then(pl.lit("unknown"))
+                            .when(pl.col("usda_code") == "MO")
+                            .then(pl.lit("moss"))
+                            .when(pl.col("usda_code") == "PTYCH86")
+                            .then(pl.lit("Ptychostomum"))
                             .otherwise(pl.col("name_original"))
                             .alias("name_original")
                             )
@@ -214,7 +222,6 @@ cover_taxa = (cover_long.lazy()
               )
 
 # Explore USDA codes that did not return a match when joined with taxonomy table
-## One 2-letter code (HW, n=4 hits) and several codes that end in '86'. Not sure what those might be?
 unmatched_codes = (cover_taxa
                    .filter(pl.col("name_original").is_null())
                    .select(["usda_code"])
@@ -223,7 +230,7 @@ unmatched_codes = (cover_taxa
                    .sort("count", descending=True)
                    )
 
-## Reconcile entries to unknown for now (n=370)
+# Reconcile entries to unknown for now (n=504)
 cover_taxa = (cover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
                                       .then(pl.lit("unknown"))
                                       .otherwise(pl.col("name_original"))
