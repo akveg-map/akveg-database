@@ -15,6 +15,7 @@ import polars as pl
 from pathlib import Path
 from utils.utils import get_template, get_taxonomy, get_usda_codes
 from user_tools.utils_init import load_system_paths
+from user_tools.utils_database import connect_database_postgresql
 
 # Load absolute file paths
 paths = load_system_paths()
@@ -39,23 +40,30 @@ db_conn = connect_database_postgresql(credentials_input)
 template = get_template("vegetation_cover")
 
 # Read in data
-lazy_veg = pl.scan_csv(vegcover_input)
-aimcodes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
+cover_original = pl.from_pandas(gpd.read_file(gdb_input,
+                                          layer="AIM_Wetland__F_LPIDetail")
+                            ).lazy()
+cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input,
+                                                    layer="AIM_Wetland__F_LPI",
+                                                    columns=["EvaluationID", "LineLength", "LineNumber"],
+                                                    ignore_geometry=True))
+                       .lazy())
+codes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
-template = pl.read_excel(template_input)
 
 # Obtain taxonomy checklist from the AKVEG Database
 taxonomy_checklist = get_taxonomy()
 
 # Extract unknown codes (ending in '86') from AIM species list
-unk_codes = (aimcodes_original
-             .filter(pl.col("name").str.contains(r"86$"))
-             .rename({"name": "usda_code",
-                      "scientific_akveg": "name_original"}))
+unknown_codes = (codes_original
+                 .filter(pl.col("name").str.contains(r"86$"))
+                 .rename({"name": "usda_code",
+                          "scientific_akveg": "name_original"}))
 
-# Load and format vegetation cover data
-vegcover = (
-    lazy_veg
+# Join cover tables and perform initial formatting
+vegetation_cover = (
+    cover_original
+    .join(cover_metadata, how="left", on="EvaluationID")
     .select(
         pl.col(["EvaluationID", "LineLength", "LineNumber", "PointNbr", "ChkboxTop"]),
         pl.col("^ChkboxLower.*$"),  # Use regex to select multiple columns
@@ -68,7 +76,7 @@ vegcover = (
     .with_columns(pl.col("EvaluationID")
                   .str.extract(r"^(.*)_")
                   .alias("site_code"))
-    # Append site visit code using right join to drop any plots that were excluded from site visit table
+    # Append site visit code using right join to drop any plots not in site visit table
     .join(visit_original.lazy(), on="site_code", how="right")
     # Create a sequential row number for each site visit
     ## Solution from Ritchie Vink: https://github.com/pola-rs/polars/issues/2542
@@ -77,18 +85,17 @@ vegcover = (
                   .cum_count()
                   .alias("point_number")
                   .over("site_visit_code")
-                  .flatten())
+                  .explode(keep_nulls=False, empty_as_null=False)
+                  )
 
     .collect()
 )
 
-# Explore data
+# Ensure every site code matched to a visit code
+print(vegetation_cover["site_code", "site_visit_code"].null_count().glimpse())
 
-## Ensure no nulls
-print(vegcover["site_code", "site_visit_code"].null_count())
-
-## Ensure that all lines are the standard 25m length
-print(vegcover["LineLength"].unique())
+# Ensure all lines are the standard 25m length
+print(vegetation_cover["LineLength"].unique())
 
 # --- Calculate number of points per plot ---
 ## Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
@@ -97,7 +104,7 @@ number_of_points = (vegcover
                     .group_by("site_visit_code")
                     .agg(pl.col("point_number")
                          .max())
-                    .rename({"point_number":"max_hits"})
+                    .rename({"point_number": "max_hits"})
                     )
 print(number_of_points.describe())
 
@@ -122,7 +129,7 @@ species_long = (
     )
     .filter(pl.col("usda_code").is_not_null()
             .and_(~pl.col("usda_code").is_in(abiotic_elements))
-              )
+            )
     .collect()
 )
 
@@ -145,23 +152,23 @@ dead_long = (
 # Create a common key
 species_long = species_long.with_columns(
     pl.col("strata")
-      .str.replace_many(["TopCanopy", "codebasal"], ["Top", "Basal"])
-      .alias("strata")
+    .str.replace_many(["TopCanopy", "codebasal"], ["Top", "Basal"])
+    .alias("strata")
 )
 
 dead_long = dead_long.with_columns(
     pl.col("strata")
-      .str.strip_prefix("Chkbox")
-      .alias("strata")
+    .str.strip_prefix("Chkbox")
+    .alias("strata")
 )
 
 # Join tables
 vegcover_long = (species_long.join(
     dead_long,
     on=id_cols + ["strata"],
-    how="left" # Use left join to keep only the valid species rows
+    how="left"  # Use left join to keep only the valid species rows
 )
-                  .sort(["site_visit_code", "point_number"]))
+                 .sort(["site_visit_code", "point_number"]))
 
 # Correct entries with null dead_status (n=8)
 ## Assume all entries should be live (FALSE)
@@ -198,8 +205,8 @@ vegcover_taxa = (vegcover_long.lazy()
                                .alias("name_original")
                                )
 
-                # Join with AKVEG checklist to obtain accepted names
-                .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
+                 # Join with AKVEG checklist to obtain accepted names
+                 .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
 
                  # Manually correct name original with no matches in AKVEG
                  .with_columns(pl.when(pl.col("name_original") == "Cephalozia loitlesbergeri")
@@ -225,12 +232,11 @@ vegcover_taxa = (vegcover_long.lazy()
                  .collect()
                  )
 
-
 # Explore BLM species codes that did not match with USDA codes
 ## One 2-letter code (HW, n=4 hits) and several codes that end in '86'. Not sure what those might be?
 unmatched_codes = (vegcover_taxa
                    .filter(pl.col("name_original").is_null())
-                   .unique(subset=["usda_code","name_original"])
+                   .unique(subset=["usda_code", "name_original"])
                    .select("usda_code")
                    )
 
@@ -248,10 +254,10 @@ vegcover_taxa = (vegcover_taxa.with_columns(pl.when(pl.col("name_original").is_n
 
 ## Explore USDA scientific names that did not match with AKVEG Checklist
 unmatched_sci_names = (vegcover_taxa
-                      .filter(pl.col("name_adjudicated").is_null())
-                      .unique(subset="name_original")
-                      .select("name_original")
-                      )  ## All names have been corrected
+                       .filter(pl.col("name_adjudicated").is_null())
+                       .unique(subset="name_original")
+                       .select("name_original")
+                       )  ## All names have been corrected
 
 # --- Calculate percent cover ---
 
@@ -275,27 +281,27 @@ group_columns_plots = [
 
 # Calculate cover percent for each species and site visit
 vegcover_final = (vegcover_taxa
-                    .lazy()
-                    ## Get list of unique species per point
-                    .unique(subset=group_columns_points)
+                  .lazy()
+                  ## Get list of unique species per point
+                  .unique(subset=group_columns_points)
 
-                    ## Create constant column with value of 1 to calculate number of times the species was observed
-                    # across all points
-                    .with_columns(pl.lit(1).alias("observation_marker"))
+                  ## Create constant column with value of 1 to calculate number of times the species was observed
+                  # across all points
+                  .with_columns(pl.lit(1).alias("observation_marker"))
 
-                    # Calculate total number of hits per species per site visit
-                    .group_by(group_columns_plots).agg(pl.col("observation_marker").sum())
+                  # Calculate total number of hits per species per site visit
+                  .group_by(group_columns_plots).agg(pl.col("observation_marker").sum())
 
-                    # Get maximum number of points per plot
-                    .join(number_of_points.lazy(), how="left", on="site_visit_code")
+                  # Get maximum number of points per plot
+                  .join(number_of_points.lazy(), how="left", on="site_visit_code")
 
-                    # Calculate percent cover
-                    .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
-                                  .round(3)
-                                  .alias("cover_percent"))
+                  # Calculate percent cover
+                  .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
+                                .round(3)
+                                .alias("cover_percent"))
 
-                    # Populate remaining columns
-                    .with_columns(pl.lit("absolute foliar cover").alias("cover_type"))
+                  # Populate remaining columns
+                  .with_columns(pl.lit("absolute foliar cover").alias("cover_type"))
 
                   # Sort and select columns
                   .sort(["site_visit_code", "name_original"])
@@ -314,3 +320,6 @@ print(set_cover == set_visit)
 
 # Export data
 vegcover_final.write_csv(vegcover_output)
+
+# Close database connection
+db_conn.close()
