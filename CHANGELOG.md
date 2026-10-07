@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [Unreleased: Version 3.0]
 
 * **Separated database from code versioning**: Moved database change tracking to a dedicated `database_version` table. Future changelog entries in the GitHub repository will focus on tracking changes to the SQL scripts and the ETL pipeline.
 
@@ -30,11 +30,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### ETL Pipeline
 
 #### Updated
+
 - `03_data_insert/00b_Prepare_Metadata.R`: Parse `database_version` table into SQL statement and insert into database.
 - `03_data_insert/00b_Prepare_Metadata.R`: Processed new missing value fields in `database_schema`.
 - Refactored `03_data_insert/00a_Prepare_Taxonomy.R` and `03_data_insert/00b_Prepare_Metadata.R` to use relative file paths instead of absolute paths.
+- `get_taxonomy()`: Changed field name from `name_accepted` to `name_adjudicated` to match field name used in 
+  Vegetation Cover table. Added `name_adjudicated` as a returned field when `simple=True`. 
 
 #### Added
+
 - `02_data_format/initial_processing`: Added Project, Site, Site Visit, and Vegetation Cover tables for `44_aim_various_2025`. Replaces and adds to `44_aim_various_23`.
 - Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
 
