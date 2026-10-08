@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Site Visit Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-07
+# Last Updated: 2026-10-08
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: Formats site visit data by parsing dates, creating site visit codes, re-classifying ecotypes
 # into structural classes, and populating missing values with appropriate null values. The script ends by performing
@@ -32,7 +32,7 @@ plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 observer_input = plot_folder / "archive" / "44_aim_various_2023" / "source" / "RW_AKSDEExport_20241021clean.gdb"
 site_input = plot_folder / '02_site_aimvarious2025.csv'
-ecotype_input = plot_folder / "working" / 'ecotype_class_mapping.csv'
+ecotype_input = paths.repository / "02_data_format" / "crosswalks" / '44_aim_various_2025_ecotype_structural_class.csv'
 credentials_input = paths.cloud_assets.credentials
 
 # Define output
@@ -84,7 +84,9 @@ visit = (visit_lazy
          .with_columns(pl.col("observe_date").str.replace_all(pattern="-", value="").alias("date_string"))
          .with_columns((pl.col("site_code") + "_" + pl.col("date_string")).alias("site_visit_code"))
          # Cast date field
-         .with_columns(pl.col("observe_date").cast(pl.Date).alias("observe_date"))
+         .with_columns(pl.col("observe_date").cast(pl.Date).alias("observe_date"),
+                       # Remove whitespaces from ecotype strings
+                       pl.col("AlaskaEcotypeClassification").str.strip_chars())
          # Join with site code to obtain project code
          .join(site_original, how='right', on="site_code")
          # Join with Alaska Ecotype lookup table to map to structural class
@@ -116,6 +118,7 @@ missing_classes = (
             (pl.col("structural_class") == "no data") |
             pl.col("structural_class").is_null())
 )
+print(missing_classes)
 
 # Match template formatting
 visit = visit.select(template.columns)
