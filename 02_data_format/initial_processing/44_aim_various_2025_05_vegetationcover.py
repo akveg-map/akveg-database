@@ -42,8 +42,10 @@ cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input,
                                                columns=["LineKey", "LineLength", "LineNumber"],
                                                ignore_geometry=True))
                   .lazy())
-codes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
+
+# Read in crosswalk files
+codes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
 resolved_names_original = pl.read_csv(resolved_names_input)
 
 # Get template file
@@ -287,16 +289,21 @@ cover_final = (cover_taxa
                .collect()
                )
 
-# QC
-print(vegcover_final.describe())  ## Ensure no null values, range of % cover between 0-100%
-vegcover_final.null_count().glimpse()
-# Are the correct number of sites included?
-set_cover = set(vegcover_final.get_column("site_visit_code").unique().to_list())
+# Quality checks
+
+# Ensure no null values
+print(cover_final.null_count().glimpse())
+
+# Ensure cover percent is between 0% and 100%
+print(cover_final.select(pl.col("cover_percent")).describe())
+
+# Ensure the correct number of sites are included
+set_cover = set(cover_final.get_column("site_visit_code").unique().to_list())
 set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
-print(set_cover == set_visit)
+print(set_cover ^ set_visit)  # Test for symmetric difference (i.e., difference in either direction)
 
 # Export data
-vegcover_final.write_csv(vegcover_output)
+cover_final.write_csv(cover_output)
 
 # Close database connection
 db_conn.close()
