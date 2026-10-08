@@ -88,6 +88,7 @@ visit = (visit_lazy
                        # Remove whitespaces from ecotype strings
                        pl.col("AlaskaEcotypeClassification").str.strip_chars())
          # Join with site code to obtain project code
+         # Will drop any site code that isn't in Site table
          .join(site_original, how='right', on="site_code")
          # Join with Alaska Ecotype lookup table to map to structural class
          .join(ecotype_lookup, how="left", left_on="AlaskaEcotypeClassification", right_on="alaska_ecotype")
