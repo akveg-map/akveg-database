@@ -15,6 +15,7 @@ import polars as pl
 from pathlib import Path
 from utils.utils import get_template, get_taxonomy, get_usda_codes
 from user_tools.utils_init import load_system_paths
+from user_tools.utils_database import connect_database_postgresql
 
 # Load absolute file paths
 paths = load_system_paths()
@@ -29,6 +30,7 @@ visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 codes_input = paths.cloud_assets.taxonomy / 'USDA_Plants' / '2021_AK_AIM_SpeciesList_AKVEG_Formatted.xlsx'
 resolved_names_input = (paths.repository / "02_data_format" / "crosswalks" /
                         "44_aim_various_2025_name_original_adjudicated.csv")
+credentials_input = paths.cloud_assets.credentials
 
 # Define output
 cover_output = plot_folder / '05_vegetationcover_aimvarious2025.csv'
@@ -50,6 +52,9 @@ resolved_names_original = pl.read_csv(resolved_names_input)
 
 # Get template file
 template = get_template("vegetation_cover")
+
+# Connect to AKVEG Database
+db_conn = connect_database_postgresql(credentials_input)
 
 # --- Perform initial formatting ---
 vegetation_cover = (
@@ -97,7 +102,7 @@ number_of_points = (vegetation_cover
                          .max())
                     .rename({"point_number": "max_hits"})
                     )
-print(number_of_points.describe())
+print(number_of_points.select("max_hits").unique())
 
 # --- Convert to long format ---
 
@@ -165,7 +170,15 @@ cover_long = (species_long.join(dead_long,
 # --- Obtain accepted taxonomic names ----
 
 # Obtain taxonomy checklist from the AKVEG Database
-taxonomy_checklist = get_taxonomy(simple=True)
+taxonomy_checklist = get_taxonomy(db_conn, simple=True)
+
+# Convert mapping CSV to dictionary
+resolved_names_dict = dict(
+    zip(
+        resolved_names_original["name_original"],
+        resolved_names_original["name_adjudicated"],
+    )
+)
 
 # Extract unknown codes (ending in '86') or functional group codes (two letters) from AIM species list
 unknown_codes = (codes_original
@@ -176,16 +189,8 @@ unknown_codes = (codes_original
 # Get USDA plant codes
 usda_codes = get_usda_codes()
 
-# Add unknown codes to USDA df
+# Add unknown codes to table of USDA plant codes
 usda_codes = pl.concat([usda_codes, unknown_codes])
-
-# Convert mapping CSV to dictionary
-resolved_names_dict = dict(
-    zip(
-        resolved_names_original["name_original"],
-        resolved_names_original["name_adjudicated"],
-    )
-)
 
 # Translate USDA codes to accepted scientific names
 cover_taxa = (cover_long.lazy()
