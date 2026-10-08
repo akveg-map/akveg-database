@@ -34,8 +34,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `03_data_insert/00b_Prepare_Metadata.R`: Parse `database_version` table into SQL statement and insert into database.
 - `03_data_insert/00b_Prepare_Metadata.R`: Processed new missing value fields in `database_schema`.
 - Refactored `03_data_insert/00a_Prepare_Taxonomy.R` and `03_data_insert/00b_Prepare_Metadata.R` to use relative file paths instead of absolute paths.
-- `get_taxonomy()`: Changed field name from `name_accepted` to `name_adjudicated` to match field name used in 
-  Vegetation Cover table. Added `name_adjudicated` as a returned field when `simple=True`. 
+- `02_data_format/utils/utils.py`: In `get_taxonomy()`, changed field name from `name_accepted` to 
+  `name_adjudicated` to match field name used in Vegetation Cover table. Added `name_adjudicated` as a returned 
+  field when `simple=True`. 
 
 #### Added
 
@@ -45,6 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 #### Fixed 
 
 - Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special characters.
+- `02_data_format/utils/utils.py`: Fixed regex pattern in `get_usda_codes()` to match and exclude all author names, 
+  including instances where there are multiple authors separated by taxonomic epithets.
 
 ### User Tools
 
