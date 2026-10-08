@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-09-29
+# Last Updated: 2026-10-08
 # ---------------------------------------------------------------------------
 
 """
@@ -99,6 +99,9 @@ SCHEMA_OVERRIDES = {
 AKVEG_FIELD_ALIASES = {"moisture_regime": "moisture",
                       "dominant_texture_40_cm": "soil_texture"
                       }
+
+# Define regex pattern for USDA Plants codes
+USDA_CODES_PATTERN = r"^([A-Z][a-z\-]+(?:\s+[a-z\-]+)?)(?:.*?\b(ssp\.|var\.)\s+([a-z\-]+))?.*$"
 
 # --- Function 1 ---
 def get_template(
@@ -389,10 +392,9 @@ def get_usda_codes(
     :return: A Polars dataframe with all USDA Plants code and their accepted names without author names.
     """
 
-    codes_lazy = pl.scan_csv(usda_file, null_values="")
+    codes_original = pl.scan_csv(usda_file, null_values="")
 
-    plant_codes = (
-        codes_lazy
+    plant_codes = (codes_original
         .select(["Symbol", "Synonym Symbol", "Scientific Name with Author"])
 
         # Replace null values
@@ -404,9 +406,8 @@ def get_usda_codes(
 
         # Remove author name
         .with_columns(pl.col("Scientific Name with Author")
-                      .str.replace(r"L\.", "")
+                      .str.replace(USDA_CODES_PATTERN, "${1} ${2} ${3}")
                       .str.replace_all(r"\s+", " ")
-                      .str.extract(r"^(.*?)(?:\s[A-Z]\.|\s[A-Z]|\s\(.*|$)", 1)
                       .str.strip_chars()
                       .alias("name_original"))
 
