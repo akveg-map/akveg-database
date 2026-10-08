@@ -238,8 +238,10 @@ print(cover_taxa.select(["name_original", "name_adjudicated"]).null_count().glim
 # --- Calculate percent cover ---
 
 # Define grouping columns
-## group_columns_points is used to count the number of unique species observed at each point number
-## group_columns_plots is used to summarize the total number of hits per species per plot/site visit
+## group_columns_points: Used to count the number of unique species observed at each point number. Ensures that if
+# the same species with the same dead status is recorded twice on the same point (e.g., in Lower1 and Basal),
+# it only gets counted once for that point.
+## group_columns_plots: Used to summarize the total number of hits per species per plot/site visit
 group_columns_points = [
     "site_visit_code",
     "point_number",
