@@ -241,7 +241,7 @@ print(cover_taxa.select(["name_original", "name_adjudicated"]).null_count().glim
 ## group_columns_points: Used to count the number of unique species observed at each point number. Ensures that if
 # the same species with the same dead status is recorded twice on the same point (e.g., in Lower1 and Basal),
 # it only gets counted once for that point.
-## group_columns_plots: Used to summarize the total number of hits per species per plot/site visit
+## group_columns_plots: Used to summarize the total number of hits per species per plot (site visit)
 group_columns_points = [
     "site_visit_code",
     "point_number",
@@ -258,35 +258,34 @@ group_columns_plots = [
 ]
 
 # Calculate cover percent for each species and site visit
-vegcover_final = (vegcover_taxa
-                  .lazy()
-                  ## Get list of unique species per point
-                  .unique(subset=group_columns_points)
+cover_final = (cover_taxa
+               .lazy()
+               # Get list of unique species per point
+               .unique(subset=group_columns_points)
 
-                  ## Create constant column with value of 1 to calculate number of times the species was observed
-                  # across all points
-                  .with_columns(pl.lit(1).alias("observation_marker"))
+               # Create constant column with value of 1 to calculate number of times the species was observed
+               # across all points
+               .with_columns(pl.lit(1).alias("observation_marker"))
 
-                  # Calculate total number of hits per species per site visit
-                  .group_by(group_columns_plots).agg(pl.col("observation_marker").sum())
+               # Calculate total number of hits per species per site visit
+               .group_by(group_columns_plots).agg(pl.col("observation_marker").sum())
 
-                  # Get maximum number of points per plot
-                  .join(number_of_points.lazy(), how="left", on="site_visit_code")
+               # Get maximum number of points per plot
+               .join(number_of_points.lazy(), how="left", on="site_visit_code")
 
-                  # Calculate percent cover
-                  .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
-                                .round(3)
-                                .alias("cover_percent"))
+               # Calculate percent cover
+               .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
+                             .round(3)
+                             .alias("cover_percent"))
 
-                  # Populate remaining columns
-                  .with_columns(pl.lit("absolute foliar cover").alias("cover_type"))
+               # Populate remaining columns
+               .with_columns(pl.lit("absolute foliar cover").alias("cover_type"))
 
-                  # Sort and select columns
-                  .sort(["site_visit_code", "name_original"])
-                  .select(template.columns)
+               # Sort and select columns
+               .select(template.columns)
 
-                  .collect()
-                  )
+               .collect()
+               )
 
 # QC
 print(vegcover_final.describe())  ## Ensure no null values, range of % cover between 0-100%
