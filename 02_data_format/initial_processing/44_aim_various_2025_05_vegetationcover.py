@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Vegetation Cover Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-07
+# Last Updated: 2026-10-08
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: This script summarizes data from line-point intercept surveys as site-level percent foliar
 # cover for each recorded species. It also appends unique site visit identifiers, resolves taxonomic names,
@@ -26,7 +26,9 @@ FOLDER_ID = "44_aim_various_2025"
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
-codes_input = plot_folder / 'working' / '2021_AK_AIM_SpeciesList_AKVEG_Formatted 1.xlsx'
+codes_input = paths.cloud_assets.taxonomy / 'USDA_Plants' / '2021_AK_AIM_SpeciesList_AKVEG_Formatted.xlsx'
+resolved_names_input = (paths.repository / "02_data_format" / "crosswalks" /
+                        "44_aim_various_2025_name_original_adjudicated.csv")
 
 # Define output
 cover_output = plot_folder / '05_vegetationcover_aimvarious2025.csv'
@@ -42,6 +44,7 @@ cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input,
                   .lazy())
 codes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
+resolved_names_original = pl.read_csv(resolved_names_input)
 
 # Get template file
 template = get_template("vegetation_cover")
@@ -162,9 +165,9 @@ cover_long = (species_long.join(dead_long,
 # Obtain taxonomy checklist from the AKVEG Database
 taxonomy_checklist = get_taxonomy(simple=True)
 
-# Extract unknown codes (ending in '86') from AIM species list
+# Extract unknown codes (ending in '86') or functional group codes (two letters) from AIM species list
 unknown_codes = (codes_original
-                 .filter(pl.col("name").str.contains(r"86$"))
+                 .filter((pl.col("name").str.contains(r"86$")) | (pl.col("name").str.contains(r"^[A-Z]{2}$")))
                  .rename({"name": "usda_code",
                           "scientific_akveg": "name_original"}))
 
@@ -174,48 +177,35 @@ usda_codes = get_usda_codes()
 # Add unknown codes to USDA df
 usda_codes = pl.concat([usda_codes, unknown_codes])
 
+# Convert mapping CSV to dictionary
+resolved_names_dict = dict(
+    zip(
+        resolved_names_original["name_original"],
+        resolved_names_original["name_adjudicated"],
+    )
+)
+
 # Translate USDA codes to accepted scientific names
 cover_taxa = (cover_long.lazy()
               # Join cover df to USDA plant codes to obtain scientific names
               .join(usda_codes.lazy(), how="left", on="usda_code")
               # Fill in names for unknown functional types
-              .with_columns(pl.when(pl.col("usda_code") == "AE")
-                            .then(pl.lit("algae"))
-                            .when(pl.col("usda_code").is_in(["LI", "VL"]))
-                            .then(pl.lit("lichen"))
-                            .when(pl.col("usda_code") == "PF")
-                            .then(pl.lit("forb"))
+              .with_columns(pl.when(pl.col("usda_code") == "M")  # Unresolvable (moss, hornwort, or liverwort)
+                            .then(pl.lit("unknown"))
                             .when(pl.col("usda_code") == "POACEA")
                             .then(pl.lit("grass (Poaceae)"))
-                            .when(pl.col("usda_code") == "M")  # Unresolvable (moss, hornwort, or liverwort)
-                            .then(pl.lit("unknown"))
-                            .when(pl.col("usda_code") == "MO")
-                            .then(pl.lit("moss"))
-                            .when(pl.col("usda_code") == "PTYCH86")
-                            .then(pl.lit("Ptychostomum"))
-                            .otherwise(pl.col("name_original"))
+                            .otherwise("name_original")
                             .alias("name_original")
                             )
               # Join with AKVEG taxonomy table to obtain accepted names
               .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
-              # Manually resolve names with no matches in taxonomy table
-              .with_columns(pl.when(pl.col("name_original") == "Cephalozia loitlesbergeri")
-                            .then(pl.lit("Cephalozia"))
-                            .when(pl.col("name_original") == "Vaccinium oxycoccos")
-                            .then(pl.lit("Oxycoccus microcarpus"))
-                            .when(pl.col("name_original") == "Betula ×dugleana")
-                            .then(pl.lit("Betula cf. occidentalis"))
-                            .when(pl.col("name_original") == "Betula ×eastwoodiae")
-                            .then(pl.lit("Betula cf. occidentalis"))
-                            .when(pl.col("name_original") == "Polygonum bistorta")
-                            .then(pl.lit("Bistorta plumosa"))
-                            .when(pl.col("name_original") == "Dryas octopetala")
-                            .then(pl.lit("Dryas ajanensis ssp. beringensis"))
-                            .when(pl.col("name_original") == "Saxifraga bronchialis")
-                            .then(pl.lit("Saxifraga funstonii"))
-                            .when(pl.col("name_original") == "Carex pyrenaica")
-                            .then(pl.lit("Carex micropoda"))
-                            .otherwise(pl.col("name_adjudicated"))
+              # Resolve remaining names with no matches in taxonomy table
+              .with_columns(pl.col("name_original").replace(resolved_names_dict)
+                            .alias("name_resolved")
+                            )
+              .with_columns(pl.when(pl.col("name_adjudicated").is_null())
+                            .then(pl.col("name_resolved"))
+                            .otherwise("name_adjudicated")
                             .alias("name_adjudicated")
                             )
               .collect()
@@ -230,7 +220,7 @@ unmatched_codes = (cover_taxa
                    .sort("count", descending=True)
                    )
 
-# Reconcile entries to unknown for now (n=504)
+# Reconcile entries to unknown for now (n=228)
 cover_taxa = (cover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
                                       .then(pl.lit("unknown"))
                                       .otherwise(pl.col("name_original"))
