@@ -313,34 +313,22 @@ def plot_survey_dates(
 
 # --- Function 4 ---
 def get_taxonomy(
-        credential_file: str = CREDENTIAL_FILE,
+        db_connection: extensions.connection,
         simple: bool = False
 ) -> Union[pl.DataFrame, None]:
     """
     Queries the AKVEG Database taxonomy table.
 
     Args:
-        credential_file: A string and valid file path that contains the credentials for authenticating to the AKVEG
-        Database.
+        db_connection: A valid database connection to the AKVEG Database.
+        simple: Boolean argument specifying whether a simplified version of the dataframe (with only two columns) should be returned.
 
     Returns:
         A Polars dataframe with all synonymized names and their accepted names.
     """
-    # --- Validate input ---
-    if not os.path.exists(credential_file):
-        print(f"ERROR: Database credential file not found at: {credential_file}")
-        return None
-
-    # 1. Connect to database
-    akveg_db_connection = connect_database_postgresql(credential_file)
-
-    # --- Validate database connection ---
-    if akveg_db_connection is None:
-        print("ERROR: Could not establish database connection.")
-        return None
 
     try:
-        # 2. Query database for taxonomy checklist
+        # 1. Define database query for taxonomy checklist
         taxonomy_query = """SELECT taxon_all.taxon_code
         , taxon_all.taxon_name
         , taxon_all.taxon_accepted_code
@@ -352,23 +340,23 @@ def get_taxonomy(
         LEFT JOIN taxon_family ON taxon_hierarchy.taxon_family_id = taxon_family.taxon_family_id
         LEFT JOIN taxon_habit ON taxon_accepted.taxon_habit_id = taxon_habit.taxon_habit_id;"""
 
-        # 3. Obtain full synonymized checklist
-        taxonomy_original = query_to_dataframe(akveg_db_connection, taxonomy_query)
+        # 2. Get full synonymized checklist
+        taxonomy_original = query_to_dataframe(db_connection, taxonomy_query)
         taxonomy_original = pl.from_pandas(taxonomy_original)
 
-        # 4. Create table with accepted names only
+        # 3. Create table with only accepted names
         taxonomy_accepted = (
             taxonomy_original.filter(pl.col("taxon_code") == pl.col("taxon_accepted_code"))
             .rename({"taxon_name": "name_adjudicated"})
             .select("taxon_accepted_code", "name_adjudicated")
         )
 
-        # 5. Include accepted name in synonymized checklist
+        # 4. Append accepted names to synonymized checklist
         taxonomy_akveg = (taxonomy_original.join(taxonomy_accepted, on='taxon_accepted_code', how='left')
                           )
 
-        # 6. Drop 'extra' columns if simple = True
-        if simple is True:
+        # 5. Drop 'extra' columns if simple = True
+        if simple:
             taxonomy_akveg = taxonomy_akveg.select("taxon_code", "taxon_name", "name_adjudicated")
 
         return taxonomy_akveg
@@ -376,10 +364,6 @@ def get_taxonomy(
     except Exception as e:
         print(f"An error occurred during query or processing: {e}")
         return None
-
-    finally:
-        # 6. Close the database connection
-        akveg_db_connection.close()
 
 
 # --- Function 5 ---
