@@ -46,22 +46,9 @@ site_file = Path(database_repository / 'user_tools' / 'queries' / '02_site.sql')
 site_visit_file = Path(database_repository / 'user_tools' / 'queries' / '03_site_visit.sql')
 vegetation_file = Path(database_repository / 'user_tools' / 'queries' / '05_vegetation.sql')
 
-# Read local data
+# Read spatial data
 region_shape = gpd.read_file(region_input)
 fireyear_raster = gpd.read_file(fireyear_input)
-
-# Define regions that make up bioclimatic zones
-# boreal_region = ['Alaska-Yukon Southern', 'Alaska-Yukon Central', 'Alaska-Yukon Northern', 'Alaska Western',
-# 'Alaska Southwest']
-arctic_region = ['Arctic Northern', 'Arctic Western']
-
-# --- Get geometry for intersection ---
-
-# Example to subset data by Boreal
-# intersect_boreal = region_shape[region_shape['region'].isin(boreal_regions)]
-
-# Example to subset data by Arctic
-intersect_arctic = region_shape[region_shape['region'].isin(arctic_region)]
 
 # --- Query AKVEG Database ---
 
@@ -95,15 +82,18 @@ query_dict["site_visit"]['obs_year'] = query_dict["site_visit"]['obs_datetime'].
 
 # --- Restrict Site table to Arctic region ---
 
-# Convert Site table geodataframe
+# Subset region geodataframe to Arctic zone
+intersect_arctic = region_shape[region_shape['zone'] == "Arctic"]
+
+# Convert Site table to geodataframe
 site_gpd = gpd.GeoDataFrame(
     query_dict["site"],
     geometry=gpd.points_from_xy(query_dict["site"].longitude_dd,
                                 query_dict["site"].latitude_dd),
     crs='EPSG:4269')
 
-# Project geodataframe to EPSG:3338
-site_gpd = site_gpd.to_crs(crs='EPSG:3338')
+# Project site geodataframe to EPSG:3338 to match region gdf
+site_gpd = site_gpd.to_crs(crs=intersect_arctic.crs)
 
 # Extract coordinates in EPSG:3338
 site_gpd['cent_x'] = site_gpd.geometry.x
