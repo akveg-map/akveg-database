@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Query data from AKVEG Database
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-09
+# Last Updated: 2026-10-06
 # Usage: Script should be executed in Python 3.12+. Requires psycopg2.
 # Description: Provides an example of compiling a set of data views for a user-specified region from the AKVEG Database.
 # ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ input_folder = Path(paths.root / 'Example' / 'Data_Input')
 output_folder = Path(paths.root / 'Example' / 'Data_Output')
 
 # Define input files
-region_input = Path(input_folder / 'data' / 'AlaskaYukon_USNVC_ZonesRegions_v2p1_3338.gpkg')
+region_input = Path(input_folder / 'AlaskaYukon_Regions_v2.0_3338.shp')
 fireyear_input = Path(input_folder / 'AlaskaYukon_FireYear_10m_3338.tif')
 credentials_file = paths.cloud_assets.credentials
 
