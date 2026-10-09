@@ -139,35 +139,29 @@ site_point_data = gpd.GeoDataFrame(
     crs='EPSG:3338')
 site_point_data.to_file(site_point_output)
 
-# Write where statement for site visits
-input_sql = '\r\nWHERE site_visit.site_visit_code IN ('
-for site_visit in site_visit_data['site_visit_code']:
-    input_sql = input_sql + r"'" + site_visit + r"', "
-input_sql = input_sql[:-2] + r');'
-
-# Read project data from AKVEG Database for selected site visits
-project_read = open(project_file, 'r')
-project_query = project_read.read()
-project_read.close()
-project_query = project_query.replace(';', input_sql)
-project_data = query_to_dataframe(database_connection, project_query).sort_values('project_code')
-
-# Read vegetation cover data from AKVEG Database for selected site visits
-vegetation_read = open(vegetation_file, 'r')
-vegetation_query = vegetation_read.read()
-vegetation_read.close()
-vegetation_query = vegetation_query.replace(';', input_sql)
-vegetation_data = query_to_dataframe(database_connection, vegetation_query)
-
-# Check number of cover observations per project
-project_check = pd.merge(vegetation_data, site_visit_data, on='site_visit_code', how='left')[['project_code',
-                                                                                              'site_visit_code']]
+# --- Filter Project & Vegetation tables for selected Arctic sites ---
+project_arctic = query_dict["project"][query_dict["project"]["project_code"].isin(site_arctic_df[
+                                                                                'establishing_project_code'])]
+# For Vegetation table, use site_visit_code in the Site Visit table as a bridge
+visit_arctic = query_dict["site_visit"][query_dict["site_visit"]["site_code"].isin(site_arctic_df[
+                                                                                'site_code'])]
+visit_arctic = visit_arctic[['site_code', "site_visit_code"]]
+vegetation_arctic = query_dict["vegetation"][query_dict["vegetation"]["site_visit_code"].isin(visit_arctic[
+                                                                                                  'site_visit_code'])]
+# Explore number of cover observations per project
+project_check = pd.merge(vegetation_arctic,
+                         visit_arctic, on='site_visit_code', how='left')[['project_code',
+                                                                          'site_visit_code']]
 project_check = project_check.groupby(['project_code']).count().rename(columns={'site_visit_code': 'obs_n'})
 project_check['project_code'] = project_check.index
 project_check = project_check.reset_index(drop=True)[['project_code', 'obs_n']]
 
-# Export data to csv files
-taxa_data.to_csv(taxa_output, index=False, encoding='utf-8')
-project_data.to_csv(project_output, index=False, encoding='utf-8')
-site_visit_data.to_csv(site_visit_output, index=False, encoding='utf-8')
-vegetation_data.to_csv(vegetation_output, index=False, encoding='utf-8')
+# --- Extract taxonomy list for Arctic sites ---
+taxa_arctic = query_dict["taxonomy"][query_dict["taxonomy"]["taxon_name"].isin(vegetation_arctic[
+                                                                                   "name_adjudicated"].unique())]
+
+# --- Export remaining tables to CSV files ---
+taxa_arctic.to_csv(taxa_output, index=False, encoding='utf-8')
+project_arctic.to_csv(project_output, index=False, encoding='utf-8')
+visit_arctic.to_csv(site_visit_output, index=False, encoding='utf-8')
+vegetation_arctic.to_csv(vegetation_output, index=False, encoding='utf-8')
