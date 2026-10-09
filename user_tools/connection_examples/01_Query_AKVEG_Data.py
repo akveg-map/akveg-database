@@ -34,7 +34,7 @@ credentials_file = paths.cloud_assets.credentials
 taxa_output = Path(output_folder, '00_taxonomy.csv')
 project_output = Path(output_folder, '01_project.csv')
 site_visit_output = Path(output_folder, '03_site_visit.csv')
-site_point_output = Path(output_folder, '03_site_point_3338.shp')
+site_point_output = Path(output_folder, '02_site_point_3338.shp')
 vegetation_output = Path(output_folder, '05_vegetation.csv')
 
 # Define queries
