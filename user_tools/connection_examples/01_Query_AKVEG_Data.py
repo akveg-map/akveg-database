@@ -26,7 +26,8 @@ input_folder = Path(paths.root / 'Example' / 'Data_Input')
 output_folder = Path(paths.root / 'Example' / 'Data_Output')
 
 # Define input files
-region_input = Path(input_folder / 'AlaskaYukon_Regions_v2.0_3338.shp')
+region_input = Path(input_folder / 'data' / 'AlaskaYukon_USNVC_ZonesRegions_v2p1_3338.gpkg')  # Download from:
+# https://doi.org/10.18739/A2NP1WM5K
 fireyear_input = Path(input_folder / 'AlaskaYukon_FireYear_10m_3338.tif')
 credentials_file = paths.cloud_assets.credentials
 
