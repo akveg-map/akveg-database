@@ -45,6 +45,7 @@ fireyear_input <- path(input_folder, "AlaskaYukon_FireYear_10m_3338.tif")
 ## Can be modified or expanded to include other queries
 taxa_file <- path(query_folder, "00_taxonomy.sql")
 project_file <- path(query_folder, "01_project.sql")
+site_file <- path(query_folder, "02_site.sql")
 site_visit_file <- path(query_folder, "03_site_visit.sql")
 vegetation_file <- path(query_folder, "05_vegetation.sql")
 
@@ -62,8 +63,9 @@ fireyear_raster <- rast(fireyear_input)
 # Connect to AKVEG PostgreSQL database ----
 database_connection <- connect_database_postgresql(local_paths$credentials)
 
-# Read taxonomy standard from AKVEG Database
+# Read queries
 taxa_query <- read_file(taxa_file)
+site_query <- read_file(site_file)
 taxa_data <- as_tibble(dbGetQuery(database_connection, taxa_query))
 
 # Restrict Site table to Arctic zone ----
@@ -71,35 +73,33 @@ taxa_data <- as_tibble(dbGetQuery(database_connection, taxa_query))
 # Subset region polygon to Arctic zone
 intersect_arctic <- st_geometry(region_shape[region_shape$zone == "Arctic", ])
 
-
-# Read site visit data from AKVEG Database
-site_visit_query <- read_file(site_visit_file)
-site_visit_data <- as_tibble(dbGetQuery(database_connection, site_visit_query)) %>%
+# Read Site table from AKVEG Database
+site_data <- as_tibble(dbGetQuery(database_connection, site_query)) %>%
   # Convert geometries to points with EPSG:4269
   st_as_sf(x = ., coords = c("longitude_dd", "latitude_dd"), crs = 4269, remove = FALSE) %>%
-  # Reproject coordinates to EPSG 3338
-  st_transform(crs = st_crs(3338)) %>%
+  # Re-project coordinates to match CRS of region polygon (EPSG:3338)
+  st_transform(crs = st_crs(intersect_arctic)) %>%
   # Add EPSG:3338 centroid coordinates
   mutate(
     cent_x = st_coordinates(.$geometry)[, 1],
     cent_y = st_coordinates(.$geometry)[, 2]
   ) %>%
-  # Subset points to those within the target zone (example to subset using a feature class selection)
-  st_intersection(intersect_geometry) %>%
+  # Subset points to those within the Arctic zone
+  st_intersection(intersect_arctic) %>%
   # Extract raster data to points
   mutate(fire_year = terra::extract(fireyear_raster, ., raw = TRUE)[, 2]) %>%
   # Drop geometry
   st_zm(drop = TRUE, what = "ZM") %>%
   # Example filter by project code (uncomment line below)
-  # filter(project_code == 'accs_nelchina_2023') %>%
+  # filter(project_code == 'aim_kobuknortheast_2021') %>%
   # Example filter by observation year (uncomment line below)
   # filter(year(observe_date) >= 2000) %>%
   # Example filter by perspective (uncomment line below)
   # filter(perspective == 'ground') %>%
   # Select columns
   dplyr::select(
-    site_visit_code, project_code, site_code, data_tier, observe_date, scope_vascular, scope_bryophyte, scope_lichen,
-    perspective, cover_method, structural_class, fire_year, homogeneous, plot_dimensions_m,
+    establishing_project_code, site_code,
+    perspective, cover_method, fire_year, plot_dimensions_m, h_error_m, positional_accuracy, location_type,
     latitude_dd, longitude_dd, cent_x, cent_y, geometry
   )
 
