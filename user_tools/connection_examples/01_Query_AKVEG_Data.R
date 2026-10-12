@@ -66,9 +66,10 @@ database_connection <- connect_database_postgresql(local_paths$credentials)
 taxa_query <- read_file(taxa_file)
 taxa_data <- as_tibble(dbGetQuery(database_connection, taxa_query))
 
-# Restrict Site table to Arctic region ----
-intersect_geometry <- st_geometry(region_shape[region_shape$region == "Arctic Northern" |
-  region_shape$region == "Arctic Western", ])
+# Restrict Site table to Arctic zone ----
+
+# Subset region polygon to Arctic zone
+intersect_arctic <- st_geometry(region_shape[region_shape$zone == "Arctic", ])
 
 
 # Read site visit data from AKVEG Database
