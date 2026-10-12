@@ -156,3 +156,6 @@ taxa_arctic.to_csv(taxa_output, index=False, encoding='utf-8')
 project_arctic.to_csv(project_output, index=False, encoding='utf-8')
 visit_arctic.to_csv(site_visit_output, index=False, encoding='utf-8')
 vegetation_arctic.to_csv(vegetation_output, index=False, encoding='utf-8')
+
+# --- Close database connection ---
+database_connection.close()
