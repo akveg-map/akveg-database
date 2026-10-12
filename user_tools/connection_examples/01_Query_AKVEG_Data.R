@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Query data from AKVEG Database
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-06
+# Last Updated: 2026-10-12
 # Usage: Script should be executed in R 4.6.1+.
 # Description: Example script to pull data from the AKVEG Database for all available, non-metadata tables. The script connects to the AKVEG database, executes queries, and performs simple spatial analyses (i.e., subset the data to specific study areas, extract raster values to surveyed plots). The outputs are a series of CSV files (one for each non-metadata table in the database) whose results are restricted to the study area in the script.
 # ---------------------------------------------------------------------------
@@ -11,16 +11,13 @@
 library(dplyr)
 library(here)
 library(fs)
-# library(janitor)
-# library(lubridate)
+library(lubridate)
 library(readr)
-# library(readxl)
 library(RPostgres)
 library(sf)
 library(stringr)
 library(terra)
 library(tibble)
-# library(tidyr)
 library(yaml)
 
 # Source utility functions ----
@@ -52,7 +49,6 @@ vegetation_file <- path(query_folder, "05_vegetation.sql")
 # Define output files
 taxa_output <- path(output_folder, "00_taxonomy.csv")
 project_output <- path(output_folder, "01_project.csv")
-site_visit_output <- path(output_folder, "03_site_visit.csv")
 site_point_output <- path(output_folder, "02_site_point_3338.shp")
 vegetation_output <- path(output_folder, "05_vegetation.csv")
 
@@ -64,9 +60,8 @@ fireyear_raster <- rast(fireyear_input)
 database_connection <- connect_database_postgresql(local_paths$credentials)
 
 # Read queries
-taxa_query <- read_file(taxa_file)
 site_query <- read_file(site_file)
-taxa_data <- as_tibble(dbGetQuery(database_connection, taxa_query))
+
 
 # Restrict Site table to Arctic zone ----
 
@@ -74,7 +69,7 @@ taxa_data <- as_tibble(dbGetQuery(database_connection, taxa_query))
 intersect_arctic <- st_geometry(region_shape[region_shape$zone == "Arctic", ])
 
 # Read Site table from AKVEG Database
-site_data <- as_tibble(dbGetQuery(database_connection, site_query)) %>%
+arctic_sites <- as_tibble(dbGetQuery(database_connection, site_query)) %>%
   # Convert geometries to points with EPSG:4269
   st_as_sf(x = ., coords = c("longitude_dd", "latitude_dd"), crs = 4269, remove = FALSE) %>%
   # Re-project coordinates to match CRS of region polygon (EPSG:3338)
@@ -103,70 +98,66 @@ site_data <- as_tibble(dbGetQuery(database_connection, site_query)) %>%
     latitude_dd, longitude_dd, cent_x, cent_y, geometry
   )
 
-# Export site visit data to shapefile
-site_visit_data %>%
-  # Rename fields so that they are within the character length limits
+# Export Arctic site data to shapefile
+arctic_sites %>%
+  # Rename fields so that they are within ESRI's 10-character length limit
   rename(
-    st_vst = site_visit_code,
-    prjct_cd = project_code,
-    st_code = site_code,
-    obs_date = observe_date,
-    scp_vasc = scope_vascular,
-    scp_bryo = scope_bryophyte,
-    scp_lich = scope_lichen,
-    perspect = perspective,
-    cvr_mthd = cover_method,
-    strc_class = structural_class,
-    hmgneous = homogeneous,
+    site_cd = site_code,
+    project_cd = establishing_project_code,
+    prspective = perspective,
+    cover_mthd = cover_method,
+    fire_year = fire_year,
     plt_dim_m = plot_dimensions_m,
     lat_dd = latitude_dd,
-    long_dd = longitude_dd
+    long_dd = longitude_dd,
+    h_error_m = h_error_m,
+    pos_accur = positional_accuracy,
+    loc_type = location_type
   ) %>%
-  st_write(site_point_output, append = FALSE) # Optional to check point selection in a GIS
+  st_write(site_point_output, append = FALSE)
 
-# Write where statement for site visits to apply site visit codes obtained in the spatial intersection above to the SQL queries to restrict data from other tables to only those sites that are within the area of interest
-input_sql <- site_visit_data %>%
-  # Drop geometry
-  st_drop_geometry() %>%
-  select(site_visit_code) %>%
-  # Format site visit codes
-  mutate(site_visit_code = paste("'", site_visit_code, "'", sep = "")) %>%
-  # Collapse rows
-  summarize(site_visit_code = paste(site_visit_code, collapse = ", ")) %>%
-  # Pull result out of dataframe
-  pull(site_visit_code)
-where_statement <- paste("\r\nWHERE site_visit.site_visit_code IN (",
-  input_sql,
-  ");",
-  sep = ""
-)
+# Filter other data tables by selected Arctic sites ----
 
-# Read project data from AKVEG Database for selected site visits
-project_query <- read_file(project_file) %>%
-  # Modify query with where statement
-  str_replace(., ";", where_statement)
-project_data <- as_tibble(dbGetQuery(database_connection, project_query)) %>%
+project_query <- read_file(project_file)
+arctic_projects <- as_tibble(dbGetQuery(database_connection, project_query)) %>%
+  filter(project_code %in% arctic_sites$establishing_project_code) |>
   arrange(project_code)
 
-# Read vegetation cover data from AKVEG Database for selected site visits
-vegetation_query <- read_file(vegetation_file) %>%
-  # Modify query with where statement
-  str_replace(., ";", where_statement)
-vegetation_data <- as_tibble(dbGetQuery(database_connection, vegetation_query))
+# For Vegetation table, use site_visit_code in the Site Visit table as a bridge
+visit_query <- read_file(site_visit_file)
+vegetation_query <- read_file(vegetation_file)
 
-# Check number of cover observations per project
-project_check <- vegetation_data %>%
-  left_join(site_visit_data, join_by("site_visit_code")) %>%
+arctic_visits <- as_tibble(dbGetQuery(database_connection, visit_query)) |>
+  select(project_code, site_code, site_visit_code) |>
+  filter(site_code %in% arctic_sites$site_code)
+
+arctic_vegetation <- as_tibble(dbGetQuery(database_connection, vegetation_query)) |>
+  filter(site_visit_code %in% arctic_visits$site_visit_code)
+
+# Summarize number of cover observations per project
+obs_by_project <- arctic_vegetation %>%
+  left_join(arctic_visits, by = "site_visit_code") %>%
   group_by(project_code) %>%
-  summarize(obs_n = n())
+  summarize(obs_n = n()) |>
+  arrange(-obs_n)
+
+# Filter taxonomy by selected Arctic sites ----
+
+# Read taxonomy query
+taxa_query <- read_file(taxa_file)
+
+# Execute query and restrict to vegetation identified in Arctic surveys
+# Resulting table will only include currently accepted scientific names; filter by name_adjudicated to include synonyms and spelling variants
+arctic_taxa <- as_tibble(dbGetQuery(database_connection, taxa_query)) |>
+  filter(taxon_name %in% arctic_vegetation$name_accepted)
 
 # Export data to csv files ----
-taxa_data %>%
+arctic_taxa %>%
   write_csv(., file = taxa_output)
-project_data %>%
+arctic_projects %>%
   write_csv(., file = project_output)
-site_visit_data %>%
-  st_drop_geometry() %>%
-  write_csv(., file = site_visit_output)
-vegetation_data %>%
+arctic_vegetation %>%
   write_csv(., file = vegetation_output)
+
+# Close database connection ----
+dbDisconnect(database_connection)
