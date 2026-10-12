@@ -18,7 +18,7 @@ library(readr)
 library(RPostgres)
 library(sf)
 library(stringr)
-# library(terra)
+library(terra)
 library(tibble)
 # library(tidyr)
 library(yaml)
@@ -52,7 +52,7 @@ vegetation_file <- path(query_folder, "05_vegetation.sql")
 taxa_output <- path(output_folder, "00_taxonomy.csv")
 project_output <- path(output_folder, "01_project.csv")
 site_visit_output <- path(output_folder, "03_site_visit.csv")
-site_point_output <- path(output_folder, "03_site_point_3338.shp")
+site_point_output <- path(output_folder, "02_site_point_3338.shp")
 vegetation_output <- path(output_folder, "05_vegetation.csv")
 
 # Read local data ----
@@ -62,22 +62,14 @@ fireyear_raster <- rast(fireyear_input)
 # Connect to AKVEG PostgreSQL database ----
 database_connection <- connect_database_postgresql(local_paths$credentials)
 
-# Get geometry for intersection (example to subset data by Boreal)
-# intersect_geometry = st_geometry(region_shape[region_shape$region == 'Alaska-Yukon Southern'
-#                                              | region_shape$region == 'Alaska-Yukon Central'
-#                                              | region_shape$region == 'Alaska-Yukon Northern'
-#                                              | region_shape$region == 'Alaska Western'
-#                                              | region_shape$region == 'Alaska Southwest',])
-
-# Get geometry for intersection (example to subset data by Arctic)
-intersect_geometry <- st_geometry(region_shape[region_shape$region == "Arctic Northern" |
-  region_shape$region == "Arctic Western", ])
-
-#### Query AKVEG database ------------------------------
-
 # Read taxonomy standard from AKVEG Database
 taxa_query <- read_file(taxa_file)
 taxa_data <- as_tibble(dbGetQuery(database_connection, taxa_query))
+
+# Restrict Site table to Arctic region ----
+intersect_geometry <- st_geometry(region_shape[region_shape$region == "Arctic Northern" |
+  region_shape$region == "Arctic Western", ])
+
 
 # Read site visit data from AKVEG Database
 site_visit_query <- read_file(site_visit_file)
