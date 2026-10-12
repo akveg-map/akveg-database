@@ -26,7 +26,6 @@ library(yaml)
 # Source utility functions ----
 source(here("user_tools", "utils_init.R"))
 source(path("user_tools", "utils_database.R"))
-source(path("manuscript", "utils.R"))
 
 # Define directories & files ----
 ## Modify to your folder structure
@@ -39,7 +38,7 @@ input_folder <- path(local_paths$root, "Example/Data_Input")
 output_folder <- path(local_paths$root, "Example/Data_Output")
 
 # Define input files
-region_input <- path(input_folder, "AlaskaYukon_Regions_v2.0_3338.shp")
+region_input <- path(input_folder, "data", "AlaskaYukon_USNVC_ZonesRegions_v2p1_3338.gpkg")
 fireyear_input <- path(input_folder, "AlaskaYukon_FireYear_10m_3338.tif")
 
 # Define queries
