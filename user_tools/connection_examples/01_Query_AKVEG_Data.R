@@ -4,7 +4,8 @@
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
 # Last Updated: 2026-10-12
 # Usage: Script should be executed in R 4.6.1+.
-# Description: Example script to pull data from the AKVEG Database for all available, non-metadata tables. The script connects to the AKVEG database, executes queries, and performs simple spatial analyses (i.e., subset the data to specific study areas, extract raster values to surveyed plots). The outputs are a series of CSV files (one for each non-metadata table in the database) whose results are restricted to the study area in the script.
+# Description: This example script shows users how to connect to the AKVEG Database, read and execute queries, and perform simple spatial analyses (i.e., subset the data to a specific study area, extract raster values to surveyed plots). The outputs are an ESRI shapefile and a series of CSV files whose results are restricted to the study area in the script. Download links to the spatial files used in this script can be found in the Getting Started section of the AKVEG Docs: https://docs.akveg.org
+
 # ---------------------------------------------------------------------------
 
 # Import required libraries ----
