@@ -2,22 +2,26 @@
 # ---------------------------------------------------------------------------
 # Query data from AKVEG Database
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-06
+# Last Updated: 2026-10-13
 # Usage: Script should be executed in Python 3.12+. Requires psycopg2.
-# Description: Provides an example of compiling a set of data views for a user-specified region from the AKVEG Database.
+# Description: This example script shows users how to connect to the AKVEG Database, read and execute queries,
+# and perform simple spatial analyses (i.e., subset the data to a specific study area, extract raster values to
+# surveyed plots). The outputs are an ESRI shapefile and a series of CSV files whose results are restricted to the
+# study area in the script. Download links to the spatial files used in this script can be found in the Getting
+# Started section of the AKVEG Docs: https://docs.akveg.org. Database credentials can be requested from:
+# https://www.akveg.org
 # ---------------------------------------------------------------------------
 
-# Import packages
+# --- Import packages ---
+# user_tools utility functions are in the AKVEG Database GitHub repo:
+# https://github.com/akveg-map/akveg-database/tree/main/user_tools
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
 from user_tools.utils_init import load_system_paths
-from user_tools.utils_database import connect_database_postgresql, query_to_dataframe  # Available from AKVEG Database
-
-# GitHub repo: https://github.com/akveg-map/akveg-database/tree/main/user_tools
+from user_tools.utils_database import connect_database_postgresql, query_to_dataframe
 
 # --- Define directories and files ---
-
 paths = load_system_paths()
 
 # Define input folders (modify to your folder structure)
@@ -26,8 +30,10 @@ input_folder = Path(paths.root / 'Example' / 'Data_Input')
 output_folder = Path(paths.root / 'Example' / 'Data_Output')
 
 # Define input files
-region_input = Path(input_folder / 'data' / 'AlaskaYukon_USNVC_ZonesRegions_v2p1_3338.gpkg')  # Download from:
-# https://doi.org/10.18739/A2NP1WM5K
+# region_input can be downloaded from: https://doi.org/10.18739/A2NP1WM5K
+# fireyear_input can be downloaded from "Getting Started" of the database docs: https://docs.akveg.org
+# Database credentials can be requested from: https://www.akveg.org
+region_input = Path(input_folder / 'data' / 'AlaskaYukon_USNVC_ZonesRegions_v2p1_3338.gpkg')
 fireyear_input = Path(input_folder / 'AlaskaYukon_FireYear_10m_3338.tif')
 credentials_file = paths.cloud_assets.credentials
 
@@ -38,8 +44,7 @@ site_visit_output = Path(output_folder, '03_site_visit.csv')
 site_point_output = Path(output_folder, '02_site_point_3338.shp')
 vegetation_output = Path(output_folder, '05_vegetation.csv')
 
-# Define queries
-## Can be modified or expanded to include other queries
+# Define queries (modify to include other queries)
 taxa_file = Path(database_repository / 'user_tools' / 'queries' / '00_taxonomy.sql')
 project_file = Path(database_repository / 'user_tools' / 'queries' / '01_project.sql')
 site_file = Path(database_repository / 'user_tools' / 'queries' / '02_site.sql')
@@ -55,7 +60,7 @@ fireyear_raster = gpd.read_file(fireyear_input)
 # Connect to the AKVEG PostgreSQL database
 database_connection = connect_database_postgresql(credentials_file)
 
-# Define named keys for file paths
+# Define named keys for query files
 query_files = {
     "taxonomy": taxa_file,
     "project": project_file,
@@ -70,7 +75,7 @@ query_dict = {
     for key, f in query_files.items()
 }
 
-# Format Site Visit df
+# Format Site Visit date fields
 query_dict["site_visit"]['obs_datetime'] = pd.to_datetime(query_dict["site_visit"]['observe_date'])
 query_dict["site_visit"]['obs_year'] = query_dict["site_visit"]['obs_datetime'].dt.year
 
@@ -122,7 +127,7 @@ export_point_data = site_arctic_df.rename(columns={'site_code': 'site_cd',
                                                    'location_type': 'loc_type'
                                                    })
 
-# Export site visit data to shapefile
+# Export site data to shapefile
 site_point_data = gpd.GeoDataFrame(
     export_point_data,
     geometry=gpd.points_from_xy(site_arctic_gpd.cent_x,
@@ -151,7 +156,7 @@ project_check = project_check.reset_index(drop=True)[['project_code', 'obs_n']]
 taxa_arctic = query_dict["taxonomy"][query_dict["taxonomy"]["taxon_name"].isin(vegetation_arctic[
                                                                                    "name_adjudicated"].unique())]
 
-# --- Export remaining tables to CSV files ---
+# --- Export tables to CSV files ---
 taxa_arctic.to_csv(taxa_output, index=False, encoding='utf-8')
 project_arctic.to_csv(project_output, index=False, encoding='utf-8')
 visit_arctic.to_csv(site_visit_output, index=False, encoding='utf-8')
