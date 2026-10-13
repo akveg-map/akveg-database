@@ -150,7 +150,7 @@ project_arctic = query_dict["project"][query_dict["project"]["project_code"].isi
 # For Vegetation table, use site_visit_code in the Site Visit table as a bridge
 visit_arctic = query_dict["site_visit"][query_dict["site_visit"]["site_code"].isin(site_arctic_df[
                                                                                 'site_code'])]
-visit_arctic = visit_arctic[['site_code', "site_visit_code"]]
+visit_arctic = visit_arctic[['project_code', 'site_code', "site_visit_code"]]
 vegetation_arctic = query_dict["vegetation"][query_dict["vegetation"]["site_visit_code"].isin(visit_arctic[
                                                                                                   'site_visit_code'])]
 # Explore number of cover observations per project
