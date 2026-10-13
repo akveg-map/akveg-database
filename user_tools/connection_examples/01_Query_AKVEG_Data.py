@@ -18,6 +18,7 @@
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
+import rasterio
 from user_tools.utils_init import load_system_paths
 from user_tools.utils_database import connect_database_postgresql, query_to_dataframe
 
@@ -53,7 +54,6 @@ vegetation_file = Path(database_repository / 'user_tools' / 'queries' / '05_vege
 
 # Read spatial data
 region_shape = gpd.read_file(region_input)
-fireyear_raster = gpd.read_file(fireyear_input)
 
 # --- Query AKVEG Database ---
 
@@ -110,6 +110,14 @@ site_arctic_gpd = gpd.clip(site_gpd, intersect_arctic)
 # Example filter by perspective (uncomment line below)
 # site_arctic_ground = site_arctic[site_arctic['perspective'] == 'ground']
 
+# Convert coordinates of Arctic sites to list for raster extraction step
+coord_list = [(x, y) for x, y in zip(site_arctic_gpd['cent_x'], site_arctic_gpd["cent_y"])]
+
+# Extract raster values to points
+with rasterio.open(fireyear_input) as fire:
+    # Single-band raster, use [0] to extract the value of the first band
+    site_arctic_gpd["fire_year"] = [x[0] for x in fire.sample(coord_list)]
+
 # Drop geometry column and convert to Pandas DataFrame
 site_arctic_df = pd.DataFrame(site_arctic_gpd.drop(columns=["geometry"]))
 
@@ -118,6 +126,7 @@ export_point_data = site_arctic_df.rename(columns={'site_code': 'site_cd',
                                                    'establishing_project_code': 'project_cd',
                                                    'perspective': 'prspective',
                                                    'cover_method': 'cover_mthd',
+                                                   'fire_year': 'fire_year',
                                                    'plot_dimensions_m': 'plt_dim_m',
                                                    'h_datum': 'h_datum',
                                                    'latitude_dd': 'lat_dd',
