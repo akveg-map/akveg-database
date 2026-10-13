@@ -162,8 +162,9 @@ project_check['project_code'] = project_check.index
 project_check = project_check.reset_index(drop=True)[['project_code', 'obs_n']]
 
 # --- Extract taxonomy list for Arctic sites ---
+# Resulting table will only include currently accepted scientific names; filter by name_adjudicated to include synonyms and spelling variants
 taxa_arctic = query_dict["taxonomy"][query_dict["taxonomy"]["taxon_name"].isin(vegetation_arctic[
-                                                                                   "name_adjudicated"].unique())]
+                                                                                   "name_accepted"].unique())]
 
 # --- Export tables to CSV files ---
 taxa_arctic.to_csv(taxa_output, index=False, encoding='utf-8')
