@@ -35,10 +35,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `03_data_insert/00b_Prepare_Metadata.R`: Processed new missing value fields in `database_schema`.
 - Refactored `03_data_insert/00a_Prepare_Taxonomy.R` and `03_data_insert/00b_Prepare_Metadata.R` to use relative 
   file paths instead of absolute paths.
-- `02_data_format/utils/utils.py` (`get_taxonomy()`): 
-  - Refactored function to accept a database connection as an argument instead of a credentials file, reducing the 
+- `02_data_format/utils/utils.py` (`get_taxonomy()`, `get_abiotic_elements()`): 
+  - Refactored functions to accept a database connection as a parameter instead of a credentials file, reducing the 
     number of times the database connection is opened when multiple functions within this module are run in the 
     same script. 
+- `02_data_format/utils/utils.py` (`get_taxonomy()`):
   - Changed field name from `name_accepted` to `name_adjudicated` to 
     match field name used in Vegetation Cover table. 
   - Added `name_adjudicated` as a returned field when `simple=True`. 
