@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-10-08
+# Last Updated: 2026-10-14
 # ---------------------------------------------------------------------------
 
 """
@@ -405,25 +405,22 @@ def get_usda_codes(
 
 # --- Function 6 ---
 def get_abiotic_elements(
-        credential_file: str = CREDENTIAL_FILE,
+        db_connection: extensions.connection,
         element_type: ElementTypes = "all"
 ) -> Union[pl.DataFrame, None]:
     """
     Queries the AKVEG Database ground cover table.
 
     Args:
-        credential_file: A string and valid file path that contains the credentials for authenticating to the AKVEG
-        Database.
+        db_connection: A valid database connection to the AKVEG Database.
         element_type: A string literal that identifies what type of element to return. Must be one of the following
         values: "all", "ground", or "abiotic".
 
     Returns:
         A Polars dataframe with all abiotic elements and their element type (abiotic, ground, or both).
     """
+
     # --- Validate input ---
-    if not os.path.exists(credential_file):
-        print(f"ERROR: Database credential file not found at: {credential_file}")
-        return None
 
     if element_type not in VALID_ELEMENT_TYPES:
         allowed_values = ", ".join(sorted(VALID_ELEMENT_TYPES))
@@ -432,24 +429,15 @@ def get_abiotic_elements(
             f"Argument must be one of: {allowed_values}."
         )
 
-    # 1. Connect to database
-    akveg_db_connection = connect_database_postgresql(credential_file)
-
-    # --- Validate database connection ---
-    if akveg_db_connection is None:
-        print("ERROR: Could not establish database connection.")
-        return None
-
     try:
-        # 2. Query database for abiotic elements
+        # 1. Query database for abiotic elements
         abiotic_query = """SELECT ground_element.ground_element, ground_element.element_type
                     FROM ground_element;"""
 
-        # 3. Convert to Polars dataframe
-        all_elements = query_to_dataframe(akveg_db_connection, abiotic_query)
-        all_elements = pl.from_pandas(all_elements)
+        # 2. Convert to Polars dataframe
+        all_elements = pl.from_pandas(query_to_dataframe(db_connection, abiotic_query))
 
-        # 4. Subset based on element type
+        # 3. Subset based on element type
         ground_elements = all_elements.filter(pl.col("element_type") != "abiotic")
         abiotic_elements = all_elements.filter(pl.col("element_type") != "ground")
 
@@ -464,9 +452,6 @@ def get_abiotic_elements(
         print(f"An error occurred during query or processing: {e}")
         return None
 
-    finally:
-        # 6. Close the database connection
-        akveg_db_connection.close()
 
 # --- Function 7 ---
 def add_missing_elements(
