@@ -1,46 +1,57 @@
 # -*- coding: utf-8 -*-
 # ---------------------------------------------------------------------------
-# Format Abiotic Top Cover Table for BLM AIM Various 2023 data
+# Format Abiotic Top Cover Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2025-11-03
+# Last Updated: 2026-10-14
 # Usage: Must be executed in a Python 3.13+ distribution.
-# Description: "Format Abiotic Top Cover Table for BLM AIM Various 2023 data" uses data from line-point intercept surveys
-# to calculate site-level percent abiotic top cover for each abiotic element. It appends unique site visit
-# identifiers, populates required metadata fields, and performs QC checks. The script depends on the output from the
-# 44_aim_various_2023_00_extract_data.py script. The output is a CSV table that can be converted and included in a
-# SQL INSERT statement.
+# Description: This script processes data from line-point intercept surveys to calculate percent abiotic top cover
+# for each site visit and abiotic element. It also appends unique site visit identifiers, populates required metadata
+# fields, and performs quality control checks. The resulting dataframe is exported to a CSV file for ingestion into
+# the AKVEG Database.
 # ---------------------------------------------------------------------------
 
 # Import packages
+import geopandas as gpd
 import polars as pl
 from pathlib import Path
-from utils import get_abiotic_elements
-from utils import add_missing_elements
+from utils.utils import get_template, get_abiotic_elements, add_missing_elements
+from user_tools.utils_init import load_system_paths
+from user_tools.utils_database import connect_database_postgresql
 
-# Define directories
-drive = Path('C:/')
-root_folder = drive / 'ACCS_Work'
+# Load absolute file paths
+paths = load_system_paths()
 
-# Define folders
-project_folder = root_folder / 'OneDrive - University of Alaska' / 'ACCS_Teams' / 'Vegetation' / 'AKVEG_Database' / 'Data'
-plot_folder = project_folder / 'Data_Plots' / '44_aim_various_2023'
-template_folder = project_folder / 'Data_Entry'
+# Define constants
+FOLDER_ID = "44_aim_various_2025"
 
 # Define inputs
-cover_input = plot_folder / 'working' / '44_aim_2023_veg_export.csv'
-visit_input = plot_folder / '03_sitevisit_aimvarious2023.csv'
-template_input = template_folder / '06_abiotic_top_cover.xlsx'
+plot_folder = paths.cloud_assets.plots / FOLDER_ID
+gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
+visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
+credentials_input = paths.cloud_assets.credentials
 
 # Define output
-abiotic_output = plot_folder / '06_abiotictopcover_aimvarious2023.csv'
+cover_output = plot_folder / '06_abiotictopcover_aimvarious2025.csv'
 
 # Read in data
-lazy_abiotic = pl.scan_csv(cover_input)
+cover_original = pl.from_pandas(gpd.read_file(gdb_input,
+                                              layer="AIM_Wetland__F_LPIDetail")
+                                ).lazy()
+cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input,
+                                               layer="AIM_Wetland__F_LPI",
+                                               columns=["LineKey", "LineLength", "LineNumber"],
+                                               ignore_geometry=True))
+                  .lazy())
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
-template = pl.read_excel(template_input)
+
+# Get template file
+template = get_template("abiotic_top_cover")
+
+# Connect to AKVEG Database
+db_conn = connect_database_postgresql(credentials_input)
 
 # Obtain abiotic elements from the AKVEG Database
-abiotic_query = get_abiotic_elements(element_type="abiotic")
+abiotic_query = get_abiotic_elements(db_conn, element_type="abiotic")
 
 # Load and format abiotic top cover data
 all_cover = (
@@ -173,3 +184,6 @@ print(abiotic_final.group_by("site_visit_code")
 
 # Export as CSV
 abiotic_final.write_csv(abiotic_output)
+
+# Close database connection
+db_conn.close()
