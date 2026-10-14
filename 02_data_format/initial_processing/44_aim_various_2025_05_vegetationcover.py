@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Vegetation Cover Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-08
+# Last Updated: 2026-10-14
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: This script summarizes data from line-point intercept surveys as site-level percent foliar
 # cover for each recorded species. It also appends unique site visit identifiers, resolves taxonomic names,
@@ -215,28 +215,30 @@ cover_taxa = (cover_long.lazy()
                             .otherwise("name_adjudicated")
                             .alias("name_adjudicated")
                             )
+              .remove(pl.col("usda_code") == "HW")  # 4 entries, possible typo?
               .collect()
               )
 
-# Explore USDA codes that did not return a match when joined with taxonomy table
-unmatched_codes = (cover_taxa
-                   .filter(pl.col("name_original").is_null())
-                   .select(["usda_code"])
-                   .to_series()
-                   .value_counts()
-                   .sort("count", descending=True)
-                   )
+# Explore USDA codes that did not return a match
+# One code: SYNTR86 (n=2)
+print(cover_taxa
+      .filter(pl.col("name_original").is_null())
+      .select(["usda_code"])
+      .to_series()
+      .value_counts()
+      .sort("count", descending=True)
+      )
 
-# Reconcile entries to unknown for now (n=228)
+# Reconcile entries to unknown
 cover_taxa = (cover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
                                       .then(pl.lit("unknown"))
                                       .otherwise(pl.col("name_original"))
-                                      .alias("name_original"))
-              .with_columns(pl.when(pl.col("name_original") == "unknown")
-                            .then(pl.lit("unknown"))
-                            .otherwise(pl.col("name_adjudicated"))
-                            .alias("name_adjudicated")
-                            )
+                                      .alias("name_original"),
+                                      pl.when(pl.col("name_original").is_null())
+                                      .then(pl.lit("unknown"))
+                                      .otherwise(pl.col("name_adjudicated"))
+                                      .alias("name_adjudicated")
+                                      )
               )
 
 # Ensure all nulls have been resolved
