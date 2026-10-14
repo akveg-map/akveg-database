@@ -22,6 +22,7 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
+ABIOTIC_CODES = ["HL", "N", "DL", "NL", "WL", "W", "TH"]
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -106,9 +107,6 @@ print(number_of_points.select("max_hits").unique())
 
 # --- Convert to long format ---
 
-# Identify abiotic element codes (to be excluded from species list)
-abiotic_elements = ["HL", "N", "DL", "NL", "WL", "W", "TH"]
-
 # Identify groups of columns
 species_cols = vegetation_cover.select(pl.col(["TopCanopy", "^Lower.*$", "codebasal"])).columns
 chkbox_cols = vegetation_cover.select(pl.col("^Chkbox.*$")).columns  # Indicates dead status
@@ -125,7 +123,7 @@ species_long = (
     )
     # Drop abiotic codes, null and empty cells
     .filter(pl.col("usda_code").is_not_null()
-            .and_(~pl.col("usda_code").is_in(abiotic_elements))
+            .and_(~pl.col("usda_code").is_in(ABIOTIC_CODES))
             .and_(pl.col("usda_code") != "")
             )
     # Create common key to join with dead status
