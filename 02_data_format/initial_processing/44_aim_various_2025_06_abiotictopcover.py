@@ -53,9 +53,10 @@ db_conn = connect_database_postgresql(credentials_input)
 # Obtain abiotic elements from the AKVEG Database
 abiotic_query = get_abiotic_elements(db_conn, element_type="abiotic")
 
-# Load and format abiotic top cover data
+# --- Perform initial formatting ---
 all_cover = (
-    lazy_abiotic
+    cover_original
+    .join(cover_metadata, how="left", left_on="RecKey", right_on="LineKey")
     .select(
         pl.col(["EvaluationID", "LineLength", "LineNumber", "PointNbr",
                 "TopCanopy", "Lower1", "SoilSurface"])
@@ -64,16 +65,8 @@ all_cover = (
     .with_columns(pl.col("EvaluationID")
                   .str.extract(r"^(.*)_")
                   .alias("site_code"))
-    # Append site visit code using right join to drop any plots that were excluded from site visit table
+    # Append site visit code using right join to drop any plots not in site visit table
     .join(visit_original.lazy(), on="site_code", how="right")
-
-    .collect()
-)
-
-# Calculate number of points per plot
-# Plots should have 150 points (3 transects * 50 points per transects), but that is not always the case
-number_of_points = (
-    all_cover.lazy()
     # Create a sequential row number for each site visit
     ## Solution from Ritchie Vink: https://github.com/pola-rs/polars/issues/2542
     .sort(by=["site_visit_code", "LineNumber", "PointNbr"])
@@ -81,20 +74,29 @@ number_of_points = (
                   .cum_count()
                   .alias("point_number")
                   .over("site_visit_code")
-                  .flatten())
-
-    # Calculate maximum number of points per line
-    .group_by("site_visit_code")
-    .agg(pl.col("point_number")
-         .max())
-    .rename({"point_number": "max_hits"})
-
+                  .explode(keep_nulls=False, empty_as_null=False)
+                  )
     .collect()
 )
 
-print(number_of_points.describe())
+# Ensure every site code matched to a visit code
+print(all_cover["site_code", "site_visit_code"].null_count().glimpse())
 
-# Obtain abiotic cover elements only
+# Ensure all lines are the standard 25m length
+print(all_cover["LineLength"].unique())
+
+# --- Calculate number of points per plot ---
+## Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
+## Perform this step prior to any filtering/excluding to ensure all rows are included
+number_of_points = (all_cover
+                    .group_by("site_visit_code")
+                    .agg(pl.col("point_number")
+                         .max())
+                    .rename({"point_number": "max_hits"})
+                    )
+print(number_of_points.select("max_hits").unique())
+
+# --- Filter only abiotic cover elements ---
 abiotic_cover = (
     all_cover.lazy()
     # Exclude points with vascular species hit in the top canopy
