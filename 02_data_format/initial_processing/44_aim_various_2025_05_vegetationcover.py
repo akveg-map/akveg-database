@@ -95,7 +95,7 @@ print(vegetation_cover["LineLength"].unique())
 
 # --- Calculate number of points per plot ---
 ## Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
-## Perform this step prior to any filtering/excluding to ensure no rows are dropped
+## Perform this step prior to any filtering/excluding to ensure all rows are included
 number_of_points = (vegetation_cover
                     .group_by("site_visit_code")
                     .agg(pl.col("point_number")
