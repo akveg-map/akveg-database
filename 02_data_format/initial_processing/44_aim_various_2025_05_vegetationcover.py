@@ -22,7 +22,8 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
-ABIOTIC_CODES = ["HL", "N", "DL", "NL", "WL", "W", "TH"]
+CODES_TO_DROP = ["HL", "N", "DL", "NL", "WL", "W", "TH"]  # Most of these are abitoic elements, "N" is a placeholder
+# element representing a non-vascular hit
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -123,7 +124,7 @@ species_long = (
     )
     # Drop abiotic codes, null and empty cells
     .filter(pl.col("usda_code").is_not_null()
-            .and_(~pl.col("usda_code").is_in(ABIOTIC_CODES))
+            .and_(~pl.col("usda_code").is_in(CODES_TO_DROP))
             .and_(pl.col("usda_code") != "")
             )
     # Create common key to join with dead status
