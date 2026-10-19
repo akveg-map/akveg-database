@@ -106,7 +106,7 @@ print(number_of_points.select("max_hits").unique())
 abiotic_cover = (
     all_cover.lazy()
     # Exclude points with vascular species hit in the top canopy, unless the species is dead
-    .filter((pl.col("TopCanopy") == "N") | pl.col("ChkboxTop") == "D")
+    .filter((pl.col("TopCanopy") == "N") | (pl.col("ChkboxTop") == "D"))
 
     # Exclude points with non-vascular species hit in the first lower layer
     ## Species codes have at least four letters
