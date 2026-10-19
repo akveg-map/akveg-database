@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Abiotic Top Cover Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-14
+# Last Updated: 2026-10-19
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: This script processes data from line-point intercept surveys to calculate percent abiotic top cover
 # for each site visit and abiotic element. It also appends unique site visit identifiers, populates required metadata
@@ -23,6 +23,10 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
+ABIOTIC_CODES = ["NL", "S", "W"]
+LITTER_CODES = ["HL", "DL", "TH"]
+WOODY_CODES = ["WL", "EL"]
+ROCK_CODES = ["R", "GR", "CB", "ST", "BY", "BR"]
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -103,7 +107,7 @@ abiotic_cover = (
     .filter(pl.col("TopCanopy") == "N")
 
     # Exclude points with non-vascular species hit in the first lower layer
-    ## Species codes typically have at least four letters
+    ## Species codes have at least four letters
     .filter((pl.col("Lower1").str.contains(r"^[a-zA-Z]{0,3}$")) & (pl.col("Lower1") != "LI"))  # LI = lichen (not
     # abiotic)
 
