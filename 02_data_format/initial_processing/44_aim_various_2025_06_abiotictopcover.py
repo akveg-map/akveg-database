@@ -14,7 +14,7 @@
 import geopandas as gpd
 import polars as pl
 from pathlib import Path
-from utils.utils import get_template, get_abiotic_elements, add_missing_elements
+from utils.utils import get_template, get_usda_codes, get_taxonomy, get_abiotic_elements, add_missing_elements
 from user_tools.utils_init import load_system_paths
 from user_tools.utils_database import connect_database_postgresql
 
@@ -25,10 +25,12 @@ paths = load_system_paths()
 FOLDER_ID = "44_aim_various_2025"
 # Abiotic code "HW" is not listed in BLM field manual, possibly a typo. Only one entry, assume litter.
 # Abiotic code "NL" is for "non-vegetative litter". Assume animal litter since plastic/human litter is rare in Alaska.
-ABIOTIC_CODES = dict(NL="animal litter", W="water", S="soil", HL="litter (< 2 mm)", DL="litter (< 2 mm)",
+ABIOTIC_CODES = dict(NL="animal litter", W="water", S="soil", OM="soil", HL="litter (< 2 mm)", DL="litter (< 2 mm)",
                      TH="litter (< 2 mm)", HW="litter (< 2 mm)", WL="dead down wood (≥ 2 mm)",
                      EL="dead down wood (≥ 2 mm)", R="rock fragments", GR="rock fragments", CB="rock fragments",
                      ST="rock fragments", BY="rock fragments", BR="bedrock (exposed)")
+NONVASC_CODES = ["LI", "VL", "LC", "M"]  # lichen and moss codes (excluded from abiotic top cover)
+
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
@@ -37,6 +39,9 @@ credentials_input = paths.cloud_assets.credentials
 
 # Define output
 cover_output = plot_folder / '06_abiotictopcover_aimvarious2025.csv'
+
+# Connect to AKVEG Database
+db_conn = connect_database_postgresql(credentials_input)
 
 # Read in data
 cover_original = pl.from_pandas(gpd.read_file(gdb_input,
@@ -52,8 +57,11 @@ visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code
 # Get template file
 template = get_template("abiotic_top_cover")
 
-# Connect to AKVEG Database
-db_conn = connect_database_postgresql(credentials_input)
+# Get USDA plant codes
+usda_codes = get_usda_codes()
+
+# Obtain taxonomy checklist from the AKVEG Database
+taxonomy_checklist = get_taxonomy(db_conn, simple=False).select(['taxon_name', 'taxon_habit'])
 
 # Obtain abiotic elements from the AKVEG Database
 abiotic_query = get_abiotic_elements(db_conn, element_type="abiotic")
@@ -109,33 +117,49 @@ abiotic_cover = (
     # Exclude points with vascular species hit in the top canopy, unless the species is dead
     .filter((pl.col("TopCanopy") == "N") | (pl.col("ChkboxTop") == "D"))
 
-    # Exclude points with non-vascular species hit in the first lower layer
-    ## Species codes have at least four letters
-    .filter((pl.col("Lower1").str.contains(r"^[a-zA-Z]{0,3}$")) & (pl.col("Lower1") != "LI"))  # LI = lichen (not
-    # abiotic)
+    # Exclude points with non-vascular or lichens in the first lower layer
+    # Must explicitly keep nulls otherwise they will get dropped by filter
+    .filter(pl.col("Lower1").is_null() | ((pl.col("Lower1").str.contains(r"^[a-zA-Z]{0,3}$")) & (~pl.col(
+        "Lower1").is_in(NONVASC_CODES))))
+    # Exclude points with no plant hits and only non-vasculars/lichens as soil surface
+    .filter(~((pl.col("TopCanopy") == "N") & (pl.col("Lower1").is_null()) & (pl.col("SoilSurface").is_in(
+        NONVASC_CODES))))
 
-    # Re-classify abiotic elements
-    .with_columns(pl.when((pl.col("Lower1").is_in(WOODY_CODES)))
-                  .then(pl.lit("dead down wood (≥ 2 mm)"))
-                  .when(pl.col("Lower1").is_in(LITTER_CODES))
+    # Join with USDA plant codes to obtain scientific names for top cover hits
+    .join(usda_codes.lazy(), how="left", left_on="TopCanopy", right_on="usda_code")
+
+    # Join with AKVEG taxonomy to obtain functional group
+    .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
+
+    # Resolve Dryas octopetala non-match
+    .with_columns(pl.when(pl.col("TopCanopy") == "DROC")
+                  .then(pl.lit("dwarf shrub"))
+                  .otherwise(pl.col("taxon_habit"))
+                  .alias("taxon_habit"))
+
+    # Classify abiotic elements
+    .with_columns(pl.when(pl.col("taxon_habit").str.contains(pattern=r"shrub|tree"))
+                  .then(pl.lit("dead standing woody vegetation"))  # Classify dead standing wood first
+                  .when(pl.col("taxon_habit").is_not_null()) # Remaining dead top cover hits (forb, graminoid,
+                  # spore-bearing) get classified as litter
                   .then(pl.lit("litter (< 2 mm)"))
-                  .when(pl.col("Lower1").is_in(WATER_CODES))
-                  .then(pl.lit("water"))
-                  .when(pl.col("Lower1").is_in(OTHER_LITTER_CODES))
-                  .then(pl.lit("animal litter"))
-                  .when(pl.col("Lower1").is_in(SOIL_CODES))
-                  .then(pl.lit("soil"))
-                  .otherwise(pl.lit("Error"))
+                  .when((pl.col("Lower1").is_null()) & (pl.col("Lower2").is_in(ABIOTIC_CODES)))  # One entry does not
+                  # have anything in TopCanopy or Lower1, but has an abiotic code in Lower2
+                  .then(pl.col("Lower2").replace_strict(ABIOTIC_CODES, default=pl.col("Lower2")))
+                  .when(pl.col("Lower1").is_in(ABIOTIC_CODES))
+                  .then(pl.col("Lower1").replace_strict(ABIOTIC_CODES, default=pl.col("Lower1")))
+                  .when(pl.all_horizontal(pl.col("^Lower.*$").is_null()))  # If all "Lower" columns are null,
+                  # then look at SoilSurface
+                  .then(pl.col("SoilSurface").replace_strict(ABIOTIC_CODES, default=pl.col("SoilSurface")))
+                  .otherwise(pl.lit("ERROR"))
                   .alias("abiotic_element")
                   )
-
     .select(pl.col(["site_visit_code", "abiotic_element"]))
-
     .collect()
 )
 
-## Explore abiotic elements
-print(abiotic_cover["abiotic_element"].value_counts())
+# Explore abiotic elements
+print(abiotic_cover["abiotic_element"].value_counts())  # Should not be any "ERROR" codes
 print(abiotic_cover["abiotic_element"].null_count())
 
 # --- Calculate percent cover ---
