@@ -62,8 +62,10 @@ all_cover = (
     cover_original
     .join(cover_metadata, how="left", left_on="RecKey", right_on="LineKey")
     .select(
-        pl.col(["EvaluationID", "LineLength", "LineNumber", "PointNbr",
-                "TopCanopy", "Lower1", "SoilSurface"])
+        pl.col(["EvaluationID", "LineLength", "LineNumber", "PointNbr", "ChkboxTop"]),
+        pl.col("TopCanopy"),
+        pl.col("^Lower.*$"),  # Use regex to select multiple columns
+        pl.col("SoilSurface")
     )
     # Format site code
     .with_columns(pl.col("EvaluationID")
@@ -103,8 +105,8 @@ print(number_of_points.select("max_hits").unique())
 # --- Filter only abiotic cover elements ---
 abiotic_cover = (
     all_cover.lazy()
-    # Exclude points with vascular species hit in the top canopy
-    .filter(pl.col("TopCanopy") == "N")
+    # Exclude points with vascular species hit in the top canopy, unless the species is dead
+    .filter((pl.col("TopCanopy") == "N") | pl.col("ChkboxTop") == "D")
 
     # Exclude points with non-vascular species hit in the first lower layer
     ## Species codes have at least four letters
