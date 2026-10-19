@@ -140,7 +140,7 @@ abiotic_cover = (
     # Classify abiotic elements
     .with_columns(pl.when(pl.col("taxon_habit").str.contains(pattern=r"shrub|tree"))
                   .then(pl.lit("dead standing woody vegetation"))  # Classify dead standing wood first
-                  .when(pl.col("taxon_habit").is_not_null()) # Remaining dead top cover hits (forb, graminoid,
+                  .when(pl.col("taxon_habit").is_not_null())  # Remaining dead top cover hits (forb, graminoid,
                   # spore-bearing) get classified as litter
                   .then(pl.lit("litter (< 2 mm)"))
                   .when((pl.col("Lower1").is_null()) & (pl.col("Lower2").is_in(ABIOTIC_CODES)))  # One entry does not
@@ -165,28 +165,28 @@ print(abiotic_cover["abiotic_element"].null_count())
 # --- Calculate percent cover ---
 
 # Define grouping columns
-group_columns = [
+GROUP_COLUMNS = [
     "site_visit_code",
     "abiotic_element"
 ]
 
 # Calculate cover percent for each abiotic element and site visit
 abiotic_percent = (abiotic_cover
-                    .lazy()
-                    ## Create constant column with value of 1 to calculate number of times the species was observed
-                    # across all points
-                    .with_columns(pl.lit(1).alias("observation_marker"))
+                   .lazy()
+                   #  Create counter column with value of 1 to calculate number of times the abiotic element was
+                   #  observed
+                   .with_columns(pl.lit(1).alias("observation_marker"))
 
-                    # Calculate total number of hits per species per site visit
-                    .group_by(group_columns).agg(pl.col("observation_marker").sum())
+                   # Calculate total number of hits per element per site visit
+                   .group_by(GROUP_COLUMNS).agg(pl.col("observation_marker").sum())
 
-                    # Get maximum number of points per plot
-                    .join(number_of_points.lazy(), how="left", on="site_visit_code")
+                   # Get maximum number of points per plot
+                   .join(number_of_points.lazy(), how="left", on="site_visit_code")
 
-                    # Calculate percent cover
-                    .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
-                                  .round(3)
-                                  .alias("abiotic_top_cover_percent"))
+                   # Calculate percent cover
+                   .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
+                                 .round(3)
+                                 .alias("abiotic_top_cover_percent"))
 
                    .collect()
                    )
@@ -216,7 +216,7 @@ print(abiotic_final.group_by("site_visit_code")
 print(abiotic_final.group_by("site_visit_code")
       .agg(pl.col("abiotic_top_cover_percent").sum())
       .filter(pl.col("abiotic_top_cover_percent") > 100)
-      ) ## Resulting df should be empty
+      )  ## Resulting df should be empty
 
 # Export as CSV
 abiotic_final.write_csv(abiotic_output)
