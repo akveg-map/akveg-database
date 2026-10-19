@@ -23,11 +23,12 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
-ABIOTIC_CODES = ["NL", "S", "W"]
-LITTER_CODES = ["HL", "DL", "TH"]
-WOODY_CODES = ["WL", "EL"]
-ROCK_CODES = ["R", "GR", "CB", "ST", "BY", "BR"]
-
+# Abiotic code "HW" is not listed in BLM field manual, possibly a typo. Only one entry, assume litter.
+# Abiotic code "NL" is for "non-vegetative litter". Assume animal litter since plastic/human litter is rare in Alaska.
+ABIOTIC_CODES = dict(NL="animal litter", W="water", S="soil", HL="litter (< 2 mm)", DL="litter (< 2 mm)",
+                     TH="litter (< 2 mm)", HW="litter (< 2 mm)", WL="dead down wood (≥ 2 mm)",
+                     EL="dead down wood (≥ 2 mm)", R="rock fragments", GR="rock fragments", CB="rock fragments",
+                     ST="rock fragments", BY="rock fragments", BR="bedrock (exposed)")
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
@@ -114,13 +115,16 @@ abiotic_cover = (
     # abiotic)
 
     # Re-classify abiotic elements
-    .with_columns(pl.when((pl.col("Lower1").str.contains("^WL$|^TH$")))
+    .with_columns(pl.when((pl.col("Lower1").is_in(WOODY_CODES)))
                   .then(pl.lit("dead down wood (≥ 2 mm)"))
-                  .when(pl.col("Lower1").str.contains("^DL$|^HL$|^NL$|^HW$"))  # HW not listed in BLM manual,
-                          # possibly a type. Only one entry, litter type listed as "DL". Assume litter.
+                  .when(pl.col("Lower1").is_in(LITTER_CODES))
                   .then(pl.lit("litter (< 2 mm)"))
-                  .when(pl.col("Lower1") == "W")
+                  .when(pl.col("Lower1").is_in(WATER_CODES))
                   .then(pl.lit("water"))
+                  .when(pl.col("Lower1").is_in(OTHER_LITTER_CODES))
+                  .then(pl.lit("animal litter"))
+                  .when(pl.col("Lower1").is_in(SOIL_CODES))
+                  .then(pl.lit("soil"))
                   .otherwise(pl.lit("Error"))
                   .alias("abiotic_element")
                   )
