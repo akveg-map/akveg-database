@@ -192,31 +192,38 @@ abiotic_percent = (abiotic_cover
                    )
 
 # Add missing elements & select only relevant columns
-## Define visit codes based on Site Visit table
+## Use visit codes from Site Visit table (some site visits may not have any abiotic top hits)
 visit_codes = visit_original["site_visit_code"].unique().to_list()
 abiotic_final = add_missing_elements(visit_codes,
                                      abiotic_percent,
                                      abiotic_query)
 
-# QC
-print(abiotic_final.describe())  ## Ensure no null values, range of % cover between 0-100%
+# --- Quality checks ---
 
-# Ensure that all site visit codes are included
+# Ensure no null values
+print(abiotic_final.null_count().glimpse())
+
+# Ensure cover percent is between 0% and 100%
+print(abiotic_final.select(pl.col("abiotic_top_cover_percent")).describe())
+
+# Ensure all site visit codes are included
 set_cover = set(abiotic_final.get_column("site_visit_code").unique().to_list())
-set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
-print(set_cover == set_visit)
+set_visit = set(visit_codes)
+print(set_cover ^ set_visit)  # Test for symmetric difference (i.e., difference in either direction)
 
 # Ensure every site visit has an entry for each abiotic element
+# Resulting dataframe should be empty
 print(abiotic_final.group_by("site_visit_code")
       .agg(pl.col("abiotic_element").count())
       .filter(pl.col("abiotic_element") != abiotic_query.shape[0])
-      )  ## Resulting df should be empty
+      )
 
 # Ensure that sum of abiotic top cover does not exceed 100%
+# Resulting dataframe should be empty
 print(abiotic_final.group_by("site_visit_code")
       .agg(pl.col("abiotic_top_cover_percent").sum())
       .filter(pl.col("abiotic_top_cover_percent") > 100)
-      )  ## Resulting df should be empty
+      )
 
 # Export as CSV
 abiotic_final.write_csv(abiotic_output)
