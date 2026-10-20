@@ -76,6 +76,8 @@ all_cover = (
         pl.col("^Lower.*$"),  # Use regex to select multiple columns
         pl.col("SoilSurface")
     )
+    # Replace whitespaces with nulls
+    .with_columns(cs.string().str.strip_chars().replace("", None))
     # Format site code
     .with_columns(pl.col("EvaluationID")
                   .str.extract(r"^(.*)_")
