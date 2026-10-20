@@ -38,7 +38,7 @@ visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 credentials_input = paths.cloud_assets.credentials
 
 # Define output
-cover_output = plot_folder / '06_abiotictopcover_aimvarious2025.csv'
+abiotic_output = plot_folder / '06_abiotictopcover_aimvarious2025.csv'
 
 # Connect to AKVEG Database
 db_conn = connect_database_postgresql(credentials_input)
