@@ -458,62 +458,41 @@ def get_abiotic_elements(
 
 # --- Function 7 ---
 def add_missing_elements(
-        visit_codes: List[str],
-        abiotic_df: pl.DataFrame,
-        abiotic_query: pl.DataFrame
+        visit_df: pl.DataFrame,
+        percent_df: pl.DataFrame,
+        elements_df: pl.DataFrame,
+        visit_col: str = "site_visit_code",
+        elements_col: str = "abiotic_element",
+        percent_col: str = "abiotic_top_cover_percent"
 ) -> pl.DataFrame:
     """
-        Identifies and adds missing abiotic elements for each site visit, giving them a cover of 0%.
+        Adds missing cover elements for each site visit and assigns them a percent cover value of 0%.
 
         Args:
-            visit_codes: A list of unique site visits.
-            abiotic_df: A Polars DataFrame containing site visit code, abiotic element name, and abiotic top
-            cover percent for each abiotic element encountered during the site visit.
-            abiotic_query: A Polars DataFrame containing entries for each abiotic element in the AKVEG Database. The
-            get_abiotic_elements function returns a compatible DataFrame.
+            visit_df: A Polars DataFrame of site visit codes.
+            percent_df: A Polars DataFrame of percent cover, aggregated by site visit code and cover element.
+            elements_df: A Polars DataFrame with the full set of cover elements in the first column.
+            visit_col: Column identifying site visit codes. Must be the same for visit_df and percent_df. Defaults to "site_visit_code".
+            elements_col: Column identifying the cover elements in percent_df. Defaults to "abiotic_element".
+            percent_col: Column identifying percent cover values in percent_df. Defaults to
+            "abiotic_top_cover_percent".
 
         Returns:
-            A Polars DataFrame containing only the sites inside the boundary with coordinates in NAD83,
-            or None if the boundary file cannot be loaded.
+            A Polars DataFrame with a row for each site visit and cover element, with missing elements assigned
+            0% cover.
         """
 
-    # Initialize a list to hold the result from each loop iteration
-    results: List[pl.DataFrame] = []
-    final_columns = ["site_visit_code", "abiotic_element", "abiotic_top_cover_percent"]
+    # Perform Cartesian cross-join to obtain unique combination of every site visit code and cover element
+    # Rename first column in elements_df to have the same name as percent_df
+    cross_table = (visit_df.select(visit_col).unique()
+                   .join(elements_df.select(pl.first().unique().alias(elements_col)),
+                         how="cross"))
 
-    for visit_code in visit_codes:
-        subset_cover = (abiotic_df
-                        .select(final_columns)
-                        .filter(pl.col("site_visit_code") == visit_code))
-
-        # If subset dataframe is empty, no abiotic top cover hits were recorded at that line.
-        # Add every abiotic element with 0% percent
-        if subset_cover.shape[0] == 0:
-            elements_missing = abiotic_query
-
-        # If subset dataframe is not empty, identify missing elements.
-        else:
-            elements_present = subset_cover['abiotic_element'].implode()
-            elements_missing = abiotic_query.filter(~pl.col('ground_element').is_in(elements_present)
-                                                    )
-        # Assign 0% cover and visit code to missing elements
-        elements_missing = (elements_missing.with_columns(pl.lit(0.0).alias("abiotic_top_cover_percent"),
-                                                          pl.lit(visit_code).alias("site_visit_code"))
-                            .rename({"ground_element": "abiotic_element"})
-                            .select(final_columns)
-                            )
-
-        # Combine subset data with missing elements for complete list of abiotic elements for that site visit
-        final_subset = pl.concat([subset_cover, elements_missing])
-
-        # Append final subset to master list
-        results.append(final_subset)
-
-    # Concatenate list of results into Polars dataframe
-    final_dataframe = (pl.concat(results)
-                       .with_columns(pl.col("abiotic_top_cover_percent").round(decimals=2))
-                       .sort(by=["site_visit_code", "abiotic_element"]))
-    return final_dataframe
+    # Join with percent_df and assign a value of 0 to every element not in percent_df
+    visit_elements_full = (cross_table.join(percent_df.select([visit_col, elements_col, percent_col]), how="left", on=[visit_col, elements_col])
+                           .with_columns(pl.col(percent_col).fill_null(value=0.0).round(decimals=2))
+                           .sort(by=[visit_col, elements_col]))
+    return visit_elements_full
 
 
 # --- Function 8 ---
