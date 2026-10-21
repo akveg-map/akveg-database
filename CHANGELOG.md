@@ -43,6 +43,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Changed field name from `name_accepted` to `name_adjudicated` to 
     match field name used in Vegetation Cover table. 
   - Added `name_adjudicated` as a returned field when `simple=True`. 
+- `02_data_format/utils/utils.py` (`add_missing_elements()`):
+  - Added parameters to generalize function beyond only abiotic elements.
+  - Refactored function to use Cartesian cross join instead of for loop and if/else logic.
 
 #### Added
 
@@ -50,6 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
 - `02_data_format/utils/utils.py` (`max_hits_per_visit()`): Function to calculate the total number of point intercept 
   hits per site visit.
+- 
 #### Fixed 
 
 - Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special characters.
