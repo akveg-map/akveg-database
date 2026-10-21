@@ -48,7 +48,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `02_data_format/initial_processing`: Added Project, Site, Site Visit, and Vegetation Cover tables for `44_aim_various_2025`. Replaces and adds to `44_aim_various_23`.
 - Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
-
+- `02_data_format/utils/utils.py` (`max_hits_per_visit()`): Function to calculate the total number of point intercept 
+  hits per site visit.
 #### Fixed 
 
 - Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special characters.
@@ -63,7 +64,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   file paths instead of absolute paths.
 - `user_tools/utils_database.py`: Compiles two existing scripts (`connect_database_postgres.py`,  
   `query_to_dataframe.py`) into a single script.
-- `user_tools/utils_init.py`: Added `load_system_paths()` function to facilitate the use of relative file paths in processing scripts.
+- `user_tools/utils_init.py` (`load_system_paths()`): Function to facilitate the use of relative file paths in 
+  processing scripts.
 - `user_tools/akveg_vignette.html`: Introductory guide to help users familiarize themselves with some of 
   the tables in the database. This guide was created to accompany a data deposit (currently unreleased). The 
   compiled tables can be reproduced by running the `manuscript/export_compiled_tables.py` script or the queries in the 
