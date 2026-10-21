@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-10-14
+# Last Updated: 2026-10-21
 # ---------------------------------------------------------------------------
 
 """
@@ -25,6 +25,7 @@ cover of 0%.
 8. get_valid_values: Queries the AKVEG Database to retrieve valid values from a reference table.
 9. fill_missing_columns: Aligns a processed DataFrame's columns and column ordering with a template DataFrame (e.g.,
 one that matches the AKVEG schema), creating missing columns and filling them with type-specific default null values.
+10. max_hits_per_visit: Calculates the total number of point intercept hits per site visit.
 """
 
 # Import packages
@@ -69,39 +70,40 @@ TEMPLATE_MAP = {}
 for file in Path(TEMPLATE_DIR).glob('[0-9][0-9]_*'):
     file_stem = file.stem
     # Split file stem at first underscore only to get rid of the numbers
-    file_code = file_stem.split('_',1)[1]
-    TEMPLATE_MAP[file_code]=file
+    file_code = file_stem.split('_', 1)[1]
+    TEMPLATE_MAP[file_code] = file
 
 # Define schema for specific template tables
 # If table is not listed, uses default Polars type
 SCHEMA_OVERRIDES = {
-        "project": {"year_start": pl.Int16,
-                    "year_end": pl.Int16,
-                    "source_date": pl.Date,
-                    "acquisition_date": pl.Date
-                    },
-        "site": {"latitude_dd": pl.Decimal(precision=19, scale=16),
-                 "longitude_dd": pl.Decimal(precision=19, scale=16),
-                 "h_error_m": pl.Decimal(precision=6, scale=2)
-                 },
-        "environment": {"disturbance_time_y": pl.Int64,
-                        "depth_water_cm": pl.Decimal(precision=4, scale=1),
-                        "depth_moss_duff_cm": pl.Decimal(precision=4, scale=1),
-                        "depth_restrictive_layer_cm": pl.Decimal(precision=4, scale=1),
-                        "microrelief_cm": pl.Decimal(precision=4, scale=1),
-                        "surface_water": pl.Boolean,
-                        "cryoturbation": pl.Boolean,
-                        "depth_15_percent_coarse_fragments_cm": pl.Decimal(precision=4, scale=1)
-                        }
+    "project": {"year_start": pl.Int16,
+                "year_end": pl.Int16,
+                "source_date": pl.Date,
+                "acquisition_date": pl.Date
+                },
+    "site": {"latitude_dd": pl.Decimal(precision=19, scale=16),
+             "longitude_dd": pl.Decimal(precision=19, scale=16),
+             "h_error_m": pl.Decimal(precision=6, scale=2)
+             },
+    "environment": {"disturbance_time_y": pl.Int64,
+                    "depth_water_cm": pl.Decimal(precision=4, scale=1),
+                    "depth_moss_duff_cm": pl.Decimal(precision=4, scale=1),
+                    "depth_restrictive_layer_cm": pl.Decimal(precision=4, scale=1),
+                    "microrelief_cm": pl.Decimal(precision=4, scale=1),
+                    "surface_water": pl.Boolean,
+                    "cryoturbation": pl.Boolean,
+                    "depth_15_percent_coarse_fragments_cm": pl.Decimal(precision=4, scale=1)
+                    }
 }
 
 # Define mapping dictionary that links column names in data tables (keys) to field names in database dictionary (values)
 AKVEG_FIELD_ALIASES = {"moisture_regime": "moisture",
-                      "dominant_texture_40_cm": "soil_texture"
-                      }
+                       "dominant_texture_40_cm": "soil_texture"
+                       }
 
 # Define regex pattern for USDA Plants codes
 USDA_CODES_PATTERN = r"^([A-Z][a-z\-]+(?:\s+[a-z\-]+)?)(?:.*?\b(ssp\.|var\.)\s+([a-z\-]+))?.*$"
+
 
 # --- Function 1 ---
 def get_template(
@@ -212,10 +214,10 @@ def filter_sites_in_alaska(
         ## Convert to GeoPandas GeoDataFrame
         site_pd = site_df.to_pandas()
         site_spatial = gpd.GeoDataFrame(
-                site_pd,
-                geometry=gpd.points_from_xy(site_pd[longitude_col], site_pd[latitude_col]),
-                crs=valid_crs
-            )
+            site_pd,
+            geometry=gpd.points_from_xy(site_pd[longitude_col], site_pd[latitude_col]),
+            crs=valid_crs
+        )
     elif isinstance(site_df, gpd.GeoDataFrame):
         site_spatial = site_df.copy()
 
@@ -379,29 +381,30 @@ def get_usda_codes(
     codes_original = pl.scan_csv(usda_file, null_values="")
 
     plant_codes = (codes_original
-        .select(["Symbol", "Synonym Symbol", "Scientific Name with Author"])
+                   .select(["Symbol", "Synonym Symbol", "Scientific Name with Author"])
 
-        # Replace null values
-        .with_columns(pl.when(pl.col("Synonym Symbol").is_null())
-                      .then(pl.col("Symbol"))
-                      .otherwise(pl.col("Synonym Symbol"))
-                      .alias("usda_code")
-                      )
+                   # Replace null values
+                   .with_columns(pl.when(pl.col("Synonym Symbol").is_null())
+                                 .then(pl.col("Symbol"))
+                                 .otherwise(pl.col("Synonym Symbol"))
+                                 .alias("usda_code")
+                                 )
 
-        # Remove author name
-        .with_columns(pl.col("Scientific Name with Author")
-                      .str.replace(USDA_CODES_PATTERN, "${1} ${2} ${3}")
-                      .str.replace_all(r"\s+", " ")
-                      .str.strip_chars()
-                      .alias("name_original"))
+                   # Remove author name
+                   .with_columns(pl.col("Scientific Name with Author")
+                                 .str.replace(USDA_CODES_PATTERN, "${1} ${2} ${3}")
+                                 .str.replace_all(r"\s+", " ")
+                                 .str.strip_chars()
+                                 .alias("name_original"))
 
-        # Select only desired columns
-        .select(["usda_code", "name_original"])
+                   # Select only desired columns
+                   .select(["usda_code", "name_original"])
 
-        .collect()
-    )
+                   .collect()
+                   )
 
     return plant_codes
+
 
 # --- Function 6 ---
 def get_abiotic_elements(
@@ -459,7 +462,6 @@ def add_missing_elements(
         abiotic_df: pl.DataFrame,
         abiotic_query: pl.DataFrame
 ) -> pl.DataFrame:
-
     """
         Identifies and adds missing abiotic elements for each site visit, giving them a cover of 0%.
 
@@ -614,3 +616,33 @@ def fill_missing_columns(data_df: pl.DataFrame,
 
     # Apply expressions and return only columns in template
     return extended_df.select(fill_exprs)
+
+
+# --- Function 10 ---
+def max_hits_per_visit(cover_df: Union[pl.DataFrame, pl.LazyFrame],
+                        group_col: str = "site_visit_code",
+                        output_col: str = "max_hits"
+                        ) -> Union[pl.DataFrame, pl.LazyFrame]:
+    """Calculate the total number of point intercept hits per site visit.
+
+        Aggregates point intercept cover records by site visit code to determine the maximum
+        number of points sampled during a site visit. Used as the denominator for calculating percent cover
+        per site visit.
+
+        Parameters
+        ----------
+        cover_df : Union[pl.DataFrame, pl.LazyFrame]
+            Input Polars DataFrame or LazyFrame of point intercept data where each row represents an individual
+            point (e.g., on a line) within a site visit.
+        group_col : str, default "site_visit_code"
+            Column name identifying unique site visits to group by.
+        output_col : str, default "max_hits"
+            Column name for the output total point count.
+
+        Returns
+        -------
+        Union[pl.DataFrame, pl.LazyFrame]
+            Aggregated table containing the grouping column and the total point count
+            per site visit. Matches the input execution type (Eager or Lazy).
+        """
+    return cover_df.group_by(group_col).agg(pl.len().alias(output_col))
