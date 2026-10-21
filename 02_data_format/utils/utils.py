@@ -20,7 +20,7 @@ their corresponding accepted name.
 5. get_usda_codes: Removes author names from accepted scientific names for USDA plant codes. The resulting cleaned
 column can now be joined with the scientific names in the AKVEG Database without further processing.
 6. get_abiotic_elements: Queries the AKVEG Database to obtain abiotic/ground elements and their element type.
-7. add_abiotic_elements: Uses the abiotic query from function 5 to identify and add missing abiotic elements with a
+7. add_missing_elements: Uses the abiotic query from function 5 to identify and add missing abiotic elements with a
 cover of 0%.
 8. get_valid_values: Queries the AKVEG Database to retrieve valid values from a reference table.
 9. fill_missing_columns: Aligns a processed DataFrame's columns and column ordering with a template DataFrame (e.g.,
