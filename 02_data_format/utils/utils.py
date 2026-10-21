@@ -20,8 +20,7 @@ their corresponding accepted name.
 5. get_usda_codes: Removes author names from accepted scientific names for USDA plant codes. The resulting cleaned
 column can now be joined with the scientific names in the AKVEG Database without further processing.
 6. get_abiotic_elements: Queries the AKVEG Database to obtain abiotic/ground elements and their element type.
-7. add_missing_elements: Uses the abiotic query from function 5 to identify and add missing abiotic elements with a
-cover of 0%.
+7. add_missing_elements: Add missing cover elements and assign them a percent cover of 0.
 8. get_valid_values: Queries the AKVEG Database to retrieve valid values from a reference table.
 9. fill_missing_columns: Aligns a processed DataFrame's columns and column ordering with a template DataFrame (e.g.,
 one that matches the AKVEG schema), creating missing columns and filling them with type-specific default null values.
@@ -110,14 +109,16 @@ def get_template(
         template_code: str
 ) -> pl.DataFrame:
     """
-            Reads an AKVEG template Excel file into a Polars DataFrame. The template file can be used to validate
-            column names and column order during processing.
+    Reads an AKVEG template Excel file into a Polars DataFrame. The template file can be used to validate
+    column names and column order during processing.
 
-            Args:
-                template_code: Short-hand identifier for the table (e.g., 'project').
+    Parameters
+    ----------
+    template_code: Short-hand identifier for the table (e.g., 'project').
 
-            Returns:
-                A Polars DataFrame of the template schema.
+    Returns
+    ----------
+    A Polars DataFrame of the template schema.
             """
     # Standardize code
     clean_code = template_code.replace(" ", "_").replace("-", "_").lower()
@@ -144,23 +145,24 @@ def filter_sites_in_alaska(
     Filters a DataFrame of sites (Polars or GeoPandas), keeping only those
     that fall within the map boundary, and re-projects the coordinates to NAD83 (2011).
 
-    Args:
-        site_df: The input DataFrame containing site coordinates. Accepted input types: Polars DataFrame, GeoPandas
-        GeoDataFrame.
-        input_crs: The EPSG code (as a string, e.g., "EPSG:4269") of the
-                   input latitude and longitude columns. Required if site_df is a Polars DataFrame.
-        longitude_col: Column name for longitude.
-        latitude_col: Column name for latitude.
-        return_outside: bool, default False
-            If True, the function returns a tuple containing (sites_inside_df, sites_outside_gdf).
-            If False, returns only the sites_inside_df DataFrame.
+    Parameters
+    ----------
+    site_df: The input DataFrame containing site coordinates. Accepted input types: Polars DataFrame,
+    GeoPandas GeoDataFrame.
+    input_crs: The EPSG code (as a string, e.g., "EPSG:4269") of the input latitude and longitude columns. Required
+    if site_df is a Polars DataFrame.
+    longitude_col: Column name for longitude.
+    latitude_col: Column name for latitude.
+    return_outside: bool, default False
+        If True, the function returns a tuple containing (sites_inside_df, sites_outside_gdf).
+        If False, returns only the sites_inside_df DataFrame.
 
-    Returns:
-        A tuple containing:
-        1. sites_inside_df (pl.DataFrame): Sites inside the boundary,
-           re-projected to NAD83 with updated lat/long columns.
-        2. sites_outside_gdf (gpd.GeoDataFrame): Original sites that fell
-           outside the boundary (for troubleshooting).
+    Returns
+    ----------
+    A tuple containing:
+        1. sites_inside_df (pl.DataFrame): Sites inside the boundary, re-projected to NAD83 with updated lat/long
+        columns.
+        2. sites_outside_gdf (gpd.GeoDataFrame): Original sites that fell outside the boundary (for troubleshooting).
         Returns (None, None) if the boundary file cannot be loaded.
     """
 
@@ -282,10 +284,15 @@ def plot_survey_dates(
     """
     Generates a Plotly bar chart (histogram) showing the frequency of survey dates.
 
-    :param visit_df: The input Polars DataFrame containing site visit dates.
-    :param date_col: The name of the column with the observation dates.
-    :param title: The title of the Plotly figure.
-    :return: A Plotly Figure object.
+    Parameters
+    ----------
+    visit_df: The input Polars DataFrame containing site visit dates.
+    date_col: The name of the column with the observation dates.
+    title: The title of the Plotly figure.
+
+    Returns
+    ----------
+        A Plotly Figure object.
     """
 
     # 1. Count number of occurrences per date
@@ -321,11 +328,13 @@ def get_taxonomy(
     """
     Queries the AKVEG Database taxonomy table.
 
-    Args:
+    Parameters
+    ----------
         db_connection: A valid database connection to the AKVEG Database.
         simple: Boolean argument specifying whether a simplified version of the dataframe (with only two columns) should be returned.
 
-    Returns:
+    Returns
+    ----------
         A Polars dataframe with all synonymized names and their accepted names.
     """
 
@@ -374,8 +383,14 @@ def get_usda_codes(
 ) -> pl.DataFrame:
     """
     Processes the USDA Plants file to remove author names from accepted names.
-    :param usda_file: A string and valid file path that contains a list of USDA plant codes.
-    :return: A Polars dataframe with all USDA Plants code and their accepted names without author names.
+
+    Parameters
+    ----------
+    usda_file: A string and valid file path that contains a list of USDA plant codes.
+
+    Returns
+    ----------
+    A Polars dataframe with all USDA Plants code and their accepted names without author names.
     """
 
     codes_original = pl.scan_csv(usda_file, null_values="")
@@ -414,12 +429,14 @@ def get_abiotic_elements(
     """
     Queries the AKVEG Database ground cover table.
 
-    Args:
+    Parameters
+    ----------
         db_connection: A valid database connection to the AKVEG Database.
-        element_type: A string literal that identifies what type of element to return. Must be one of the following
-        values: "all", "ground", or "abiotic".
+        element_type: A string literal that identifies what type of element to return. Must be one of the following:
+        "all", "ground", or "abiotic".
 
-    Returns:
+    Returns
+    ----------
         A Polars dataframe with all abiotic elements and their element type (abiotic, ground, or both).
     """
 
@@ -468,7 +485,8 @@ def add_missing_elements(
     """
         Adds missing cover elements for each site visit and assigns them a percent cover value of 0%.
 
-        Args:
+        Parameters
+        ----------
             visit_df: A Polars DataFrame of site visit codes.
             percent_df: A Polars DataFrame of percent cover, aggregated by site visit code and cover element.
             elements_df: A Polars DataFrame with the full set of cover elements in the first column.
@@ -477,7 +495,8 @@ def add_missing_elements(
             percent_col: Column identifying percent cover values in percent_df. Defaults to
             "abiotic_top_cover_percent".
 
-        Returns:
+        Returns
+        ----------
             A Polars DataFrame with a row for each site visit and cover element, with missing elements assigned
             0% cover.
         """
@@ -505,7 +524,8 @@ def get_valid_values(
     """
     Queries the AKVEG Database to retrieve valid values from a reference table.
 
-    Args:
+    Parameters
+    ----------
         db_connection: A valid database connection to the AKVEG Database.
         table_name: Name of reference table.
         field_name: The column name in the reference table that has the constrained values.
@@ -513,7 +533,8 @@ def get_valid_values(
         field names (values). Used to resolve instances when table columns differ from the database's internal
         field names. Defaults to None.
 
-    Returns:
+    Returns
+    ----------
         A set of constrained values.
     """
 
@@ -560,11 +581,13 @@ def fill_missing_columns(data_df: pl.DataFrame,
     default null values that are appropriate for the columns data types (e.g., "NULL" for strings, -999 for decimals
     and integers).
 
-    Args:
+    Parameters
+    ----------
         data_df: A Polars DataFrame with processed data.
         template_df: A Polars DataFrame serving as the target schema.
 
-    Returns:
+    Returns
+    ----------
         A new DataFrame with the same columns and column ordering as the template, populated with appropriate default null values.
     """
 
