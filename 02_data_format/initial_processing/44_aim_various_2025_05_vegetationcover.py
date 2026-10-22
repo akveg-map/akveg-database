@@ -67,6 +67,8 @@ vegetation_cover = (
         pl.col("^Lower.*$"),
         pl.col("codebasal")
     )
+    # Replace whitespaces with nulls
+    .with_columns(cs.string().str.strip_chars().replace("", None))
     # Format site code
     .with_columns(pl.col("EvaluationID")
                   .str.extract(r"^(.*)_")
