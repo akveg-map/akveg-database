@@ -9,7 +9,7 @@
 # populates required metadata fields, and performs quality control checks before exporting the dataframe as a CSV file.
 # ---------------------------------------------------------------------------
 
-# Import packages
+# -------- Load Packages -----------------------------------------------
 import geopandas as gpd
 import polars as pl
 import polars.selectors as cs
@@ -18,6 +18,7 @@ from utils.utils import get_template, get_taxonomy, get_usda_codes, max_hits_per
 from user_tools.utils_init import load_system_paths
 from user_tools.utils_database import connect_database_postgresql
 
+# -------- Set Up Environment ------------------------------------------
 # Load absolute file paths
 paths = load_system_paths()
 
@@ -38,7 +39,12 @@ credentials_input = paths.cloud_assets.credentials
 # Define output
 cover_output = plot_folder / '05_vegetationcover_aimvarious2025.csv'
 
-# Read in data
+# Connect to AKVEG Database
+db_conn = connect_database_postgresql(credentials_input)
+
+# -------- Load Data ---------------------------------------------------
+
+# Read source data
 cover_original = pl.from_pandas(gpd.read_file(gdb_input, layer="AIM_Wetland__F_LPIDetail")).lazy()
 cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input, layer="AIM_Wetland__F_LPI",
                                                columns=["LineKey", "LineLength", "LineNumber"],
@@ -46,17 +52,20 @@ cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input, layer="AIM_Wetland__F_
                   .lazy())
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 
-# Read in crosswalk files
+# Read crosswalk files
 codes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
 resolved_names_original = pl.read_csv(resolved_names_input)
 
 # Get template file
 template = get_template("vegetation_cover")
 
-# Connect to AKVEG Database
-db_conn = connect_database_postgresql(credentials_input)
+# Get AKVEG taxonomy checklist
+taxonomy_checklist = get_taxonomy(db_conn, simple=True)
 
-# --- Perform initial formatting ---
+# Get USDA plant codes
+usda_codes = get_usda_codes()
+
+# -------- Perform Initial Formatting ----------------------------------
 vegetation_cover = (
     cover_original
     .join(cover_metadata, how="left", left_on="RecKey", right_on="LineKey")
@@ -91,14 +100,13 @@ print(vegetation_cover["site_code", "site_visit_code"].null_count().glimpse())
 # Ensure all lines are the standard 25m length
 print(vegetation_cover["LineLength"].unique())
 
-# --- Calculate number of points per plot ---
+# -------- Calculate Number of Hits per Visit --------------------------
 # Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
 # Perform this step on full dataframe to ensure all rows are included
 max_hits = max_hits_per_visit(vegetation_cover)
 print(max_hits.select("max_hits").unique())
 
-# --- Convert to long format ---
-
+# -------- Convert to Long Format --------------------------------------
 # Identify groups of columns
 species_cols = vegetation_cover.select(pl.col(["TopCanopy", "^Lower.*$", "codebasal"])).columns
 chkbox_cols = vegetation_cover.select(pl.col("^Chkbox.*$")).columns  # Indicates dead status
@@ -154,11 +162,7 @@ cover_long = (species_long.join(dead_long,
               .sort(["site_visit_code", "point_number"])
               )
 
-# --- Obtain accepted taxonomic names ----
-
-# Obtain taxonomy checklist from the AKVEG Database
-taxonomy_checklist = get_taxonomy(db_conn, simple=True)
-
+# -------- Resolve Taxonomic Names -------------------------------------
 # Convert mapping CSV to dictionary
 resolved_names_dict = dict(
     zip(
@@ -173,15 +177,12 @@ unknown_codes = (codes_original
                  .rename({"name": "usda_code",
                           "scientific_akveg": "name_original"}))
 
-# Get USDA plant codes
-usda_codes = get_usda_codes()
-
 # Add unknown codes to table of USDA plant codes
 usda_codes = pl.concat([usda_codes, unknown_codes])
 
-# Translate USDA codes to accepted scientific names
+# Append original and adjudicated names
 cover_taxa = (cover_long.lazy()
-              # Join cover df to USDA plant codes to obtain scientific names
+              # Join with USDA plant codes to get scientific names
               .join(usda_codes.lazy(), how="left", on="usda_code")
               # Fill in names for unknown functional types
               .with_columns(pl.when(pl.col("usda_code") == "M")  # Unresolvable (moss, hornwort, or liverwort)
@@ -191,7 +192,7 @@ cover_taxa = (cover_long.lazy()
                             .otherwise("name_original")
                             .alias("name_original")
                             )
-              # Join with AKVEG taxonomy table to obtain accepted names
+              # Join with AKVEG taxonomy table to get adjudicated names
               .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
               # Resolve remaining names with no matches in taxonomy table
               .with_columns(pl.col("name_original").replace(resolved_names_dict)
@@ -231,7 +232,7 @@ cover_taxa = (cover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
 # Ensure all nulls have been resolved
 print(cover_taxa.select(["name_original", "name_adjudicated"]).null_count().glimpse())
 
-# --- Calculate percent cover ---
+# -------- Calculate Percent Cover -------------------------------------
 
 # Define grouping columns
 ## group_columns_points: Used to count the number of unique species observed at each point number. Ensures that if
@@ -280,7 +281,7 @@ cover_final = (cover_taxa
                .select(template.columns)
                )
 
-# Quality checks
+# -------- Perform Quality Checks --------------------------------------
 
 # Ensure no null values
 print(cover_final.null_count().glimpse())
@@ -293,8 +294,8 @@ set_cover = set(cover_final.get_column("site_visit_code").unique().to_list())
 set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
 print(set_cover ^ set_visit)  # Test for symmetric difference (i.e., difference in either direction)
 
-# Export data
+# -------- Export Data -------------------------------------------------
 cover_final.write_csv(cover_output)
 
-# Close database connection
+# -------- Close Database Connection -----------------------------------
 db_conn.close()
