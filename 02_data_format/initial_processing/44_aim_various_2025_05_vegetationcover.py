@@ -14,7 +14,7 @@ import geopandas as gpd
 import polars as pl
 import polars.selectors as cs
 from pathlib import Path
-from utils.utils import get_template, get_taxonomy, get_usda_codes
+from utils.utils import get_template, get_taxonomy, get_usda_codes, max_hits_per_visit
 from user_tools.utils_init import load_system_paths
 from user_tools.utils_database import connect_database_postgresql
 
@@ -113,11 +113,8 @@ species_long = (
         variable_name="strata",
         value_name="usda_code",
     )
-    # Drop abiotic codes, null and empty cells
-    .filter(pl.col("usda_code").is_not_null()
-            .and_(~pl.col("usda_code").is_in(CODES_TO_DROP))
-            .and_(pl.col("usda_code") != "")
-            )
+    # Drop nulls and abiotic codes
+    .filter(~pl.col("usda_code").is_in(CODES_TO_DROP))
     # Create common key to join with dead status
     .with_columns(pl.col("strata")
                   .str.replace_many(["TopCanopy", "codebasal"], ["Top", "Basal"])
@@ -135,7 +132,7 @@ dead_long = (
         value_name="dead_status",
     )
     # Convert Live and Dead codes to Boolean
-    ## Assume empty and null cells are supposed to be alive (FALSE)
+    # Assume null cells are supposed to be alive (FALSE)
     .with_columns(pl.when(pl.col("dead_status") == "D")
                   .then(pl.lit("TRUE"))
                   .otherwise(pl.lit("FALSE"))
