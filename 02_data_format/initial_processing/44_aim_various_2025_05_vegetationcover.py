@@ -32,8 +32,8 @@ plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 codes_input = paths.cloud_assets.taxonomy / 'USDA_Plants' / '2021_AK_AIM_SpeciesList_AKVEG_Formatted.xlsx'
-resolved_names_input = (paths.repository / "02_data_format" / "crosswalks" /
-                        "44_aim_various_2025_name_original_adjudicated.csv")
+manual_names_input = (paths.repository / "02_data_format" / "crosswalks" /
+                      "44_aim_various_2025_name_original_adjudicated.csv")
 credentials_input = paths.cloud_assets.credentials
 
 # Define output
@@ -48,13 +48,13 @@ db_conn = connect_database_postgresql(credentials_input)
 cover_original = pl.from_pandas(gpd.read_file(gdb_input, layer="AIM_Wetland__F_LPIDetail")).lazy()
 cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input, layer="AIM_Wetland__F_LPI",
                                                columns=["LineKey", "LineLength", "LineNumber"],
-                                               ignore_geometry=True))
-                  .lazy())
+                                               ignore_geometry=True)).lazy())
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 
 # Read crosswalk files
-codes_original = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
-resolved_names_original = pl.read_csv(resolved_names_input)
+aim_codes = pl.read_excel(codes_input, columns=["name", "scientific_akveg"])
+manual_names = dict(pl.read_csv(manual_names_input).select(["name_original", "name_adjudicated"])
+                    .iter_rows())  # Map directly to dictionary
 
 # Get template file
 template = get_template("vegetation_cover")
@@ -65,7 +65,18 @@ taxonomy_checklist = get_taxonomy(db_conn, simple=True)
 # Get USDA plant codes
 usda_codes = get_usda_codes()
 
-# -------- Perform Initial Formatting ----------------------------------
+# -------- Prepare Taxonomy Data ---------------------------------------
+
+# Extract unknown codes (ending in '86') or functional group codes (two letters) from AIM codes
+unknown_codes = (aim_codes
+                 .filter((pl.col("name").str.contains(r"86$")) | (pl.col("name").str.contains(r"^[A-Z]{2}$")))
+                 .rename({"name": "usda_code",
+                          "scientific_akveg": "name_original"}))
+
+# Append unknown codes to USDA plant codes
+usda_codes = pl.concat([usda_codes, unknown_codes])
+
+# -------- Prepare Cover Data ------------------------------------------
 vegetation_cover = (
     cover_original
     .join(cover_metadata, how="left", left_on="RecKey", right_on="LineKey")
@@ -163,26 +174,8 @@ cover_long = (species_long.join(dead_long,
               )
 
 # -------- Resolve Taxonomic Names -------------------------------------
-# Convert mapping CSV to dictionary
-resolved_names_dict = dict(
-    zip(
-        resolved_names_original["name_original"],
-        resolved_names_original["name_adjudicated"],
-    )
-)
-
-# Extract unknown codes (ending in '86') or functional group codes (two letters) from AIM species list
-unknown_codes = (codes_original
-                 .filter((pl.col("name").str.contains(r"86$")) | (pl.col("name").str.contains(r"^[A-Z]{2}$")))
-                 .rename({"name": "usda_code",
-                          "scientific_akveg": "name_original"}))
-
-# Add unknown codes to table of USDA plant codes
-usda_codes = pl.concat([usda_codes, unknown_codes])
-
-# Append original and adjudicated names
 cover_taxa = (cover_long.lazy()
-              # Join with USDA plant codes to get scientific names
+              # Join with USDA plant codes to get original scientific names
               .join(usda_codes.lazy(), how="left", on="usda_code")
               # Fill in names for unknown functional types
               .with_columns(pl.when(pl.col("usda_code") == "M")  # Unresolvable (moss, hornwort, or liverwort)
@@ -195,7 +188,7 @@ cover_taxa = (cover_long.lazy()
               # Join with AKVEG taxonomy table to get adjudicated names
               .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
               # Resolve remaining names with no matches in taxonomy table
-              .with_columns(pl.col("name_original").replace(resolved_names_dict)
+              .with_columns(pl.col("name_original").replace(manual_names)
                             .alias("name_resolved")
                             )
               .with_columns(pl.when(pl.col("name_adjudicated").is_null())
@@ -235,10 +228,9 @@ print(cover_taxa.select(["name_original", "name_adjudicated"]).null_count().glim
 # -------- Calculate Percent Cover -------------------------------------
 
 # Define grouping columns
-## group_columns_points: Used to count the number of unique species observed at each point number. Ensures that if
+# group_columns_points: Used to count the number of unique species observed at each point number. Ensures that if
 # the same species with the same dead status is recorded twice on the same point (e.g., in Lower1 and Basal),
 # it only gets counted once for that point.
-## group_columns_plots: Used to summarize the total number of hits per species per plot (site visit)
 group_columns_points = [
     "site_visit_code",
     "point_number",
@@ -247,6 +239,7 @@ group_columns_points = [
     "dead_status"
 ]
 
+# group_columns_plots: Used to summarize the total number of hits per species per site visit
 group_columns_plots = [
     "site_visit_code",
     "name_original",
@@ -283,13 +276,13 @@ cover_final = (cover_taxa
 
 # -------- Perform Quality Checks --------------------------------------
 
-# Ensure no null values
+# No null values
 print(cover_final.null_count().glimpse())
 
-# Ensure cover percent is between 0% and 100%
+# Percent cover is between 0% and 100%
 print(cover_final.select(pl.col("cover_percent")).describe())
 
-# Ensure the correct number of sites are included
+# All visits in Site Visit table appear in Vegetation Cover table, and vice-versa
 set_cover = set(cover_final.get_column("site_visit_code").unique().to_list())
 set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
 print(set_cover ^ set_visit)  # Test for symmetric difference (i.e., difference in either direction)
