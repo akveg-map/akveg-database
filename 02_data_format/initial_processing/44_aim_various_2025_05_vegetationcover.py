@@ -173,15 +173,18 @@ cover_long = (species_long.join(dead_long,
 
 # -------- Resolve Taxonomic Names -------------------------------------
 cover_taxa = (cover_long
+              # Correct "HW" code that appears in 4 entries. Based on other entries with the same originally assigned
+              # UnknownCodeBasal (NV_01), I *think* this should be ANTHE5
+              .with_columns(pl.col("usda_code").replace_strict(old="HW", new="ANTHE5",
+                                                               default=pl.col("usda_code"))
+                            .alias("usda_code"))
               # Join with USDA plant codes to get original scientific names
               .join(usda_codes, how="left", on="usda_code")
-              # Format unknown functional types
+              # Resolve unknown functional types
               .with_columns(pl.when(pl.col("usda_code") == "M")  # Unresolvable (moss, hornwort, or liverwort)
                             .then(pl.lit("unknown"))
                             .when(pl.col("usda_code") == "POACEA")
                             .then(pl.col("usda_code").str.to_titlecase())
-                            .when(pl.col("usda_code") == "HW")  # 4 entries, same unknown code as ANTHE5 obs.
-                            .then(pl.col("usda_code") == "ANTHE5")
                             .otherwise("name_original")
                             .alias("name_original")
                             )
