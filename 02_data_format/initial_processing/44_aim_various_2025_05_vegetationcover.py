@@ -33,7 +33,7 @@ gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_202604
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 codes_input = paths.cloud_assets.taxonomy / 'USDA_Plants' / '2021_AK_AIM_SpeciesList_AKVEG_Formatted.xlsx'
 manual_names_input = (paths.repository / "02_data_format" / "crosswalks" /
-                      "44_aim_various_2025_name_original_adjudicated.csv")
+                      "44_aim_various_2025_manual_taxa_resolve.csv")
 credentials_input = paths.cloud_assets.credentials
 
 # Define output
