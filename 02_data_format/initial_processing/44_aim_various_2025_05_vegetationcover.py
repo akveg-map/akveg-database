@@ -22,8 +22,8 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
-CODES_TO_DROP = ["HL", "N", "DL", "NL", "WL", "W", "TH"]  # Most of these are abitoic elements, "N" is a placeholder
-# element representing a non-vascular hit
+CODES_TO_DROP = ["HL", "N", "DL", "NL", "WL", "W", "TH"]  # Most are abiotic elements, "N" is a placeholder
+# indicating that the top canopy is a non-vascular
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -38,11 +38,8 @@ credentials_input = paths.cloud_assets.credentials
 cover_output = plot_folder / '05_vegetationcover_aimvarious2025.csv'
 
 # Read in data
-cover_original = pl.from_pandas(gpd.read_file(gdb_input,
-                                              layer="AIM_Wetland__F_LPIDetail")
-                                ).lazy()
-cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input,
-                                               layer="AIM_Wetland__F_LPI",
+cover_original = pl.from_pandas(gpd.read_file(gdb_input, layer="AIM_Wetland__F_LPIDetail")).lazy()
+cover_metadata = (pl.from_pandas(gpd.read_file(gdb_input, layer="AIM_Wetland__F_LPI",
                                                columns=["LineKey", "LineLength", "LineNumber"],
                                                ignore_geometry=True))
                   .lazy())
