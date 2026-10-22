@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Vegetation Cover Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-14
+# Last Updated: 2026-10-22
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: This script summarizes data from line-point intercept surveys as site-level percent foliar
 # cover for each recorded species. It also appends unique site visit identifiers, resolves taxonomic names,
@@ -12,6 +12,7 @@
 # Import packages
 import geopandas as gpd
 import polars as pl
+import polars.selectors as cs
 from pathlib import Path
 from utils.utils import get_template, get_taxonomy, get_usda_codes
 from user_tools.utils_init import load_system_paths
@@ -75,16 +76,12 @@ vegetation_cover = (
                   .alias("site_code"))
     # Append site visit code using right join to drop any plots not in site visit table
     .join(visit_original.lazy(), on="site_code", how="right")
-    # Create a sequential row number for each site visit
-    ## Solution from Ritchie Vink: https://github.com/pola-rs/polars/issues/2542
+    # Create sequential line number for each visit
     .sort(by=["site_visit_code", "LineNumber", "PointNbr"])
-    .with_columns(pl.first()
-                  .cum_count()
-                  .alias("point_number")
+    .with_columns(pl.int_range(pl.len(), dtype=pl.UInt32)
                   .over("site_visit_code")
-                  .explode(keep_nulls=False, empty_as_null=False)
+                  .alias("point_number")
                   )
-
     .collect()
 )
 
@@ -95,15 +92,10 @@ print(vegetation_cover["site_code", "site_visit_code"].null_count().glimpse())
 print(vegetation_cover["LineLength"].unique())
 
 # --- Calculate number of points per plot ---
-## Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
-## Perform this step prior to any filtering/excluding to ensure all rows are included
-number_of_points = (vegetation_cover
-                    .group_by("site_visit_code")
-                    .agg(pl.col("point_number")
-                         .max())
-                    .rename({"point_number": "max_hits"})
-                    )
-print(number_of_points.select("max_hits").unique())
+# Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
+# Perform this step on full dataframe to ensure all rows are included
+max_hits = max_hits_per_visit(vegetation_cover)
+print(max_hits.select("max_hits").unique())
 
 # --- Convert to long format ---
 
@@ -266,7 +258,6 @@ group_columns_plots = [
 
 # Calculate cover percent for each species and site visit
 cover_final = (cover_taxa
-               .lazy()
                # Get list of unique species per point
                .unique(subset=group_columns_points)
 
@@ -278,7 +269,7 @@ cover_final = (cover_taxa
                .group_by(group_columns_plots).agg(pl.col("observation_marker").sum())
 
                # Get maximum number of points per plot
-               .join(number_of_points.lazy(), how="left", on="site_visit_code")
+               .join(max_hits, how="left", on="site_visit_code")
 
                # Calculate percent cover
                .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
@@ -290,8 +281,6 @@ cover_final = (cover_taxa
 
                # Sort and select columns
                .select(template.columns)
-
-               .collect()
                )
 
 # Quality checks
