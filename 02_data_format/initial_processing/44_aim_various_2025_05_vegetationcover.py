@@ -24,8 +24,7 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
-CODES_TO_DROP = ["HL", "N", "DL", "NL", "WL", "W", "TH"]  # Most are abiotic elements, "N" is a placeholder
-# indicating that the top canopy is a non-vascular
+ABIOTIC_CODES = ["HL", "N", "DL", "NL", "WL", "W", "TH"]  # "N": no vascular hits in top canopy
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -66,7 +65,6 @@ taxonomy_checklist = get_taxonomy(db_conn, simple=True)
 usda_codes = get_usda_codes()
 
 # -------- Prepare Taxonomy Data ---------------------------------------
-
 # Extract unknown codes (ending in '86') or functional group codes (two letters) from AIM codes
 unknown_codes = (aim_codes
                  .filter((pl.col("name").str.contains(r"86$")) | (pl.col("name").str.contains(r"^[A-Z]{2}$")))
@@ -133,7 +131,7 @@ species_long = (
         value_name="usda_code",
     )
     # Drop nulls and abiotic codes
-    .filter(~pl.col("usda_code").is_in(CODES_TO_DROP))
+    .filter(~pl.col("usda_code").is_in(ABIOTIC_CODES))
     # Create common key to join with dead status
     .with_columns(pl.col("strata")
                   .str.replace_many(["TopCanopy", "codebasal"], ["Top", "Basal"])
@@ -174,36 +172,36 @@ cover_long = (species_long.join(dead_long,
               )
 
 # -------- Resolve Taxonomic Names -------------------------------------
-cover_taxa = (cover_long.lazy()
+cover_taxa = (cover_long
               # Join with USDA plant codes to get original scientific names
-              .join(usda_codes.lazy(), how="left", on="usda_code")
-              # Fill in names for unknown functional types
+              .join(usda_codes, how="left", on="usda_code")
+              # Format unknown functional types
               .with_columns(pl.when(pl.col("usda_code") == "M")  # Unresolvable (moss, hornwort, or liverwort)
                             .then(pl.lit("unknown"))
                             .when(pl.col("usda_code") == "POACEA")
-                            .then(pl.lit("grass (Poaceae)"))
+                            .then(pl.col("usda_code").str.to_titlecase())
+                            .when(pl.col("usda_code") == "HW")  # 4 entries, same unknown code as ANTHE5 obs.
+                            .then(pl.col("usda_code") == "ANTHE5")
                             .otherwise("name_original")
                             .alias("name_original")
                             )
               # Join with AKVEG taxonomy table to get adjudicated names
-              .join(taxonomy_checklist.lazy(), how="left", left_on="name_original", right_on="taxon_name")
-              # Resolve remaining names with no matches in taxonomy table
-              .with_columns(pl.col("name_original").replace(manual_names)
-                            .alias("name_resolved")
+              .join(taxonomy_checklist, how="left", left_on="name_original", right_on="taxon_name")
+              # Manually resolve remaining names with no matches in taxonomy table
+              .with_columns(pl.col("name_original").replace_strict(manual_names, default=None)
+                            .alias("manually_resolved")
                             )
               .with_columns(pl.when(pl.col("name_adjudicated").is_null())
-                            .then(pl.col("name_resolved"))
+                            .then(pl.col("manually_resolved"))
                             .otherwise("name_adjudicated")
                             .alias("name_adjudicated")
                             )
-              .remove(pl.col("usda_code") == "HW")  # 4 entries, possible typo?
-              .collect()
               )
 
 # Explore USDA codes that did not return a match
 # One code: SYNTR86 (n=2)
 print(cover_taxa
-      .filter(pl.col("name_original").is_null())
+      .filter((pl.col("name_adjudicated").is_null()) | (pl.col("name_original").is_null()))
       .select(["usda_code"])
       .to_series()
       .value_counts()
