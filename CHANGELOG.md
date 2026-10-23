@@ -4,7 +4,8 @@
 
 # Changelog
 
-All changes to the AKVEG Database codebase are documented in this file. Changes to the datasets and schema that comprise the AKVEG Database are documented in the `database_version` table within the database. Changes to the AKVEG taxonomic standard are documented in [CHANGELOG_TAXONOMY.md](CHANGELOG_TAXONOMY.md).
+All changes to the AKVEG Database codebase are documented in this file. Changes to the datasets, schema, and 
+taxonomic checklist are documented in the `database_version` table within the database.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
@@ -49,7 +50,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### Added
 
-- `02_data_format/initial_processing`: Added Project, Site, Site Visit, and Vegetation Cover tables for `44_aim_various_2025`. Replaces and adds to `44_aim_various_23`.
+- `02_data_format/initial_processing`: Added processing scripts for Project, Site, Site Visit, Vegetation Cover, 
+  Abiotic Top Cover, and Ground Cover for `44_aim_various_2025`. Replaces and adds to `44_aim_various_2023`.
 - Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
 - `02_data_format/utils/utils.py` (`max_hits_per_visit()`): Function to calculate the total number of point intercept 
   hits per site visit.

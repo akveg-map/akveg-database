@@ -51,7 +51,8 @@ Once you have obtained the server credentials, the [Getting Started tutorial](ht
 
 The AKVEG Database is updated at least once a quarter. If you need a static version of the data, you can export your query results to a CSV file.
 
-Changes related to the code repository are recorded in the [CHANGELOG](CHANGELOG.md), while changes related to the taxonomic standard are documented in the [TAXONOMY CHANGELOG](CHANGELOG_TAXONOMY.md). Changes related to datasets and the database schema are documented in the `database_version` table of the database.
+Changes related to the code repository are recorded in the [CHANGELOG](CHANGELOG.md). Changes related to datasets, 
+the database schema, and the taxonomic checklist are documented in the `database_version` table of the database.
 
 ## Navigating the Repository 📂
 
@@ -60,7 +61,7 @@ This repository is organized into the following folders:
 - `01_database_build/`: Core SQL scripts that establish the relational schema and constraints for the AKVEG Database.
 - `02_data_format/`: R and Python scripts used to clean, standardize, and format raw datasets into the common AKVEG schema.
   - The main processing scripts are in the `initial_processing/` folder. Within this folder, scripts are organized by an internal dataset ID and numbered sequentially by execution order. This sequence follows the table numbering used in the Alaska Vegetation Working Group's _[Minimum Standards Version 1.1](https://agc-vegetation-soa-dnr.hub.arcgis.com/)_: Scripts with `01_` format the Project table, `02_` format the Site table, etc. The sequence may skip a number if a dataset lacks data to populate a specific table or if the data for that table have not been processed yet.
-  - The `taxonomic_updates/` subfolder houses the scripts for updating the taxonomic standard. The date of the update is appended to the file name to facilitate matching the script to the changes in the [TAXONOMY CHANGELOG](CHANGELOG_TAXONOMY.md).
+  - The `taxonomic_updates/` subfolder houses scripts for updating the taxonomic standard.
 - `03_data_insert/`: R and Python scripts that compile the processed datasets, apply post-hoc corrections, and insert the compiled tables into the private staging database.
 - `04_replicate/`: Tools for replicating the private staging database into three deployment environments: private production, public staging, and public production. Includes a step-by-step Markdown guide for creating database backups and duplicating environments in Google Cloud SQL, and a Python script that removes private data from the public staging database. To ensure no private data appears in the public production environment, this script must be run before the public staging database is replicated to the final, public production environment.
 - `assets/`: Repository media assets, including the AKVEG Database project logo and a map illustrating the spatial distribution of the vegetation plots.
