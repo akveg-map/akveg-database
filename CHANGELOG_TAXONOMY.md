@@ -4,8 +4,8 @@
 
 # AKVEG Taxonomy Changelog
 
-All changes to the AKVEG taxonomic standard are documented in this file. Changes to the database (dataset additions, replacements, or removals) are documented in 
-[CHANGELOG.md](CHANGELOG.md).
+All changes to the AKVEG taxonomic standard are documented in this file. Changes to the codebase are documented in 
+[CHANGELOG.md](CHANGELOG.md), while changes to the datasets and database schema are documented in the `database_version` table within the database. .
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
@@ -16,6 +16,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 * [Versioning System](#versioning-system)
 
 ---
+
+## [1.4] - 2026-10-23
+
+### Added 
+* 1 new taxonomic record: _Sphagnum miyabeanum_.
+
+### Updated
+- Listed _Sphagnum subsecundum_ as "taxonomy unresolved" instead of "accepted". Future taxonomic updates will 
+  address updates to the _S. subsecundum_ group.
 
 ## [1.3] - 2026-03-17
 
