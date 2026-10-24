@@ -167,7 +167,7 @@ print(abiotic_cover["abiotic_element"].null_count())
 # -------- Calculate Percent Cover -------------------------------------
 
 # Define grouping columns
-GROUP_COLUMNS = [
+group_columns = [
     "site_visit_code",
     "abiotic_element"
 ]
@@ -180,7 +180,7 @@ abiotic_percent = (abiotic_cover
                    .with_columns(pl.lit(1).alias("observation_marker"))
 
                    # Calculate total number of hits per element per site visit
-                   .group_by(GROUP_COLUMNS).agg(pl.col("observation_marker").sum())
+                   .group_by(group_columns).agg(pl.col("observation_marker").sum())
 
                    # Get maximum number of points per plot
                    .join(number_of_points.lazy(), how="left", on="site_visit_code")
