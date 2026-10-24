@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-# ---------------------------------------------------------------------------
-# Format Vegetation Cover Table for BLM AIM 2022–2025 data
-# Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-24
-# Usage: Must be executed in a Python 3.13+ distribution.
-# Description: This script summarizes data from line-point intercept surveys as site-level percent foliar
-# cover for each recorded species. It also appends unique site visit identifiers, resolves taxonomic names,
-# populates required metadata fields, and performs quality control checks before exporting the dataframe as a CSV file.
-# ---------------------------------------------------------------------------
+"""Format Vegetation Cover Table for BLM AIM 2022–2025 data
+
+Processes data from line-point intercept surveys to calculate percent foliar cover for each site visit and recorded
+taxon. Appends unique site visit identifiers, resolves taxonomic names, populates metadata fields, and performs
+quality control checks before exporting to CSV for ingestion into the AKVEG Database.
+
+Author: Amanda Droghini, Alaska Center for Conservation Science
+Last Updated: 2026-10-24
+Usage: Python 3.13+
+"""
 
 # -------- Load Packages -----------------------------------------------
 import geopandas as gpd
