@@ -74,6 +74,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### User Tools
 
+#### Removed
+
+- **BREAKING:** Removed deprecated directory `pull_functions`, which contained:
+    - `connect_database_postgresql.py`
+    - `connect_database_postgresql.R`
+    - `query_to_dataframe.py`
+- Scripts using these functions must update their import statements to source them from `user_tools/utils_database`
+  instead. Function names have not changed.
+
 #### Added
 
 - `user_tools/utils_database.R`: Compiles two database functions into a single script file.
