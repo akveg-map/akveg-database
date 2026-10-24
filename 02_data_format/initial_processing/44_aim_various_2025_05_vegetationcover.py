@@ -256,13 +256,13 @@ cover_final = (cover_taxa
                .unique(subset=group_columns_points)
 
                # Calculate total number of hits per species per site visit
-               .group_by(group_columns_plots).agg(pl.len().alias("observation_marker"))
+               .group_by(group_columns_plots).agg(pl.len().alias("total_hits"))
 
                # Get maximum number of points per plot
                .join(max_hits, how="left", on="site_visit_code")
 
                # Calculate percent cover
-               .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
+               .with_columns((pl.col("total_hits") / pl.col("max_hits") * 100)
                              .round(3)
                              .alias("cover_percent"))
 
