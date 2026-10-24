@@ -4,7 +4,7 @@
 
 # Changelog
 
-All changes to the AKVEG Database codebase are documented in this file. Changes to the datasets, schema, and 
+All changes to the AKVEG Database codebase are documented in this file. Changes to the datasets, schema, and
 taxonomic checklist are documented in the `database_version` table within the database.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
@@ -13,21 +13,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased: Version 3.0]
 
-* **Separated database from code versioning**: Moved tracking of database and taxonony changes to a dedicated 
-  `database_version` table. Changelog entries in the GitHub repository will focus only on tracking changes to the SQL 
+* **Separated database from code versioning**: Moved tracking of database and taxonony changes to a dedicated
+  `database_version` table. Changelog entries in the GitHub repository will focus only on tracking changes to the SQL
   scripts and the ETL pipeline.
 
 ### SQL Build & Queries Scripts
 
 #### Added
+
 - Added `database_version` table to track version changes to the database.
 - Added 1 lookup table (`release_category`) that provides a constrained vocabulary for `database_version`.
 - Added 1 lookup table (`missing_value_code`) that provides a constrained vocabulary for `database_schema`.
 
 #### Updated
+
 - Enforced `NOT NULL` constraints in `taxon_source`, `tree_structure`, and `shrub_structure` tables.
-- Renamed `required` field in `database_schema` to `is_required` to align with the names of other Boolean fields in the table.
-- Updated `database_schema` build to include two new fields (`missing_value_code_id`, `missing_value_description`) and a `CHECK` constraint that specify how missing values are coded and defined by different fields.
+- Renamed `required` field in `database_schema` to `is_required` to align with the names of other Boolean fields in the
+  table.
+- Updated `database_schema` build to include two new fields (`missing_value_code_id`, `missing_value_description`)
+  and a `CHECK` constraint that specify how missing values are coded and defined by different fields.
 - Updated queries in `user_tools/queries` to align with the field names and order of the database tables.
 
 ### ETL Pipeline
@@ -36,141 +40,161 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `03_data_insert/00b_Prepare_Metadata.R`: Parse `database_version` table into SQL statement and insert into database.
 - `03_data_insert/00b_Prepare_Metadata.R`: Processed new missing value fields in `database_schema`.
-- Refactored `03_data_insert/00a_Prepare_Taxonomy.R` and `03_data_insert/00b_Prepare_Metadata.R` to use relative 
+- Refactored `03_data_insert/00a_Prepare_Taxonomy.R` and `03_data_insert/00b_Prepare_Metadata.R` to use relative
   file paths instead of absolute paths.
-- `02_data_format/utils/utils.py` (`get_taxonomy()`, `get_abiotic_elements()`): 
-  - Refactored functions to accept a database connection as a parameter instead of a credentials file, reducing the 
-    number of times the database connection is opened when multiple functions within this module are run in the 
-    same script. 
+- `02_data_format/utils/utils.py` (`get_taxonomy()`, `get_abiotic_elements()`):
+    - Refactored functions to accept a database connection as a parameter instead of a credentials file, reducing the
+      number of times the database connection is opened when multiple functions within this module are run in the
+      same script.
 - `02_data_format/utils/utils.py` (`get_taxonomy()`):
-  - Changed field name from `name_accepted` to `name_adjudicated` to 
-    match field name used in Vegetation Cover table. 
-  - Added `name_adjudicated` as a returned field when `simple=True`. 
+    - Changed field name from `name_accepted` to `name_adjudicated` to
+      match field name used in Vegetation Cover table.
+    - Added `name_adjudicated` as a returned field when `simple=True`.
 - `02_data_format/utils/utils.py` (`add_missing_elements()`):
-  - Added parameters to generalize function beyond only abiotic elements. Parameter defaults ensure 
-    back-compatibility with previous versions.
-  - Refactored function to use Cartesian cross join instead of for loop and if/else logic.
+    - Added parameters to generalize function beyond only abiotic elements. Parameter defaults ensure
+      back-compatibility with previous versions.
+    - Refactored function to use Cartesian cross join instead of for loop and if/else logic.
 
 #### Added
 
-- `02_data_format/initial_processing`: Added processing scripts for Project, Site, Site Visit, Vegetation Cover, 
+- `02_data_format/initial_processing`: Added processing scripts for Project, Site, Site Visit, Vegetation Cover,
   Abiotic Top Cover, and Ground Cover for `44_aim_various_2025`. Replaces and adds to `44_aim_various_2023`.
-- Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
-- `02_data_format/utils/utils.py` (`max_hits_per_visit()`): Function to calculate the total number of point intercept 
+- Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a
+  data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse
+  them into an EML-compliant XML file.
+- `02_data_format/utils/utils.py` (`max_hits_per_visit()`): Function to calculate the total number of point intercept
   hits per site visit.
 
-#### Fixed 
+#### Fixed
 
-- Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special characters.
-- `02_data_format/utils/utils.py`: Fixed regex pattern in `get_usda_codes()` to match and exclude all author names, 
+- Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special
+  characters.
+- `02_data_format/utils/utils.py`: Fixed regex pattern in `get_usda_codes()` to match and exclude all author names,
   including instances where there are multiple authors separated by taxonomic epithets.
 
 ### User Tools
 
 #### Added
+
 - `user_tools/utils_database.R`: Compiles two database functions into a single script file.
-- `user_tools/utils_init.R`: Includes a function for reading a file path config file, allowing users to use relative 
+- `user_tools/utils_init.R`: Includes a function for reading a file path config file, allowing users to use relative
   file paths instead of absolute paths.
 - `user_tools/utils_database.py`: Compiles two existing scripts (`connect_database_postgres.py`,  
   `query_to_dataframe.py`) into a single script.
-- `user_tools/utils_init.py` (`load_system_paths()`): Function to facilitate the use of relative file paths in 
+- `user_tools/utils_init.py` (`load_system_paths()`): Function to facilitate the use of relative file paths in
   processing scripts.
-- `user_tools/akveg_vignette.html`: Introductory guide to help users familiarize themselves with some of 
-  the tables in the database. This guide was created to accompany a data deposit (currently unreleased). The 
-  compiled tables can be reproduced by running the `manuscript/export_compiled_tables.py` script or the queries in the 
+- `user_tools/akveg_vignette.html`: Introductory guide to help users familiarize themselves with some of
+  the tables in the database. This guide was created to accompany a data deposit (currently unreleased). The
+  compiled tables can be reproduced by running the `manuscript/export_compiled_tables.py` script or the queries in the
   `user_tools/queries` folder.
 
-## [2.9.2] - 2026-06-10 
+## [2.9.2] - 2026-06-10
 
-### Administrative 
+### Administrative
 
-* **Increment patch number for Zenodo hotfix:** This version is identical to `v2.9.1`. A new version was minted to 
-resolve a webhook sync issue between GitHub and Zenodo. 
+* **Increment patch number for Zenodo hotfix:** This version is identical to `v2.9.1`. A new version was minted to
+  resolve a webhook sync issue between GitHub and Zenodo.
 
 ## [2.9.1] - 2026-05-29
 
 ### Added
-* **Updated fields in `database_schema` table.** Split `is_key` field into `is_primary_key` and `is_foreign_key` to 
+
+* **Updated fields in `database_schema` table.** Split `is_key` field into `is_primary_key` and `is_foreign_key` to
   clarify key type.
 
 ### Removed
+
 * **Dropped `project_status` table.** Table did not contain any records.
 
 ## [2.9.0] - 2026-05-06
 
 ### Fixed
-* **Enforced referential integrity for citations in the `project` table.** Replaced `download_url` with 
-  `citation_id`, which  references the `citations` table. This ensures that citations in the `project` table are 
-  linked to formal bibliographic references. 
+
+* **Enforced referential integrity for citations in the `project` table.** Replaced `download_url` with
+  `citation_id`, which references the `citations` table. This ensures that citations in the `project` table are
+  linked to formal bibliographic references.
 * **Updated LANDFIRE 2016 citation in `citations` table**.
 * **Redacted sensitive species from the `vegetation_cover` table**. This redaction applies only to BLM AIM sites in
   the public version of the database. 38 records were redacted.
 
 ### Added
+
 * The following project codes (all related to BLM AIM 2022-2023) are now public:
-  * aim_central_yukon_fo_2022
-  * aim_central_yukon_fo_2023
-  * aim_eastern_interior_fo_2022
-  * aim_eastern_interior_fo_2023
-  * aim_kobuk_seward_2022
-  * aim_kobuk_seward_2023
+    * aim_central_yukon_fo_2022
+    * aim_central_yukon_fo_2023
+    * aim_eastern_interior_fo_2022
+    * aim_eastern_interior_fo_2023
+    * aim_kobuk_seward_2022
+    * aim_kobuk_seward_2023
 
 ## [2.8.1] - 2026-04-28
 
-* **Added provenance tracking to the `project` table.** New fields indicate how a project was acquired 
-  (`source_type_id`), publication status and download URL (`published`, `download_url`), the original 
-  database for secondary sources (`source_collection_id`), contact name for direct transfers (`source_contact_id`), and 
+* **Added provenance tracking to the `project` table.** New fields indicate how a project was acquired
+  (`source_type_id`), publication status and download URL (`published`, `download_url`), the original
+  database for secondary sources (`source_collection_id`), contact name for direct transfers (`source_contact_id`), and
   the `acquisition_date`.
-* **Added bibliographic citations**. Added a `citations` table and a `project_citations` junction table to store 
+* **Added bibliographic citations**. Added a `citations` table and a `project_citations` junction table to store
   metadata for reports, datasets, and other primary sources associated with each project.
 
 ## [2.8.0] - 2026-03-18
 
 ### Added
-* **fws_yukonflats_2025**: Added Project, Site, Site Visit, and Vegetation Cover tables, representing 34 site visits and 579 unique cover observations.
+
+* **fws_yukonflats_2025**: Added Project, Site, Site Visit, and Vegetation Cover tables, representing 34 site visits and
+  579 unique cover observations.
 
 ### Fixed
-* **yukon_biophysical_2020**: Restored 18 sites with 100% abiotic cover. These sites were previously excluded by QC filters due to a lack of vegetation cover observations.
+
+* **yukon_biophysical_2020**: Restored 18 sites with 100% abiotic cover. These sites were previously excluded by QC
+  filters due to a lack of vegetation cover observations.
 * **fws_pribilof_2022**: Restored 10 sites (100% water/abiotic cover) that were previously excluded by QC filters.
-* Restricted post-compilation adjudication of *Salix planifolia* to *S. pulchra* to central and western Alaska projects only. QC script previously applied correction to Canadian sites in the yukon_biophysical_2020 dataset.
+* Restricted post-compilation adjudication of *Salix planifolia* to *S. pulchra* to central and western Alaska projects
+  only. QC script previously applied correction to Canadian sites in the yukon_biophysical_2020 dataset.
 
 ## [2.7.0] - 2026-03-05
 
 ### Fixed
-* **nrcs_soils_2024** [private]: Improved spatial alignment of site coordinates with original data. Upgraded the 
-  coordinate transformation process from a generic WGS84-to-NAD83 shift to a high-precision datum realization 
-  (ITRF2000 to NAD83 2011), resolving a ~2-meter horizontal drift.
+
+* **nrcs_soils_2024** [private]: Improved spatial alignment of site coordinates with original data. Upgraded the
+  coordinate transformation process from a generic WGS84-to-NAD83 shift to a high-precision datum realization (ITRF2000
+  to NAD83 2011), resolving a ~2-meter horizontal drift.
 
 ## [2.6.0] - 2026-02-19
 
 ### Fixed
+
 * **yukon_biophysical_2020**: Corrected `cover_type` for all site visits in Vegetation Cover table.
 
 ## [2.5.0] - 2026-02-18
 
 ### Added
-* **yukon_biophysical_2020**: Replaces yukon_biophysical_2015 and yukon_landcover_2016 (previously private, now 
+
+* **yukon_biophysical_2020**: Replaces yukon_biophysical_2015 and yukon_landcover_2016 (previously private, now
   public). Add Project, Site, Site Visit, and Vegetation Cover.
 
 ## [2.4.0] - 2026-02-09
 
 ### Added
+
 * **nrcs_soils_2024** [private]: Added Environment table.
 
 ### Fixed
+
 * **fws_tetlin_2024**: Reconciled 1 unknown plant code for site visit code TET24_058_20240829.
 
 ## [2.3.0] - 2026-01-24
 
 ### Added
+
 * **aim_various_2023** [private]: Replaces aim_various_2022.
-* **fws_tetlin_2024**: Added 22 site visits that were surveyed in late summer 2024. Dataset was private, but 
+* **fws_tetlin_2024**: Added 22 site visits that were surveyed in late summer 2024. Dataset was private, but
   is now public.
 
 ### Fixed
+
 * **accs_nwisouthcentral_2024**: Corrected plot dimensions for all plots to 10 radius.
-* **accs_shemya_2022**: Added two vegetation cover estimates which had previously been dropped because of missing 
-  values. Correct `name_adjudicated` field to reflect correct value: `name_adjudicated` should be the taxon name 
+* **accs_shemya_2022**: Added two vegetation cover estimates which had previously been dropped because of missing
+  values. Correct `name_adjudicated` field to reflect correct value: `name_adjudicated` should be the taxon name
   with the closest match in the AKVEG Checklist (i.e., corrected of typos), not the currently accepted name.
 * **nrcs_soils_2024** [private]: Removed 201 duplicate sites.
 
@@ -178,17 +202,17 @@ resolve a webhook sync issue between GitHub and Zenodo.
 
 ### Added
 
-* **accs_nwisouthcentral_2024**: Add Project, Site, Site Visit, Vegetation Cover, Abiotic Top Cover, and Whole Tussock 
+* **accs_nwisouthcentral_2024**: Add Project, Site, Site Visit, Vegetation Cover, Abiotic Top Cover, and Whole Tussock
   Cover.
-* **nps_swan_2024**: Replaces nps_swan_2021 (previously private, now public). Add Project, Site, Site Visit, and 
+* **nps_swan_2024**: Replaces nps_swan_2021 (previously private, now public). Add Project, Site, Site Visit, and
   Vegetation Cover. Abiotic Top Cover was available for nps_swan_2021, but is not yet available for nps_swan_2024.
 
 ### Removed
 
-* **Abiotic Top Cover**: Removed data of elements that did not belong to the abiotic element set i.e., animal litter 
+* **Abiotic Top Cover**: Removed data of elements that did not belong to the abiotic element set i.e., animal litter
   and biotic.
-* **yukon_biophysical_2015** [private] and **yukon_landcover_2016** [private]: Will be replaced by a newer, public 
-  version 
+* **yukon_biophysical_2015** [private] and **yukon_landcover_2016** [private]: Will be replaced by a newer, public
+  version
   of the data that includes plots up until 2020.
 
 ### Fixed
@@ -199,7 +223,7 @@ resolve a webhook sync issue between GitHub and Zenodo.
 
 ### Added
 
-* **ground_element_table**: Add `element_type` column to distinguish between elements that are included in the 
+* **ground_element_table**: Add `element_type` column to distinguish between elements that are included in the
   abiotic top cover table, the ground cover table, or both.
 
 ## [2.1.0] - 2025-07-19
@@ -210,20 +234,20 @@ resolve a webhook sync issue between GitHub and Zenodo.
 * **abr_arcticrefuge_2019**: Add Environment, Soil Metrics, and Soil Horizons.
 * **accs_ribdon_2019**: Add Abiotic Top Cover and Ground Cover.
 * Add Whole Tussock Cover and Structural Group Cover for several ABR projects:
-  * abr_meltwater_2000
-  * abr_drillsite3s_2001
-  * abr_npra_2003
-  * abr_kuparuk_2006
-  * abr_milnepoint_2008
-  * abr_nuna_2010
-  * abr_news_2011
-  * abr_susitna_2013
-  * abr_cd5_2016
-  * abr_willow_2018
-  * abr_stonyhill_2018
-  * abr_colville_1996
-  * abr_tarn_1997
-  * abr_colville_1998
+    * abr_meltwater_2000
+    * abr_drillsite3s_2001
+    * abr_npra_2003
+    * abr_kuparuk_2006
+    * abr_milnepoint_2008
+    * abr_nuna_2010
+    * abr_news_2011
+    * abr_susitna_2013
+    * abr_cd5_2016
+    * abr_willow_2018
+    * abr_stonyhill_2018
+    * abr_colville_1996
+    * abr_tarn_1997
+    * abr_colville_1998
 
 ### Removed
 
@@ -237,9 +261,13 @@ resolve a webhook sync issue between GitHub and Zenodo.
 
 We use a MAJOR.MINOR.PATCH versioning system:
 
-1. MAJOR version changes indicate breaking changes to the database schema (e.g., dropping or renaming core attributes) or the data processing pipeline.
-2. MINOR version changes indicate backward-compatible changes, such as adding processing scripts that reuse existing logic and functions, and adding utility functions.
-3. PATCH version changes indicate bug fixes or optimization, such as refactoring existing scripts to improve execution speed or correcting typos.
+1. MAJOR version changes indicate breaking changes to the database schema (e.g., dropping or renaming core attributes)
+   or the data processing pipeline.
+2. MINOR version changes indicate backward-compatible changes, such as adding processing scripts that reuse existing
+   logic and functions, and adding utility functions.
+3. PATCH version changes indicate bug fixes or optimization, such as refactoring existing scripts to improve execution
+   speed or correcting typos.
 
-We began this change log on 2025-07-19. At that date, we were on schema version 2.0. For simplicity's sake, we started 
-our minor version numbering at 1, though there were several changes to the database between the release of schema 2.0 and the updates on 2025-07-19.
+We began this change log on 2025-07-19. At that date, we were on schema version 2.0. For simplicity's sake, we started
+our minor version numbering at 1, though there were several changes to the database between the release of schema 2.0
+and the updates on 2025-07-19.
