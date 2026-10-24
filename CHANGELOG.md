@@ -51,8 +51,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
       match field name used in Vegetation Cover table.
     - Added `name_adjudicated` as a returned field when `simple=True`.
 - `02_data_format/utils/utils.py` (`add_missing_elements()`):
-    - Added parameters to generalize function beyond only abiotic elements. Parameter defaults ensure
-      back-compatibility with previous versions.
+    - Added parameters to generalize function beyond only abiotic elements. New version is not back-compatible: site
+      visit codes must be a Polars DataFrame, not a list.
     - Refactored function to use Cartesian cross join instead of for loop and if/else logic.
 
 #### Added
