@@ -16,7 +16,8 @@ from pathlib import Path
 import polars as pl
 from user_tools.utils_database import connect_database_postgresql
 from user_tools.utils_init import load_system_paths
-from utils.utils import add_missing_elements, get_abiotic_elements, get_taxonomy, get_template, get_usda_codes
+from utils.utils import add_missing_elements, get_abiotic_elements, get_taxonomy, get_template, get_usda_codes, \
+    max_hits_per_visit
 
 # -------- Set Up Environment ------------------------------------------
 # Load absolute file paths
@@ -60,10 +61,10 @@ template = get_template("abiotic_top_cover")
 # Get USDA plant codes
 usda_codes = get_usda_codes()
 
-# Obtain taxonomy checklist from the AKVEG Database
+# Get taxonomy checklist from AKVEG Database
 taxonomy_checklist = get_taxonomy(db_conn, simple=False).select(['taxon_name', 'taxon_habit'])
 
-# Obtain abiotic elements from the AKVEG Database
+# Get abiotic elements from the AKVEG Database
 abiotic_query = get_abiotic_elements(db_conn, element_type="abiotic")
 
 # -------- Prepare Cover Data ------------------------------------------
@@ -84,15 +85,6 @@ all_cover = (
                   .alias("site_code"))
     # Append site visit code using right join to drop any plots not in site visit table
     .join(visit_original.lazy(), on="site_code", how="right")
-    # Create a sequential row number for each site visit
-    ## Solution from Ritchie Vink: https://github.com/pola-rs/polars/issues/2542
-    .sort(by=["site_visit_code", "LineNumber", "PointNbr"])
-    .with_columns(pl.first()
-                  .cum_count()
-                  .alias("point_number")
-                  .over("site_visit_code")
-                  .explode(keep_nulls=False, empty_as_null=False)
-                  )
     .collect()
 )
 
@@ -103,15 +95,10 @@ print(all_cover["site_code", "site_visit_code"].null_count().glimpse())
 print(all_cover["LineLength"].unique())
 
 # -------- Calculate Number of Hits per Visit --------------------------
-## Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
-## Perform this step prior to any filtering/excluding to ensure all rows are included
-number_of_points = (all_cover
-                    .group_by("site_visit_code")
-                    .agg(pl.col("point_number")
-                         .max())
-                    .rename({"point_number": "max_hits"})
-                    )
-print(number_of_points.select("max_hits").unique())
+# Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
+# Perform this step on full dataframe to ensure all rows are included
+max_hits = max_hits_per_visit(all_cover)
+print(max_hits.select("max_hits").unique())
 
 # -------- Subset Abiotic Elements -------------------------------------
 abiotic_cover = (
@@ -183,7 +170,7 @@ abiotic_percent = (abiotic_cover
                    .group_by(group_columns).agg(pl.col("observation_marker").sum())
 
                    # Get maximum number of points per plot
-                   .join(number_of_points.lazy(), how="left", on="site_visit_code")
+                   .join(max_hits.lazy(), how="left", on="site_visit_code")
 
                    # Calculate percent cover
                    .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
