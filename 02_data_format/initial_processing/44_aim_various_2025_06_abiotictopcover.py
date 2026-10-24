@@ -14,10 +14,10 @@
 import geopandas as gpd
 from pathlib import Path
 import polars as pl
+import polars.selectors as cs
 from user_tools.utils_database import connect_database_postgresql
 from user_tools.utils_init import load_system_paths
-from utils.utils import add_missing_elements, get_abiotic_elements, get_taxonomy, get_template, get_usda_codes, \
-    max_hits_per_visit
+from utils.utils import *
 
 # -------- Set Up Environment ------------------------------------------
 # Load absolute file paths
@@ -159,15 +159,11 @@ group_columns = [
     "abiotic_element"
 ]
 
-# Calculate cover percent for each abiotic element and site visit
 abiotic_percent = (abiotic_cover
-
                    # Calculate total number of hits per element per site visit
                    .group_by(group_columns).agg(pl.len().alias("observation_marker"))
-
-                   # Get maximum number of points per plot
+                   # Get maximum number of points per site visit
                    .join(max_hits, how="left", on="site_visit_code")
-
                    # Calculate percent cover
                    .with_columns((pl.col("observation_marker") / pl.col("max_hits") * 100)
                                  .round(3)
@@ -175,11 +171,13 @@ abiotic_percent = (abiotic_cover
                    )
 
 # Add missing elements & select only relevant columns
-## Use visit codes from Site Visit table (some site visits may not have any abiotic top hits)
-visit_codes = visit_original["site_visit_code"].unique().to_list()
-abiotic_final = add_missing_elements(visit_codes,
-                                     abiotic_percent,
-                                     abiotic_query)
+# Use visit codes from Site Visit table (some site visits may not have any abiotic top hits)
+abiotic_final = add_missing_elements(visit_df=visit_original,
+                                     percent_df=abiotic_percent,
+                                     elements_df=abiotic_query,
+                                     visit_col="site_visit_code",
+                                     elements_col="abiotic_element",
+                                     percent_col="abiotic_top_cover_percent")
 
 # -------- Perform Quality Checks --------------------------------------
 
@@ -191,7 +189,7 @@ print(abiotic_final.select(pl.col("abiotic_top_cover_percent")).describe())
 
 # Ensure all site visit codes are included
 set_cover = set(abiotic_final.get_column("site_visit_code").unique().to_list())
-set_visit = set(visit_codes)
+set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
 print(set_cover ^ set_visit)  # Test for symmetric difference (i.e., difference in either direction)
 
 # Ensure every site visit has an entry for each abiotic element
