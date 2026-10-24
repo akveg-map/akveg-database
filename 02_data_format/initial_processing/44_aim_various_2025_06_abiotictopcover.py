@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Abiotic Top Cover Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-19
+# Last Updated: 2026-10-24
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: This script processes data from line-point intercept surveys to calculate percent abiotic top cover
 # for each site visit and abiotic element. It also appends unique site visit identifiers, populates required metadata
@@ -23,13 +23,12 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
-# Abiotic code "HW" is not listed in BLM field manual, possibly a typo. Only one entry, assume litter.
 # Abiotic code "NL" is for "non-vegetative litter". Assume animal litter since plastic/human litter is rare in Alaska.
-ABIOTIC_CODES = dict(NL="animal litter", W="water", S="soil", OM="soil", HL="litter (< 2 mm)", DL="litter (< 2 mm)",
-                     TH="litter (< 2 mm)", HW="litter (< 2 mm)", WL="dead down wood (≥ 2 mm)",
+ABIOTIC_CODES = dict(NL="animal litter", W="water", S="soil", OM="soil", HL="litter (< 2 mm)",
+                     DL="litter (< 2 mm)", TH="litter (< 2 mm)", WL="dead down wood (≥ 2 mm)",
                      EL="dead down wood (≥ 2 mm)", R="rock fragments", GR="rock fragments", CB="rock fragments",
                      ST="rock fragments", BY="rock fragments", BR="bedrock (exposed)")
-NONVASC_CODES = ["LI", "VL", "LC", "M"]  # lichen and moss codes (excluded from abiotic top cover)
+NONVASC_CODES = ["LI", "VL", "LC", "M", "HW"]  # lichen and moss codes (excluded from abiotic top cover)
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
