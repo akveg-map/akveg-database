@@ -2,12 +2,12 @@
 # ---------------------------------------------------------------------------
 # Prepare taxonomic data for upload
 # Author: Timm Nawrocki, Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-08-02
+# Last Updated: 2026-10-24
 # Usage: Script should be executed in R 4.6.1+.
 # Description: "Prepare taxonomic data for upload" parses taxonomy data into a SQL query for upload into empty tables.
 # ---------------------------------------------------------------------------
 
-# Import required libraries
+# Import required libraries ----
 library(DBI)
 library(dplyr, warn.conflicts = FALSE)
 library(fs)
@@ -20,7 +20,9 @@ library(stringr)
 library(tibble)
 library(tidyr)
 
-# Source utility functions ----
+# Set up environment ----
+
+# Source utility functions
 source(here("user_tools", "utils_init.R"))
 source(here("user_tools", "utils_database.R"))
 
@@ -39,19 +41,19 @@ taxonomy_file <- path(local_paths$taxonomy, "taxonomy.xlsx")
 unknown_file <- path(local_paths$taxonomy, "unknowns.xlsx")
 citation_file <- path(local_paths$taxonomy, "citations.xlsx")
 
-# Connect to the AKVEG Database ----
+# Connect to the AKVEG Database
 database_connection <- connect_database_postgresql(local_paths$credentials)
 
-# Read and merge taxonomy tables ----
+# Load taxonomy tables ----
 taxonomy_data <- read_excel(taxonomy_file, sheet = "taxonomy") %>%
   select(-code_manual, -org)
 unknown_data <- read_excel(unknown_file, sheet = "taxonomy")
 citation_data <- read_excel(citation_file, sheet = "citations")
 
-# Merge taxonomy tables to single dataframe
+# Merge taxonomy tables into single dataframe
 taxonomy_data <- bind_rows(taxonomy_data, unknown_data)
 
-# Define accepted taxon status codes ----
+# Define accepted taxon status codes
 accepted_status <- c(
   "accepted", "historical", "taxonomy unresolved",
   "location unresolved", "adjacent Yukon", "adjacent BC",
@@ -172,10 +174,10 @@ final_tables$taxon_accepted <- final_tables$taxon_accepted %>%
 final_tables$taxon_hierarchy <- final_tables$taxon_hierarchy %>%
   select(-taxon_genus)
 
-# Execute SQL build and ingestion ----
+# Load data into database ----
 
 # Run database build scripts
-## This will drop existing metadata tables and create new (empty) ones
+# Will drop existing metadata tables and create new (empty) ones
 build_script <- "01_Taxonomy.sql"
 execute_sql_build(database_connection, local_paths$repository, build_script)
 
