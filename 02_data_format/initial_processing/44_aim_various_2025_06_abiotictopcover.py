@@ -12,11 +12,11 @@
 
 # -------- Load Packages -----------------------------------------------
 import geopandas as gpd
-import polars as pl
 from pathlib import Path
-from utils.utils import get_template, get_usda_codes, get_taxonomy, get_abiotic_elements, add_missing_elements
-from user_tools.utils_init import load_system_paths
+import polars as pl
 from user_tools.utils_database import connect_database_postgresql
+from user_tools.utils_init import load_system_paths
+from utils.utils import add_missing_elements, get_abiotic_elements, get_taxonomy, get_template, get_usda_codes
 
 # -------- Set Up Environment ------------------------------------------
 # Load absolute file paths
