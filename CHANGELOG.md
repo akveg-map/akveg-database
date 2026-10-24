@@ -13,7 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased: Version 3.0]
 
-* **Separated database from code versioning**: Moved database change tracking to a dedicated `database_version` table. Future changelog entries in the GitHub repository will focus on tracking changes to the SQL scripts and the ETL pipeline.
+* **Separated database from code versioning**: Moved tracking of database and taxonony changes to a dedicated 
+  `database_version` table. Changelog entries in the GitHub repository will focus only on tracking changes to the SQL 
+  scripts and the ETL pipeline.
 
 ### SQL Build & Queries Scripts
 
@@ -45,7 +47,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     match field name used in Vegetation Cover table. 
   - Added `name_adjudicated` as a returned field when `simple=True`. 
 - `02_data_format/utils/utils.py` (`add_missing_elements()`):
-  - Added parameters to generalize function beyond only abiotic elements.
+  - Added parameters to generalize function beyond only abiotic elements. Parameter defaults ensure 
+    back-compatibility with previous versions.
   - Refactored function to use Cartesian cross join instead of for loop and if/else logic.
 
 #### Added
@@ -55,7 +58,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse them into an EML-compliant XML file.
 - `02_data_format/utils/utils.py` (`max_hits_per_visit()`): Function to calculate the total number of point intercept 
   hits per site visit.
-- 
+
 #### Fixed 
 
 - Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special characters.
