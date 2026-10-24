@@ -224,6 +224,8 @@ cover_taxa = (cover_taxa.with_columns(pl.when(pl.col("name_original").is_null())
               )
 
 # Ensure all nulls have been resolved
+print(cover_taxa.filter((pl.col("name_adjudicated") == "unknown") | (pl.col("name_original") == "unknown"))
+      .select("usda_code").unique())
 print(cover_taxa.select(["name_original", "name_adjudicated"]).null_count().glimpse())
 
 # -------- Calculate Percent Cover -------------------------------------
