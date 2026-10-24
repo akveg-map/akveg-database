@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-# ---------------------------------------------------------------------------
-# Format Abiotic Top Cover Table for BLM AIM 2022–2025 data
-# Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-24
-# Usage: Must be executed in a Python 3.13+ distribution.
-# Description: This script processes data from line-point intercept surveys to calculate percent abiotic top cover
-# for each site visit and abiotic element. It also appends unique site visit identifiers, populates required metadata
-# fields, and performs quality control checks. The resulting dataframe is exported to a CSV file for ingestion into
-# the AKVEG Database.
-# ---------------------------------------------------------------------------
+"""Format Abiotic Top Cover Table for BLM AIM 2022–2025 data
+
+Processes data from line-point intercept surveys to calculate percent abiotic top cover
+for each site visit and abiotic element. Appends unique site visit identifiers, populates metadata
+fields, and performs quality control checks before exporting to CSV for ingestion into
+the AKVEG Database.
+
+Author: Amanda Droghini, Alaska Center for Conservation Science
+Last Updated: 2026-10-24
+Usage: Python 3.13+
+"""
 
 # -------- Load Packages -----------------------------------------------
 import geopandas as gpd
