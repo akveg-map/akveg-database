@@ -36,6 +36,13 @@ upload_to_database <- helpers$upload_to_database
 # Define directories
 local_paths <- load_system_paths("paths.yaml")
 
+# Define constants
+ACCEPTED_STATUS <- c(
+  "accepted", "historical", "taxonomy unresolved",
+  "location unresolved", "adjacent Yukon", "adjacent BC",
+  "adjacent Canada", "ephemeral non-native"
+)
+
 # Identify taxonomy tables
 taxonomy_file <- path(local_paths$taxonomy, "taxonomy.xlsx")
 unknown_file <- path(local_paths$taxonomy, "unknowns.xlsx")
@@ -52,13 +59,6 @@ citation_data <- read_excel(citation_file, sheet = "citations")
 
 # Merge taxonomy tables into single dataframe
 taxonomy_data <- bind_rows(taxonomy_data, unknown_data)
-
-# Define accepted taxon status codes
-accepted_status <- c(
-  "accepted", "historical", "taxonomy unresolved",
-  "location unresolved", "adjacent Yukon", "adjacent BC",
-  "adjacent Canada", "ephemeral non-native"
-)
 
 # Parse simple metadata tables ----
 
@@ -130,7 +130,7 @@ final_tables <- pmap(
 # Parse hierarchy table
 final_tables$taxon_hierarchy <- taxonomy_data %>%
   filter(taxon_level %in% c("genus", "unknown", "functional group")) %>%
-  filter(taxon_status %in% accepted_status) %>%
+  filter(taxon_status %in% ACCEPTED_STATUS) %>%
   distinct(taxon_accepted, .keep_all = TRUE) %>%
   left_join(final_tables$taxon_family, by = "taxon_family") %>%
   left_join(final_tables$taxon_category, by = "taxon_category") %>%
@@ -141,7 +141,7 @@ final_tables$taxon_hierarchy <- taxonomy_data %>%
 
 # Parse taxon accepted table
 final_tables$taxon_accepted <- taxonomy_data %>%
-  filter(taxon_status %in% accepted_status) %>%
+  filter(taxon_status %in% ACCEPTED_STATUS) %>%
   separate(taxon_accepted, c("taxon_genus"), extra = "drop", sep = "([ ])", remove = FALSE) %>%
   mutate(join_name = case_when(
     taxon_level == "functional group" |
