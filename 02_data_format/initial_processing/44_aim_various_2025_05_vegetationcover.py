@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # Format Vegetation Cover Table for BLM AIM 2022–2025 data
 # Author: Amanda Droghini, Alaska Center for Conservation Science
-# Last Updated: 2026-10-22
+# Last Updated: 2026-10-24
 # Usage: Must be executed in a Python 3.13+ distribution.
 # Description: This script summarizes data from line-point intercept surveys as site-level percent foliar
 # cover for each recorded species. It also appends unique site visit identifiers, resolves taxonomic names,
@@ -255,12 +255,8 @@ cover_final = (cover_taxa
                # Get list of unique species per point
                .unique(subset=group_columns_points)
 
-               # Create constant column with value of 1 to calculate number of times the species was observed
-               # across all points
-               .with_columns(pl.lit(1).alias("observation_marker"))
-
                # Calculate total number of hits per species per site visit
-               .group_by(group_columns_plots).agg(pl.col("observation_marker").sum())
+               .group_by(group_columns_plots).agg(pl.len().alias("observation_marker"))
 
                # Get maximum number of points per plot
                .join(max_hits, how="left", on="site_visit_code")
