@@ -269,7 +269,7 @@ cover_final = (cover_taxa
                # Populate remaining columns
                .with_columns(pl.lit("absolute foliar cover").alias("cover_type"))
 
-               # Sort and select columns
+               # Align columns with AKVEG schema
                .select(template.columns)
                )
 
