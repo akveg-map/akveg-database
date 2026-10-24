@@ -10,7 +10,7 @@
 # the AKVEG Database.
 # ---------------------------------------------------------------------------
 
-# Import packages
+# -------- Load Packages -----------------------------------------------
 import geopandas as gpd
 import polars as pl
 from pathlib import Path
@@ -18,6 +18,7 @@ from utils.utils import get_template, get_usda_codes, get_taxonomy, get_abiotic_
 from user_tools.utils_init import load_system_paths
 from user_tools.utils_database import connect_database_postgresql
 
+# -------- Set Up Environment ------------------------------------------
 # Load absolute file paths
 paths = load_system_paths()
 
@@ -42,7 +43,7 @@ abiotic_output = plot_folder / '06_abiotictopcover_aimvarious2025.csv'
 # Connect to AKVEG Database
 db_conn = connect_database_postgresql(credentials_input)
 
-# Read in data
+# -------- Load Data ---------------------------------------------------
 cover_original = pl.from_pandas(gpd.read_file(gdb_input,
                                               layer="AIM_Wetland__F_LPIDetail")
                                 ).lazy()
@@ -65,7 +66,7 @@ taxonomy_checklist = get_taxonomy(db_conn, simple=False).select(['taxon_name', '
 # Obtain abiotic elements from the AKVEG Database
 abiotic_query = get_abiotic_elements(db_conn, element_type="abiotic")
 
-# --- Perform initial formatting ---
+# -------- Prepare Cover Data ------------------------------------------
 all_cover = (
     cover_original
     .join(cover_metadata, how="left", left_on="RecKey", right_on="LineKey")
@@ -101,7 +102,7 @@ print(all_cover["site_code", "site_visit_code"].null_count().glimpse())
 # Ensure all lines are the standard 25m length
 print(all_cover["LineLength"].unique())
 
-# --- Calculate number of points per plot ---
+# -------- Calculate Number of Hits per Visit --------------------------
 ## Plots should have 150 points (3 transects * 50 points per transects), though plots occasionally have slightly less
 ## Perform this step prior to any filtering/excluding to ensure all rows are included
 number_of_points = (all_cover
@@ -112,7 +113,7 @@ number_of_points = (all_cover
                     )
 print(number_of_points.select("max_hits").unique())
 
-# --- Filter only abiotic cover elements ---
+# -------- Subset Abiotic Elements -------------------------------------
 abiotic_cover = (
     all_cover.lazy()
     # Exclude points with vascular species hit in the top canopy, unless the species is dead
@@ -163,7 +164,7 @@ abiotic_cover = (
 print(abiotic_cover["abiotic_element"].value_counts())  # Should not be any "ERROR" codes
 print(abiotic_cover["abiotic_element"].null_count())
 
-# --- Calculate percent cover ---
+# -------- Calculate Percent Cover -------------------------------------
 
 # Define grouping columns
 GROUP_COLUMNS = [
@@ -199,7 +200,7 @@ abiotic_final = add_missing_elements(visit_codes,
                                      abiotic_percent,
                                      abiotic_query)
 
-# --- Quality checks ---
+# -------- Perform Quality Checks --------------------------------------
 
 # Ensure no null values
 print(abiotic_final.null_count().glimpse())
@@ -226,8 +227,8 @@ print(abiotic_final.group_by("site_visit_code")
       .filter(pl.col("abiotic_top_cover_percent") > 100)
       )
 
-# Export as CSV
+# -------- Export Data -------------------------------------------------
 abiotic_final.write_csv(abiotic_output)
 
-# Close database connection
+# -------- Close Database Connection -----------------------------------
 db_conn.close()
