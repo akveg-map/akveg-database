@@ -26,12 +26,13 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
-# Abiotic code "NL" is for "non-vegetative litter". Assume animal litter since plastic/human litter is rare in Alaska.
 ABIOTIC_CODES = dict(NL="animal litter", W="water", S="soil", OM="soil", HL="litter (< 2 mm)",
                      DL="litter (< 2 mm)", TH="litter (< 2 mm)", WL="dead down wood (≥ 2 mm)",
                      EL="dead down wood (≥ 2 mm)", R="rock fragments", GR="rock fragments", CB="rock fragments",
                      ST="rock fragments", BY="rock fragments", BR="bedrock (exposed)")
-NONVASC_CODES = ["LI", "VL", "LC", "M", "HW"]  # lichen and moss codes (excluded from abiotic top cover)
+# Most of the CODES_TO_DROP are lichen and moss codes (excluded from abiotic top cover).
+# "NL" = "non-vegetative litter". Assume animal litter since plastic/human litter is rare in Alaska.
+CODES_TO_DROP = ["LI", "VL", "LC", "M", "HW", "NL"]
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -110,10 +111,10 @@ abiotic_cover = (
     # Exclude points with non-vascular or lichens in the first lower layer
     # Must explicitly keep nulls otherwise they will get dropped by filter
     .filter(pl.col("Lower1").is_null() | ((pl.col("Lower1").str.contains(r"^[a-zA-Z]{0,3}$")) & (~pl.col(
-        "Lower1").is_in(NONVASC_CODES))))
+        "Lower1").is_in(CODES_TO_DROP))))
     # Exclude points with no plant hits and only non-vasculars/lichens as soil surface
     .filter(~((pl.col("TopCanopy") == "N") & (pl.col("Lower1").is_null()) & (pl.col("SoilSurface").is_in(
-        NONVASC_CODES))))
+        CODES_TO_DROP))))
 
     # Join with USDA plant codes to obtain scientific names for top cover hits
     .join(usda_codes.lazy(), how="left", left_on="TopCanopy", right_on="usda_code")
