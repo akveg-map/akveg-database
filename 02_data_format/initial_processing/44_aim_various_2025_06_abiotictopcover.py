@@ -7,7 +7,7 @@ fields, and performs quality control checks before exporting to CSV for ingestio
 the AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation Science
-Last Updated: 2026-10-24
+Last Updated: 2026-10-27
 Usage: Python 3.13+
 """
 
@@ -111,9 +111,11 @@ abiotic_cover = (
     # Lower1: Keep if null OR if code has 3 letters or less AND code is not in CODES_TO_DROP
     .filter(pl.col("Lower1").is_null() | ((pl.col("Lower1").str.contains(r"^[a-zA-Z]{0,3}$")) & (~pl.col(
         "Lower1").is_in(CODES_TO_DROP))))
-    # Exclude points with no plant hits and only non-vasculars/lichens as soil surface
-    .filter(~((pl.col("TopCanopy") == "N") & (pl.col("Lower1").is_null()) & (pl.col("SoilSurface").is_in(
-        CODES_TO_DROP))))
+    # Remove points with 1. non-vascular hits in TopCanopy, 2. no Lower canopy hits, and 3. biotic hits in soil surface
+    .remove((pl.col("TopCanopy") == "N") &
+            (pl.all_horizontal(cs.matches("^Lower.*$").is_null())) &
+            (pl.col("SoilSurface").is_in(CODES_TO_DROP))
+            )
 
     # Join with USDA plant codes to obtain scientific names for top cover hits
     .join(usda_codes.lazy(), how="left", left_on="TopCanopy", right_on="usda_code")
