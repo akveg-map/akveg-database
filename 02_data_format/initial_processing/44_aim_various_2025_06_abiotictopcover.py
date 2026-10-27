@@ -105,11 +105,10 @@ print(max_hits.select("max_hits").unique())
 # -------- Subset Abiotic Elements -------------------------------------
 abiotic_cover = (
     all_cover.lazy()
-    # Exclude points with vascular species hit in the top canopy, unless the species is dead
+    # Keep only points with non-vascular OR dead hits in the top canopy
     .filter((pl.col("TopCanopy") == "N") | (pl.col("ChkboxTop") == "D"))
 
-    # Exclude points with non-vascular or lichens in the first lower layer
-    # Must explicitly keep nulls otherwise they will get dropped by filter
+    # Lower1: Keep if null OR if code has 3 letters or less AND code is not in CODES_TO_DROP
     .filter(pl.col("Lower1").is_null() | ((pl.col("Lower1").str.contains(r"^[a-zA-Z]{0,3}$")) & (~pl.col(
         "Lower1").is_in(CODES_TO_DROP))))
     # Exclude points with no plant hits and only non-vasculars/lichens as soil surface
