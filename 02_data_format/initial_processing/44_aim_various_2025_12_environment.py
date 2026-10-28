@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
+"""Process Ground Cover Table for BLM AIM 2022–2025 data
+
+Processes data from various tables in the BLM AIM Lotic Geodatabase for ingestion into the AKVEG Database. Joins
+shapefiles, re-classifies categorical values, appends unique site identifiers, and performs quality control checks
+before exporting to CSV.
+
+Author: Amanda Droghini, Alaska Center for Conservation
+Last Updated: 2026-10-27
+Usage: Python 3.13+
 # ---------------------------------------------------------------------------
-# Extract environment data from features in BLM AIM Wetlands geodatabase
-# Author: Amanda Droghini, Alaska Center for Conservation
-# Last Updated: 2024-10-26
-# Usage: Must be executed in an ArcGIS Pro Python 3.9+ distribution.
-# Description: "Extract environment data from features in BLM AIM Wetlands geodatabase" selects columns that contain information relevant to the AKVEG Database 'Environment' table, joins shapefiles, selects only those sites that are in Alaska, and exports the attribute table as CSV. The output is used to ingest the 44_aim_various_2022 dataset into the AKVEG database.
-# ---------------------------------------------------------------------------
+"""
 
 # Import packges
 import os.path
