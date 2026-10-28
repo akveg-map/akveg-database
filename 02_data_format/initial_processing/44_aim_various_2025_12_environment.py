@@ -19,124 +19,61 @@ from user_tools.utils_database import connect_database_postgresql
 from utils.utils import get_template, get_valid_values
 
 # -------- Set Up Environment ------------------------------------------
+paths = load_system_paths()
 
-## Define root directories
-drive = 'C:/'
-root_folder = 'ACCS_Work'
+# Define constants
+FOLDER_ID = "44_aim_various_2025"
 
-## Define folder structure
-project_folder = os.path.join(drive, root_folder,
-                              'OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database')
-plot_folder = os.path.join(project_folder, 'Data', 'Data_Plots', '44_aim_various_2022')
-source_folder = os.path.join(plot_folder, 'source')
+# Define inputs
+plot_folder = paths.cloud_assets.plots / FOLDER_ID
+gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
+visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
+credentials_input = paths.cloud_assets.credentials
 
-# Set workspace
-workspace_geodatabase = os.path.join(drive, root_folder, 'Projects', 'AKVEG_Map', 'Data', 'AKVEG_Workspace.gdb')
-arcpy.env.workspace = workspace_geodatabase
+# Define output
+envr_output = plot_folder / '12_environment_aimvarious2025.csv'
 
-# Define files
-
-## Define inputs
-source_geodatabase = os.path.join(source_folder, 'AIMWetlandPub6-22-23_clean.gdb')
-site_input = os.path.join(source_geodatabase, 'F_PlotCharacterization')
-soil_input = os.path.join(source_geodatabase, 'F_Soils')
-disturb_input = os.path.join(source_geodatabase, 'F_NaturalAndHumanDisturbances')
-disturb_detail_input = os.path.join(source_geodatabase, 'F_DisturbancesDetail')
-hydrology_input = os.path.join(source_geodatabase, 'F_Hydrology')
-site_visit_input = os.path.join(plot_folder, '03_sitevisit_aimvarious2022.csv')
-horizons_input = os.path.join(plot_folder, '14_soilhorizons_aimvarious2022.csv')
-template_input = os.path.join(project_folder, 'Data', 'Data_Entry', '12_environment.xlsx')
-
-## Define intermediate datasets
-site_clean = os.path.join(workspace_geodatabase, 'AIM_Wetlands_PlotChar_Envr')
-soil_clean = os.path.join(workspace_geodatabase, 'AIM_Wetlands_Soils_Envr')
-disturb_clean = os.path.join(workspace_geodatabase, 'AIM_Wetlands_Disturb')
-disturb_detail_clean = os.path.join(workspace_geodatabase, 'AIM_Wetlands_Disturb_Detail')
-hydrology_clean = os.path.join(workspace_geodatabase, 'AIM_Wetlands_Hydro_Envr')
-
-## Define output
-environment_feature_output = os.path.join(workspace_geodatabase, 'AIM_Wetlands_Environment_Alaska')
-environment_table_output = os.path.join(plot_folder, '12_environment_aimvarious2022.csv')
-
-# Set environment options
-
-## Set overwrite option
-arcpy.env.overwriteOutput = True
-
-## Set output coordinate system to NAD 83
-arcpy.env.outputCoordinateSystem = arcpy.SpatialReference(4269)
-
-## Do not include table name in join field names
-arcpy.env.qualifiedFieldNames = False
+# Connect to AKVEG Database
+db_conn = connect_database_postgresql(credentials_input)
 
 # -------- Load Data ---------------------------------------------------
-site_visit = pd.read_csv(site_visit_input)
-soil_horizons = pd.read_csv(horizons_input, usecols=['site_visit_code', 'horizon_order', 'depth_upper', 'depth_lower',
-                                                     'total_coarse_fragment_percent', 'texture'])
-template = pd.read_excel(template_input)
+visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
+template = get_template("environment")
+site_original = (pl.from_pandas(gpd.read_file(gdb_input,
+                                              layer="AIM_Wetland__F_PlotCharacterization",
+                                              columns=['PlotID', 'Elevation_m', 'Slope',
+                                                       'AlaskaEcotypeClassification', 'LandscapeType',
+                                                       'LandscapeTypeSecondary', 'VerticalSlopeShape',
+                                                       'PlotDescription'],
+                                              ignore_geometry=True))
+                 .lazy())
+soil_original = (pl.from_pandas(gpd.read_file(gdb_input,
+                                              layer="AIM_Wetland__F_Soils",
+                                              columns=['PlotID', 'PitImpenetrable',
+                                                       'ImpenetrableDescrip', 'WaterObserved', 'WaterDepth',
+                                                       'PitSaturated', 'DepthToSatSoil', 'HydricIndicatorPrimary',
+                                                       'HydricIndicatorSecondary'],
+                                              ignore_geometry=True))
+                 .lazy())
+disturb_original = (pl.from_pandas(gpd.read_file(gdb_input,
+                                                 layer="AIM_Wetland__F_NaturalandHumanDisturbances",
+                                                 columns=['EvaluationID', 'PlotID',
+                                                          'DisturbancesObserved'],
+                                                 ignore_geometry=True)).lazy())
+disturb_detail_original = (pl.from_pandas(gpd.read_file(gdb_input,
+                                                        layer="AIM_Wetland__F_DisturbancesDetail",
+                                                        columns=['EvaluationID', 'Disturbance', 'OtherDisturbance',
+                                                                 'MonitoringPlotScope', 'MonitoringPlotDegree',
+                                                                 'DisturbanceComment'],
+                                                        ignore_geometry=True)).lazy())
+hydrology_original = (pl.from_pandas(gpd.read_file(gdb_input,
+                                                   layer="AIM_Wetland__F_Hydrology",
+                                                   columns=['EvaluationID', 'PermafrostInfluence',
+                                                            'DepthActiveLayer', 'SurfaceWaterPresent',
+                                                            'SurfaceWaterDepth'],
+                                                   ignore_geometry=True)).lazy())
 
 # -------- Prepare Input Data ------------------------------------------
-
-# Clean up input files: Drop unnecessary or redundant columns
-
-## Create FieldMappings object to manage output fields
-field_map_site = arcpy.FieldMappings()
-field_map_soil = arcpy.FieldMappings()
-field_map_disturb = arcpy.FieldMappings()
-field_map_disturb_detail = arcpy.FieldMappings()
-field_map_hydrology = arcpy.FieldMappings()
-
-## Add all fields to field map objects
-field_map_site.addTable(site_input)
-field_map_soil.addTable(soil_input)
-field_map_disturb.addTable(disturb_input)
-field_map_disturb_detail.addTable(disturb_detail_input)
-field_map_hydrology.addTable(hydrology_input)
-
-## Specify desired output columns
-columns_site = ['PlotID', 'AdminState', 'Elevation_m', 'Slope', 'AlaskaEcotypeClassification', 'LandscapeType',
-                'LandscapeTypeSecondary', 'VerticalSlopeShape',
-                'PlotDescription']
-columns_soil = ['PlotID', 'AdminState', 'PitImpenetrable', 'ImpenetrableDescrip', 'WaterObserved', 'WaterDepth',
-                'PitSaturated',
-                'DepthToSatSoil', 'HydricIndicatorPrimary', 'HydricIndicatorSecondary']
-columns_disturb = ['EvaluationID', 'AdminState', 'PlotID', 'DisturbancesObserved']
-columns_disturb_detail = ['EvaluationID', 'Disturbance', 'OtherDisturbance', 'MonitoringPlotScope',
-                          'MonitoringPlotDegree', 'DisturbanceComment']
-columns_hydrology = ['EvaluationID', 'PermafrostInfluence', 'DepthActiveLayer', 'SurfaceWaterPresent',
-                     'SurfaceWaterDepth']
-
-## Remove extraneous columns in field map objects
-for field in field_map_site.fields:
-    if field.name not in columns_site:
-        field_map_site.removeFieldMap(field_map_site.findFieldMapIndex(field.name))
-
-for field in field_map_soil.fields:
-    if field.name not in columns_soil:
-        field_map_soil.removeFieldMap(field_map_soil.findFieldMapIndex(field.name))
-
-for field in field_map_disturb.fields:
-    if field.name not in columns_disturb:
-        field_map_disturb.removeFieldMap(field_map_disturb.findFieldMapIndex(field.name))
-
-for field in field_map_disturb_detail.fields:
-    if field.name not in columns_disturb_detail:
-        field_map_disturb_detail.removeFieldMap(field_map_disturb_detail.findFieldMapIndex(field.name))
-
-for field in field_map_hydrology.fields:
-    if field.name not in columns_hydrology:
-        field_map_hydrology.removeFieldMap(field_map_hydrology.findFieldMapIndex(field.name))
-
-## Select only plots in Alaska
-select_expression = "AdminState = 'AK'"
-
-## Create new feature classes with fewer columns and apply selection
-arcpy.conversion.ExportFeatures(site_input, site_clean, where_clause=select_expression, field_mapping=field_map_site)
-arcpy.conversion.ExportFeatures(soil_input, soil_clean, where_clause=select_expression, field_mapping=field_map_soil)
-arcpy.conversion.ExportTable(disturb_input, disturb_clean, where_clause=select_expression,
-                             field_mapping=field_map_disturb)
-arcpy.conversion.ExportTable(disturb_detail_input, disturb_detail_clean, field_mapping=field_map_disturb_detail)
-arcpy.conversion.ExportTable(hydrology_input, hydrology_clean, field_mapping=field_map_hydrology)
 
 # Join input files
 site_soil_join = arcpy.management.AddJoin(in_layer_or_view=site_clean, in_field='PlotID', join_table=soil_clean,
@@ -180,7 +117,7 @@ environment_table = pd.merge(environment_table, site_visit, 'left', on='site_cod
 # Ensure all site codes are associated with a site visit code
 environment_table.site_visit_code.isna().sum()
 
-# -------- Classify geomorphology --------------------------------------
+# -------- Classify Geomorphology --------------------------------------
 environment_table.LandscapeType.unique()
 
 conditions = [(environment_table['LandscapeType'] == 'Hill Mountain') & (environment_table['Elevation_m'] <= 300),
