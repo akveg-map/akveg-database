@@ -8,17 +8,16 @@ before exporting to CSV.
 Author: Amanda Droghini, Alaska Center for Conservation
 Last Updated: 2026-10-27
 Usage: Python 3.13+
-# ---------------------------------------------------------------------------
 """
 
-# Import packges
+# -------- Load Packages -----------------------------------------------
 import os.path
 import arcpy
 from akutils import *
 import pandas as pd
 import numpy as np
 
-# Define directories
+# -------- Set Up Environment ------------------------------------------
 
 ## Define root directories
 drive = 'C:/'
@@ -69,11 +68,13 @@ arcpy.env.outputCoordinateSystem = arcpy.SpatialReference(4269)
 ## Do not include table name in join field names
 arcpy.env.qualifiedFieldNames = False
 
-## Read in CSV files
+# -------- Load Data ---------------------------------------------------
 site_visit = pd.read_csv(site_visit_input)
 soil_horizons = pd.read_csv(horizons_input, usecols=['site_visit_code', 'horizon_order', 'depth_upper', 'depth_lower',
                                                      'total_coarse_fragment_percent', 'texture'])
 template = pd.read_excel(template_input)
+
+# -------- Prepare Input Data ------------------------------------------
 
 # Clean up input files: Drop unnecessary or redundant columns
 
@@ -178,7 +179,7 @@ environment_table = pd.merge(environment_table, site_visit, 'left', on='site_cod
 # Ensure all site codes are associated with a site visit code
 environment_table.site_visit_code.isna().sum()
 
-## Re-classify geomorphology
+# -------- Classify geomorphology --------------------------------------
 environment_table.LandscapeType.unique()
 
 conditions = [(environment_table['LandscapeType'] == 'Hill Mountain') & (environment_table['Elevation_m'] <= 300),
@@ -199,7 +200,7 @@ environment_table['geomorphology'] = np.select(conditions, choices, default='NUL
 
 environment_table.geomorphology.value_counts()
 
-## Re-classify physiography
+# -------- Classify Physiography ---------------------------------------
 # Ecotype does not differentiate between 'upland' and 'subalpine'
 # Re-classification likely misattributes subalpine plots to upland
 environment_table.AlaskaEcotypeClassification.unique()
@@ -215,7 +216,7 @@ environment_table['physiography'] = np.select(conditions, choices, default='NULL
 
 environment_table.physiography.value_counts()
 
-## Classify macrotopography
+# -------- Classify Macrotopography ------------------------------------
 environment_table.LandscapeTypeSecondary.value_counts()
 
 conditions = [environment_table['LandscapeType'] == 'Alluvial Fan',
@@ -223,17 +224,17 @@ conditions = [environment_table['LandscapeType'] == 'Alluvial Fan',
               environment_table['LandscapeTypeSecondary'] == 'Shoulder',
               environment_table['LandscapeTypeSecondary'] == 'Summit',
               (environment_table['LandscapeTypeSecondary'] == 'Backslope') & (
-                          environment_table['VerticalSlopeShape'] == 'linear'),
+                      environment_table['VerticalSlopeShape'] == 'linear'),
               (environment_table['LandscapeTypeSecondary'] == 'Backslope') & (
-                          environment_table['VerticalSlopeShape'] == 'concave'),
+                      environment_table['VerticalSlopeShape'] == 'concave'),
               (environment_table['LandscapeTypeSecondary'] == 'Backslope') & (
-                          environment_table['VerticalSlopeShape'] == 'convex')]
+                      environment_table['VerticalSlopeShape'] == 'convex')]
 choices = ['alluvial fan', 'terrace', 'ridge', 'summit', 'slope planar', 'slope concave', 'slope convex']
 environment_table['macrotopography'] = np.select(conditions, choices, default='NULL')
 
 freq_table = pd.crosstab(environment_table['LandscapeTypeSecondary'], environment_table['macrotopography'])
 
-## Classify microtopography
+# -------- Classify Microtopography ------------------------------------
 # Relevant information was interpreted from plot description narrative; likely to be some errors.
 
 conditions = [environment_table['site_code'] == 'RW_22098',
@@ -270,7 +271,7 @@ choices = ['hummocks', 'boulder field', 'talus', 'mounds', 'solifluction lobes',
 environment_table['microtopography'] = np.select(conditions, choices, default='NULL')
 environment_table.microtopography.unique()
 
-## Classify drainage
+# -------- Classify Drainage -------------------------------------------
 conditions = [environment_table['PlotDescription'].str.contains('saturated'),
               environment_table['PlotDescription'].str.contains('poorly drained'),
               environment_table['PlotDescription'].str.contains('very well drained'),
@@ -287,7 +288,7 @@ environment_table['drainage'] = np.select(conditions, choices, default='NULL')
 
 environment_table.drainage.value_counts()
 
-## Classify moisture regime
+# -------- Classify Moisture Regime ------------------------------------
 conditions = [environment_table['HydricIndicatorPrimary'].str.contains('^A\d') == True,
               environment_table['site_code'] == 'RW_22104']
 choices = ['hydric', 'hydric']
@@ -458,5 +459,5 @@ environment_final = environment_table.assign(depth_moss_duff_cm=-999,
 ## Drop all columns that aren't in the template and reorder them to match data entry template
 environment_final = environment_final[template.columns]
 
-## Export dataframe
+# -------- Export Data -------------------------------------------------
 environment_final.to_csv(environment_table_output, index=False, encoding='UTF-8')
