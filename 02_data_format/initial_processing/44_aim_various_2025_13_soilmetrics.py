@@ -8,10 +8,13 @@ Last Updated: 2026-10-29
 Usage: Python 3.13+
 """
 
-# Import packges
-import os.path
-import arcpy
-from akutils import *
+# -------- Load Packages -----------------------------------------------
+import geopandas as gpd
+from pathlib import Path
+import polars as pl
+from user_tools.utils_init import load_system_paths
+from user_tools.utils_database import connect_database_postgresql
+from utils.utils import get_template
 
 # Define directories
 
