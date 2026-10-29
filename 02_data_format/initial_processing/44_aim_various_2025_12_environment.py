@@ -399,3 +399,6 @@ environment_final = environment_final[template.columns]
 
 # -------- Export Data -------------------------------------------------
 environment_final.to_csv(environment_table_output, index=False, encoding='UTF-8')
+
+# -------- Close Database Connection -----------------------------------
+db_conn.close()
