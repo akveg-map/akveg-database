@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-# ---------------------------------------------------------------------------
-# Extract soil metrics data from features in BLM AIM Wetlands geodatabase
-# Author: Amanda Droghini, Alaska Center for Conservation
-# Last Updated: 2024-09-06
-# Usage: Must be executed in an ArcGIS Pro Python 3.9+ distribution.
-# Description: "Extract soil metrics data from features in BLM AIM Wetlands geodatabase" joins two shapefiles, selects only those sites that are in Alaska, and exports the attribute table as CSV. The output is used to ingest the 44_aim_various_2022 dataset into the AKVEG database.
-# ---------------------------------------------------------------------------
+"""Process Soil Metrics Table for BLM AIM 2022–2025 Data
+
+Joins shapefiles and exports the resulting table to CSV.
+
+Author: Amanda Droghini, Alaska Center for Conservation
+Last Updated: 2026-10-29
+Usage: Python 3.13+
+"""
 
 # Import packges
 import os.path
