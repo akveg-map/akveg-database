@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """Process Soil Metrics Table for BLM AIM 2022–2025 Data
 
-Joins shapefiles and exports the resulting table to CSV.
+Appends unique site visit identifiers, performs quality control checks, and exports the resulting table to CSV. Per
+the AIM protocols, multiple ph, temperature, and EC measurements can be taken at a single site visit: typically,
+one set of measurements for surface water and another for groundwater. The AKVEG Database allows for multiple water
+measurements per site visit, provided they are taken at different depths.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-10-29
+Last Updated: 2026-11-10
 Usage: Python 3.13+
 """
 
@@ -12,9 +15,10 @@ Usage: Python 3.13+
 import geopandas as gpd
 from pathlib import Path
 import polars as pl
+import polars.selectors as cs
 from user_tools.utils_init import load_system_paths
 from user_tools.utils_database import connect_database_postgresql
-from utils.utils import get_template
+from utils.utils import get_template, check_conductivity_values, check_ph_values
 
 # -------- Set Up Environment ------------------------------------------
 paths = load_system_paths()
@@ -37,23 +41,77 @@ db_conn = connect_database_postgresql(credentials_input)
 # -------- Load Data ---------------------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 template = get_template("soil_metrics")
-water_original = (pl.from_pandas(gpd.read_file(gdb_input,
+soil_original = (pl.from_pandas(gpd.read_file(gdb_input,
                                               layer="AIM_Wetland__F_WaterQualityDetail",
-                                              columns=["EvaluationID", "ChemistrySampleFrom", "Location", "Depth",
-                                                       "StandFlow", "Temp", "TemperatureFlag", "pH", "phFlag", "EC",
-                                                       "ConductivityFlag"],
-                                              ignore_geometry=True))
-                  .lazy())
+                                              columns=["EvaluationID", "ChemistrySampleFrom", "Location", "WaterDepth",
+                                                       "Temp", "TemperatureFlag", "pH", "phFlag", "EC",
+                                                       "ConductivityFlag", "TempCorrected", "SampleType"],
+                                              ignore_geometry=True)))
 
+# -------- Prepare Input Data ------------------------------------------
+soil_metrics = (soil_original.with_columns(
+    # Replace whitespaces with nulls
+    cs.string().str.strip_chars().replace("", None),
+    # Extract site code
+    pl.col("EvaluationID")
+    .str.extract(r"^(.*)_")
+    .alias("site_code"))
+                # Append site visit code
+                .join(visit_original, on="site_code", how="left")
+                # Rename columns
+                .rename({"WaterDepth": "measure_depth_cm",
+                         "pH": "ph",
+                         "Temp": "temperature_deg_c",
+                         "EC": "conductivity_mus"})
+                # Create Boolean column indicating whether measurement was taken from water or soil
+                .with_columns(pl.when(pl.col("ChemistrySampleFrom").str.contains("[wW]ater"))
+                              .then(pl.lit("TRUE"))
+                              .otherwise(pl.lit("FALSE"))  # Should not be any FALSE entries; measurements only taken
+                              # in water
+                              .alias("water_measurement")
+                              )
+                # Convert temperature entries with "suspect" flag to missing value code (-999)
+                .with_columns(pl.when(pl.col("TemperatureFlag").str.contains("Suspect"))
+                              .then(pl.lit("-999").cast(pl.Int32))
+                              .otherwise(pl.col("temperature_deg_c"))
+                              .alias("temperature_deg_c")
+                              )
+                # Fill null values in numeric columns to missing value code (-999)
+                .with_columns(cs.numeric().fill_null(-999))
+                )
 
-# Join input files
-soil_metrics_join = arcpy.management.AddJoin(in_layer_or_view=site_data_input, in_field='EvaluationID',
-                                             join_table=soil_metrics_clean, join_field='EvaluationID',
-                                             join_type='KEEP_COMMON',
-                                             rebuild_index='REBUILD_INDEX')
+# -------- Perform Quality Checks --------------------------------------
 
-# Convert to dataframe
-soil_metrics_table = geodatabase_to_dataframe(soil_feature_output)
+# All sites have a visit code
+print(soil_metrics.select(pl.col("site_visit_code")).null_count())
 
-# Export dataframe
-soil_metrics_table.to_csv(soil_table_output, index=False, encoding='UTF-8')
+# All visits in Soil Metrics table appear in Site Visit table
+# Only need to test in a single direction (not all site visits need to have soil metrics)
+set_soil = set(soil_metrics.get_column("site_visit_code").unique().to_list())
+set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
+print(set_soil - set_visit)
+
+# All samples from a Soil Pit have negative water depth value (resulting df should be empty)
+# WaterDepth follows same convention as AKVEG: positive if above soil surface, negative if below
+print(soil_metrics.filter((pl.col("Location") == "Soil Pit") & (pl.col("measure_depth_cm") > 0))
+      .select(pl.col("site_visit_code")))
+
+# Conductivity and pH flags do not include "Suspect" entries
+print(pl.concat(soil_metrics.select(["ConductivityFlag", "phFlag"])).unique())
+
+# Numeric values are within reasonable range
+invalid_ph = check_ph_values(soil_metrics)  # No outliers
+invalid_conductivity = check_conductivity_values(soil_metrics)  # OK to keep in dataset
+
+# Temperature check - Remove missing value code (-999) before calculating summary statistics
+print(soil_metrics.select(pl.col("temperature_deg_c")).filter(pl.col("temperature_deg_c") > -999).describe())
+
+# Measurement depth
+print(soil_metrics.select(pl.col("measure_depth_cm")).describe())
+invalid_depth = soil_metrics.filter(pl.col("measure_depth_cm") > 30)  # Keep for now
+
+# -------- Export Data -------------------------------------------------
+soil_metrics.select(template.columns).write_csv(soil_metrics_output)
+
+# -------- Close Database Connection -----------------------------------
+db_conn.close()
