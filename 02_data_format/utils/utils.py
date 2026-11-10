@@ -26,6 +26,7 @@ column can now be joined with the scientific names in the AKVEG Database without
 one that matches the AKVEG schema), creating missing columns and filling them with type-specific default null values.
 10. max_hits_per_visit: Calculates the total number of point intercept hits per site visit.
 11. check_conductivity_values: Identifies soil and water conductivity values that violate hard physical boundaries.
+12. check_ph_values: Identifies impossible or suspicious pH values.
 """
 
 # Import packages
@@ -690,5 +691,39 @@ def check_conductivity_values(soil_metrics_df: Union[pl.DataFrame, pl.LazyFrame]
         pl.any_horizontal([pl.col("flag_negative"),
                            pl.col("flag_hypersaline"),
                            pl.col("flag_distilled")])))
+
+    return invalid_records
+
+
+# --- Function 12 ---
+def check_ph_values(soil_metrics_df: Union[pl.DataFrame, pl.LazyFrame],
+                    ph_col: str = "ph"):
+    """
+    Filters a dataset for records that violate pH boundaries. This function flags
+    negative values and suspiciously low or high values (i.e., less than 3.5 or greater than 10).
+
+    Parameters
+    ----------
+    soil_metrics_df : Union[pl.DataFrame, pl.LazyFrame]
+        Input Polars DataFrame or LazyFrame of soil metrics data where each row represents an individual
+        pH measurement within a site visit.
+    ph_col : str, default "ph"
+        Column name containing soil or water pH measurements.
+
+    Returns
+    -------
+    Union[pl.DataFrame, pl.LazyFrame]
+        Dataset containing only the records that failed the pH quality control check. Matches the input
+        execution type (Eager or Lazy).
+    """
+
+    invalid_records = (soil_metrics_df.with_columns(
+        flag_impossible = (pl.col(ph_col) <= 0) | (pl.col(ph_col) > 14),
+        flag_very_acidic = (pl.col(ph_col) > 0) & (pl.col(ph_col) < 3.5),
+        flag_very_alkaline = (pl.col(ph_col) > 10.0) & (pl.col(ph_col) <= 14)
+    ).filter(
+        pl.any_horizontal([pl.col("flag_impossible"),
+                           pl.col("flag_very_acidic"),
+                           pl.col("flag_very_alkaline")])))
 
     return invalid_records
