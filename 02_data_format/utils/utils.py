@@ -25,6 +25,7 @@ column can now be joined with the scientific names in the AKVEG Database without
 9. fill_missing_columns: Aligns a processed DataFrame's columns and column ordering with a template DataFrame (e.g.,
 one that matches the AKVEG schema), creating missing columns and filling them with type-specific default null values.
 10. max_hits_per_visit: Calculates the total number of point intercept hits per site visit.
+11. check_conductivity_values: Identifies soil and water conductivity values that violate hard physical boundaries.
 """
 
 # Import packages
@@ -331,7 +332,8 @@ def get_taxonomy(
     Parameters
     ----------
         db_connection: A valid database connection to the AKVEG Database.
-        simple: Boolean argument specifying whether a simplified version of the dataframe (with only two columns) should be returned.
+        simple: Boolean argument specifying whether a simplified version of the dataframe (with only two columns)
+        should be returned.
 
     Returns
     ----------
@@ -490,7 +492,8 @@ def add_missing_elements(
             visit_df: A Polars DataFrame of site visit codes.
             percent_df: A Polars DataFrame of percent cover, aggregated by site visit code and cover element.
             elements_df: A Polars DataFrame with the full set of cover elements in the first column.
-            visit_col: Column identifying site visit codes. Must be the same for visit_df and percent_df. Defaults to "site_visit_code".
+            visit_col: Column identifying site visit codes. Must be the same for visit_df and percent_df. Defaults to
+            "site_visit_code".
             elements_col: Column identifying the cover elements in percent_df. Defaults to "abiotic_element".
             percent_col: Column identifying percent cover values in percent_df. Defaults to
             "abiotic_top_cover_percent".
@@ -508,7 +511,8 @@ def add_missing_elements(
                          how="cross"))
 
     # Join with percent_df and assign a value of 0 to every element not in percent_df
-    visit_elements_full = (cross_table.join(percent_df.select([visit_col, elements_col, percent_col]), how="left", on=[visit_col, elements_col])
+    visit_elements_full = (cross_table.join(percent_df.select([visit_col, elements_col, percent_col]), how="left",
+                                            on=[visit_col, elements_col])
                            .with_columns(pl.col(percent_col).fill_null(value=0.0).round(decimals=2))
                            .sort(by=[visit_col, elements_col]))
     return visit_elements_full
@@ -529,7 +533,8 @@ def get_valid_values(
         db_connection: A valid database connection to the AKVEG Database.
         table_name: Name of reference table.
         field_name: The column name in the reference table that has the constrained values.
-        field_mapping: An optional dictionary that maps column names in a DataFrame (keys) to their corresponding database
+        field_mapping: An optional dictionary that maps column names in a DataFrame (keys) to their corresponding
+        database
         field names (values). Used to resolve instances when table columns differ from the database's internal
         field names. Defaults to None.
 
@@ -588,7 +593,8 @@ def fill_missing_columns(data_df: pl.DataFrame,
 
     Returns
     ----------
-        A new DataFrame with the same columns and column ordering as the template, populated with appropriate default null values.
+        A new DataFrame with the same columns and column ordering as the template, populated with appropriate default
+        null values.
     """
 
     # Identify columns missing from dataframe
@@ -622,9 +628,9 @@ def fill_missing_columns(data_df: pl.DataFrame,
 
 # --- Function 10 ---
 def max_hits_per_visit(cover_df: Union[pl.DataFrame, pl.LazyFrame],
-                        group_col: str = "site_visit_code",
-                        output_col: str = "max_hits"
-                        ) -> Union[pl.DataFrame, pl.LazyFrame]:
+                       group_col: str = "site_visit_code",
+                       output_col: str = "max_hits"
+                       ) -> Union[pl.DataFrame, pl.LazyFrame]:
     """Calculate the total number of point intercept hits per site visit.
 
         Aggregates point intercept cover records by site visit code to determine the maximum
@@ -648,3 +654,41 @@ def max_hits_per_visit(cover_df: Union[pl.DataFrame, pl.LazyFrame],
             per site visit. Matches the input execution type (Eager or Lazy).
         """
     return cover_df.group_by(group_col).agg(pl.len().alias(output_col))
+
+
+# --- Function 11 ---
+def check_conductivity_values(soil_metrics_df: Union[pl.DataFrame, pl.LazyFrame],
+                              conductivity_col: str = "conductivity_mus"):
+    """
+    Filters a dataset for records that violate physical conductivity boundaries. Because electrical
+    conductivity varies drastically across sites, this function only evaluates hard physical boundaries. It flags
+    negative values, hypersaline readings exceeding seawater limits (i.e., >50,000), and suspiciously low values that
+    may
+    indicate uncalibrated probes or artifacts from rinsing in distilled water.
+
+    Parameters
+    ----------
+    soil_metrics_df : Union[pl.DataFrame, pl.LazyFrame]
+        Input Polars DataFrame or LazyFrame of soil metrics data where each row represents an individual
+        conductivity measurement within a site visit.
+    conductivity_col : str, default "conductivity_mus"
+        Column name containing electrical conductivity measurements. Must be in microSiemens per centimeter (µS/cm).
+
+    Returns
+    -------
+    Union[pl.DataFrame, pl.LazyFrame]
+        Dataset containing only the records that failed at least one physical boundary check. Matches the input
+        execution type (Eager or
+        Lazy).
+    """
+
+    invalid_records = (soil_metrics_df.with_columns(
+        flag_negative=pl.col(conductivity_col) <= 0,
+        flag_hypersaline=pl.col(conductivity_col) > 50000,
+        flag_distilled=pl.col(conductivity_col) < 5,
+    ).filter(
+        pl.any_horizontal([pl.col("flag_negative"),
+                           pl.col("flag_hypersaline"),
+                           pl.col("flag_distilled")])))
+
+    return invalid_records
