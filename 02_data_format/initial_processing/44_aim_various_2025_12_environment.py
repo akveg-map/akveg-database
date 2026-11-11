@@ -16,6 +16,7 @@ from collections import defaultdict
 from functools import reduce
 import geopandas as gpd
 import polars as pl
+import polars.selectors as cs
 from user_tools.utils_init import load_system_paths
 from user_tools.utils_database import connect_database_postgresql
 from utils.utils import get_template, get_valid_values
@@ -75,7 +76,7 @@ environment_layers = {
 # Use reduce to sequentially join DataFrames across the list
 # AIM_Wetland__F_PlotCharacterization must be the first DataFrame in the list for left join to work (otherwise a full
 # join is needed)
-environment_df = reduce(
+environment_original = reduce(
     lambda left, right: left.join(right, on="EvaluationID", how="left"),
     list(environment_layers.values())
 )
@@ -85,7 +86,7 @@ del gdb_dict, environment_layers
 # -------- Load Excel Sheets -------------------------------------------
 excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key", "Overall Site Moisture Regime"],
                                        "year_end": "2021"},
-              "MossActiveLayer_Details 2021": {"cols": ["Plot Key", "Line Number", "Point Number", "Line Position (m)",
+              "MossActiveLayer_Details 2021": {"cols": ["Plot Key", "Line Number", "Line Position (m)",
                                                         "Moss/Duff Thickness (cm)", "Depth of Water (cm)",
                                                         "Depth Soil to ActiveLayer (cm)", "Notes"],
                                                "year_end": "2021"},
@@ -111,15 +112,15 @@ for sheet, attribute in excel_dict.items():
 year_join_keys = {"2021": "Plot Key",
                   "2025": "GlobalID"}
 
-# Use full in case some plots were not present in the "metadata" sheets
+# Test with how="full" first in case some plots are not present in the "metadata" sheets
 indicators_merged_dfs = [
-    reduce(lambda left, right: left.join(right, on=year_join_keys[year], how="full"),
+    reduce(lambda left, right: left.join(right, on=year_join_keys[year], how="left"),
            df_list)
     for year, df_list in subsets_by_year.items()
 ]
 
 # Concatenate joined tables using "diagonal_relaxed" to combine common columns and coerce mismatched types
-indicators_df = pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
+indicators_original = pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
 
 del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged_dfs
 
@@ -127,40 +128,66 @@ del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 template = get_template("environment")
 
-# -------- Prepare Input Data ------------------------------------------
+# -------- Prepare Environment Data ------------------------------------
 
-## Format site code
-environment_table['site_code'] = environment_table.PlotID.str.removeprefix('AK-')
-environment_table['site_code'] = environment_table.site_code.str.removeprefix('EIFO-')
-environment_table['site_code'] = environment_table.site_code.str.removeprefix('CYFO-')
-environment_table['site_code'] = environment_table.site_code.str.replace('-', '_')
+print(environment_original.select("LandscapeType").unique())
 
-## Obtain site visit code
-site_visit = site_visit[['site_code', 'site_visit_code']]
-environment_table = pd.merge(environment_table, site_visit, 'left', on='site_code')
-# Ensure all site codes are associated with a site visit code
-environment_table.site_visit_code.isna().sum()
+environment_df = (environment_original
+                  # Replace whitespaces with nulls
+                  .with_columns(cs.string().str.strip_chars().replace("", None))
+                  # Format site code
+                  .with_columns(pl.col("EvaluationID")
+                  .str.extract(r"^(.*)_")
+                  .alias("site_code"))
+                  # Append site visit code using right join to drop any plots not in site visit table
+                  .join(visit_original, on="site_code", how="right")
+                  # Classify geomorphology
+                  .with_columns(pl.when(pl.col("Elevation_m") > 300)
+                                .then(True)
+                                .otherwise(False)
+                                .alias("mountain")
+                                )
+                  .with_columns(pl.when((pl.col("mountain")) & (pl.col("LandscapeType") == 'Hill Mountain'))
+                                .then(pl.lit("mountain"))
+                                .when((~pl.col("mountain")) & (pl.col("LandscapeType") == 'Hill Mountain'))
+                                .then(pl.lit("hill"))
+                                .when(pl.col("LandscapeType") == 'Floodplain Basin')
+                                .then(pl.lit("floodplain"))
+                                .when(pl.col("LandscapeType") == 'Flat Plain')
+                                .then(pl.lit("plain"))
+                                .otherwise(pl.lit("NULL"))
+                                .alias("geomorphology")
+                                )
+                  )
 
-# -------- Classify Geomorphology --------------------------------------
-environment_table.LandscapeType.unique()
 
-conditions = [(environment_table['LandscapeType'] == 'Hill Mountain') & (environment_table['Elevation_m'] <= 300),
-              (environment_table['LandscapeType'] == 'Hill Mountain') & (environment_table['Elevation_m'] > 300),
-              environment_table['LandscapeType'] == 'Floodplain Basin',
-              (environment_table['LandscapeType'] == 'Flat Plain') & (
-                  environment_table['AlaskaEcotypeClassification'].str.contains('Lowland')),
-              (environment_table['LandscapeType'] == 'Flat Plain') & (
-                  environment_table['AlaskaEcotypeClassification'].str.contains('Upland')),
-              environment_table['LandscapeType'] == 'Terrace',
-              (environment_table['LandscapeType'] == 'Alluvial Fan') & (
-                  environment_table['AlaskaEcotypeClassification'].str.contains('Upland')),
-              (environment_table['LandscapeType'] == 'Alluvial Fan') & (
-                  environment_table['AlaskaEcotypeClassification'].str.contains('Alpine'))]
-choices = ['hill', 'mountain', 'floodplain', 'plain', 'valley, lowland', 'valley, lowland',
-           'valley, lowland', 'valley, alpine']
-environment_table['geomorphology'] = np.select(conditions, choices, default='NULL')
+# -------- Prepare Indicator Data --------------------------------------
 
-environment_table.geomorphology.value_counts()
+# Format "Line and Position" column for 2021 data
+indicators_df = indicators_original.with_columns(pl.when(pl.col("Line and Position").is_null())
+                                           .then(pl.concat_str([pl.col("Line Number"),
+                                                           pl.col("Line Position (m)")], separator="_"
+                                                               ))
+                                           .otherwise(pl.col("Line and Position"))
+                                           .alias("Line and Position")
+                                           )
+
+
+
+# Format "Line and Position" column for 2021 data
+indicators_df = indicators_df.with_columns(pl.when(pl.col("Line and Position").is_null())
+                                           .then(pl.concat_str([pl.col("Line Number"),
+                                                           pl.col("Line Position (m)")], separator="_"
+                                                               ))
+                                           .otherwise(pl.col("Line and Position"))
+                                           .alias("Line and Position")
+                                           )
+
+
+
+
+
+
 
 # -------- Classify Physiography ---------------------------------------
 # Ecotype does not differentiate between 'upland' and 'subalpine'
@@ -420,6 +447,13 @@ environment_final = environment_table.assign(depth_moss_duff_cm=-999,
 
 ## Drop all columns that aren't in the template and reorder them to match data entry template
 environment_final = environment_final[template.columns]
+
+
+
+# -------- Perform Quality Checks --------------------------------------
+
+# Ensure all site codes are associated with a site visit code
+environment_table.site_visit_code.isna().sum()
 
 # -------- Export Data -------------------------------------------------
 environment_final.to_csv(environment_table_output, index=False, encoding='UTF-8')
