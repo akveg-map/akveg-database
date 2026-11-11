@@ -15,7 +15,6 @@ Usage: Python 3.13+
 from collections import defaultdict
 from functools import reduce
 import geopandas as gpd
-from pathlib import Path
 import polars as pl
 from user_tools.utils_init import load_system_paths
 from user_tools.utils_database import connect_database_postgresql
@@ -98,7 +97,7 @@ excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key",
                                                   "year_end": "2025"}
               }
 
-# Load Excel sheets
+# Read Excel sheets
 excel_sheets = pl.read_excel(source=indicators_input, sheet_name=list(excel_dict.keys()))
 
 # Select & rename columns, group sheets by year
@@ -124,7 +123,7 @@ indicators_df = pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
 
 del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged_dfs
 
-# -------- Load Data ---------------------------------------------------
+# -------- Load Remaining Data -----------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 template = get_template("environment")
 
