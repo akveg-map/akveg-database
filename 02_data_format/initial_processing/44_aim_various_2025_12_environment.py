@@ -12,6 +12,7 @@ Usage: Python 3.13+
 """
 
 # -------- Load Packages -----------------------------------------------
+from collections import defaultdict
 from functools import reduce
 import geopandas as gpd
 from pathlib import Path
@@ -25,6 +26,12 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
+INDICATORS_RENAME_MAP = {"Overall Site Moisture Regime": "moisture_regime",
+                         "Depth of Water (cm)": "depth_water_cm",
+                         "Moss/Duff Thickness (cm)": "depth_moss_duff_cm",
+                         "Depth Soil to ActiveLayer (cm)": "depth_restrictive_layer_cm",
+                         "parentglobalid": "GlobalID"
+                         }
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -38,10 +45,6 @@ envr_output = plot_folder / '12_environment_aimvarious2025.csv'
 
 # Connect to AKVEG Database
 db_conn = connect_database_postgresql(credentials_input)
-
-# -------- Load Data ---------------------------------------------------
-visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
-template = get_template("environment")
 
 # -------- Load Shapefiles ---------------------------------------------
 
@@ -78,7 +81,48 @@ lazy_frames_join = reduce(
     list(lazy_frames.values())
 )
 
-df_from_gdb = lazy_frames_join.collect()
+# -------- Load Excel Sheets -------------------------------------------
+excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key", "Overall Site Moisture Regime"],
+                                       "year_end": "2021"},
+              "MossActiveLayer_Details 2021": {"cols": ["Plot Key", "Line Number", "Point Number", "Line Position (m)",
+                                                        "Moss/Duff Thickness (cm)", "Depth of Water (cm)",
+                                                        "Depth Soil to ActiveLayer (cm)", "Notes"],
+                                               "year_end": "2021"},
+              "MossActiveLayer 2022-25": {"cols": ["Plot ID", "Evaluation ID", "GlobalID"],
+                                          "year_end": "2025"},
+              "MossActiveLayer_Details 2023-25": {"cols": ["parentglobalid", "Moss/Duff Thickness (cm)",
+                                                           "Depth of Water (cm)", "Depth Soil to ActiveLayer (cm)",
+                                                           "Notes", "Line and Position", "Rock Present"],
+                                                  "year_end": "2025"}
+              }
+
+# Load Excel sheets
+excel_sheets = pl.read_excel(source=indicators_input, sheet_name=list(excel_dict.keys()))
+
+# Select & rename columns, group sheets by year
+subsets_by_year = defaultdict(list)
+for sheet, attribute in excel_dict.items():
+    year = attribute["year_end"]
+    df = excel_sheets[sheet].select(attribute["cols"]).rename(INDICATORS_RENAME_MAP, strict=False)
+    subsets_by_year[year].append(df)
+
+# Join dataframes of the same year
+year_join_keys = {"2021": "Plot Key",
+                  "2025": "GlobalID"}
+
+# Use full in case some plots were not present in the "metadata" sheets
+indicators_merged_dfs = [
+    reduce(lambda left, right: left.join(right, on=year_join_keys[year], how="full"),
+           df_list)
+    for year, df_list in subsets_by_year.items()
+]
+
+# Concatenate joined tables using "diagonal_relaxed" to combine common columns and coerce mismatched types
+indicators_df = pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
+
+# -------- Load Data ---------------------------------------------------
+visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
+template = get_template("environment")
 
 # -------- Prepare Input Data ------------------------------------------
 
