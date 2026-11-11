@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Process Ground Cover Table for BLM AIM 2022–2025 data
+"""Process Environment Table for BLM AIM 2022–2025 data
 
-Processes data from various tables in the BLM AIM Lotic Geodatabase for ingestion into the AKVEG Database. Joins
-shapefiles, re-classifies categorical values, appends unique site identifiers, and performs quality control checks
-before exporting to CSV.
+Combines data from the BLM Riparian AIM GeoDatabase and from individual CSVs of "supplemental indicators" provided
+by BLM Alaska. Appends unique site identifiers, re-classifies categorical values, converts missing values to
+designated missing value codes, and performs quality control checks before exporting to CSV for ingestion into the
+AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-10-27
+Last Updated: 2026-11-11
 Usage: Python 3.13+
 """
 
