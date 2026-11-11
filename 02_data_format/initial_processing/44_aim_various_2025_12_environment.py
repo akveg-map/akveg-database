@@ -12,6 +12,7 @@ Usage: Python 3.13+
 """
 
 # -------- Load Packages -----------------------------------------------
+from functools import reduce
 import geopandas as gpd
 from pathlib import Path
 import polars as pl
@@ -41,71 +42,45 @@ db_conn = connect_database_postgresql(credentials_input)
 # -------- Load Data ---------------------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 template = get_template("environment")
-site_original = (pl.from_pandas(gpd.read_file(gdb_input,
-                                              layer="AIM_Wetland__F_PlotCharacterization",
-                                              columns=['PlotID', 'Elevation_m', 'Slope',
-                                                       'AlaskaEcotypeClassification', 'LandscapeType',
-                                                       'LandscapeTypeSecondary', 'VerticalSlopeShape',
-                                                       'PlotDescription'],
-                                              ignore_geometry=True))
-                 .lazy())
-soil_original = (pl.from_pandas(gpd.read_file(gdb_input,
-                                              layer="AIM_Wetland__F_Soils",
-                                              columns=['PlotID', 'PitImpenetrable',
-                                                       'ImpenetrableDescrip', 'WaterObserved', 'WaterDepth',
-                                                       'PitSaturated', 'DepthToSatSoil', 'HydricIndicatorPrimary',
-                                                       'HydricIndicatorSecondary'],
-                                              ignore_geometry=True))
-                 .lazy())
-disturb_original = (pl.from_pandas(gpd.read_file(gdb_input,
-                                                 layer="AIM_Wetland__F_NaturalandHumanDisturbances",
-                                                 columns=['EvaluationID', 'PlotID',
-                                                          'DisturbancesObserved'],
-                                                 ignore_geometry=True)).lazy())
-disturb_detail_original = (pl.from_pandas(gpd.read_file(gdb_input,
-                                                        layer="AIM_Wetland__F_DisturbancesDetail",
-                                                        columns=['EvaluationID', 'Disturbance', 'OtherDisturbance',
-                                                                 'MonitoringPlotScope', 'MonitoringPlotDegree',
-                                                                 'DisturbanceComment'],
-                                                        ignore_geometry=True)).lazy())
-hydrology_original = (pl.from_pandas(gpd.read_file(gdb_input,
-                                                   layer="AIM_Wetland__F_Hydrology",
-                                                   columns=['EvaluationID', 'PermafrostInfluence',
-                                                            'DepthActiveLayer', 'SurfaceWaterPresent',
-                                                            'SurfaceWaterDepth'],
-                                                   ignore_geometry=True)).lazy())
+
+# -------- Load Shapefiles ---------------------------------------------
+
+# Define dictionary (key: layer name, values: column names) for shapefiles in GeoDatabase
+gdb_dict = {
+    # Site metadata
+    "AIM_Wetland__F_PlotCharacterization": ['EvaluationID', 'Elevation_m', 'Slope', 'AlaskaEcotypeClassification',
+                                            'LandscapeType', 'LandscapeTypeSecondary', 'VerticalSlopeShape',
+                                            'PlotDescription'],
+    # Soil horizons
+    "AIM_Wetland__F_Soils": ['EvaluationID', 'PitImpenetrable', 'ImpenetrableDescrip', 'WaterObserved', 'WaterDepth',
+                             'PitSaturated', 'DepthToSatSoil', 'HydricIndicatorPrimary', 'HydricIndicatorSecondary'],
+    # Disturbance metadata
+    "AIM_Wetland__F_NaturalandHumanDisturbances": ['EvaluationID', 'DisturbancesObserved'],
+    # Disturbance data
+    "AIM_Wetland__F_DisturbancesDetail": ['EvaluationID', 'Disturbance', 'OtherDisturbance', 'MonitoringPlotScope',
+                                          'MonitoringPlotDegree', 'DisturbanceComment'],
+    # Hydrology data
+    "AIM_Wetland__F_Hydrology": ['EvaluationID', 'PermafrostInfluence', 'DepthActiveLayer', 'SurfaceWaterPresent',
+                                 'SurfaceWaterDepth']
+}
+
+# Use dictionary comprehension to iteratively load shapefiles as LazyFrames
+lazy_frames = {
+    layer_name: pl.from_pandas(gpd.read_file(gdb_input, layer=layer_name, columns=cols, ignore_geometry=True)).lazy()
+    for layer_name, cols in gdb_dict.items()
+}
+
+# Use reduce to sequentially join LazyFrames across the list
+# AIM_Wetland__F_PlotCharacterization must be the first LazyFrame in the list for left join to work (otherwise a full
+# join is needed)
+lazy_frames_join = reduce(
+    lambda left, right: left.join(right, on="EvaluationID", how="left"),
+    list(lazy_frames.values())
+)
+
+df_from_gdb = lazy_frames_join.collect()
 
 # -------- Prepare Input Data ------------------------------------------
-
-# Join input files
-site_soil_join = arcpy.management.AddJoin(in_layer_or_view=site_clean, in_field='PlotID', join_table=soil_clean,
-                                          join_field='PlotID', join_type='KEEP_ALL')
-
-disturb_join = arcpy.management.AddJoin(in_layer_or_view=site_soil_join, in_field='PlotID',
-                                        join_table=disturb_clean, join_field='PlotID',
-                                        join_type='KEEP_ALL')
-
-disturb_detail_join = arcpy.management.AddJoin(in_layer_or_view=disturb_join, in_field='EvaluationID',
-                                               join_table=disturb_detail_clean, join_field='EvaluationID',
-                                               join_type='KEEP_ALL')
-
-hydrology_join = arcpy.management.AddJoin(in_layer_or_view=disturb_detail_join, in_field='EvaluationID',
-                                          join_table=hydrology_clean, join_field='EvaluationID',
-                                          join_type='KEEP_ALL')
-
-## Copy layer to a new feature class
-arcpy.management.CopyFeatures(hydrology_join, environment_feature_output)
-
-# Delete unnecessary fields
-arcpy.management.DeleteField(environment_feature_output,
-                             ['PlotID_1', 'PlotID_12',
-                              'OBJECTID_1', 'OBJECTID_12', 'OBJECTID_12_13', 'OBJECTID_12_13_14'
-                                                                             'EvaluationID', 'EvaluationID_1',
-                              'EvaluationID_12',
-                              'AdminState', 'AdminState_1', 'AdminState_12'])
-
-# Convert to dataframe
-environment_table = geodatabase_to_dataframe(environment_feature_output)
 
 ## Format site code
 environment_table['site_code'] = environment_table.PlotID.str.removeprefix('AK-')
