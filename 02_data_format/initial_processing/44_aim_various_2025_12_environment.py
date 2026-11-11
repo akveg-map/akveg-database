@@ -28,6 +28,7 @@ FOLDER_ID = "44_aim_various_2025"
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
+indicators_input = plot_folder / "source" / "AK_Moss_and_Active_Layer_23Jan2026.xlsx"
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 credentials_input = paths.cloud_assets.credentials
 
