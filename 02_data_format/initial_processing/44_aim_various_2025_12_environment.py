@@ -67,19 +67,21 @@ gdb_dict = {
                                  'SurfaceWaterDepth']
 }
 
-# Use dictionary comprehension to iteratively load shapefiles as LazyFrames
-lazy_frames = {
-    layer_name: pl.from_pandas(gpd.read_file(gdb_input, layer=layer_name, columns=cols, ignore_geometry=True)).lazy()
+# Use dictionary comprehension to iteratively load shapefiles as DataFrames
+environment_layers = {
+    layer_name: pl.from_pandas(gpd.read_file(gdb_input, layer=layer_name, columns=cols, ignore_geometry=True))
     for layer_name, cols in gdb_dict.items()
 }
 
-# Use reduce to sequentially join LazyFrames across the list
-# AIM_Wetland__F_PlotCharacterization must be the first LazyFrame in the list for left join to work (otherwise a full
+# Use reduce to sequentially join DataFrames across the list
+# AIM_Wetland__F_PlotCharacterization must be the first DataFrame in the list for left join to work (otherwise a full
 # join is needed)
-lazy_frames_join = reduce(
+environment_df = reduce(
     lambda left, right: left.join(right, on="EvaluationID", how="left"),
-    list(lazy_frames.values())
+    list(environment_layers.values())
 )
+
+del gdb_dict, environment_layers
 
 # -------- Load Excel Sheets -------------------------------------------
 excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key", "Overall Site Moisture Regime"],
@@ -119,6 +121,8 @@ indicators_merged_dfs = [
 
 # Concatenate joined tables using "diagonal_relaxed" to combine common columns and coerce mismatched types
 indicators_df = pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
+
+del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged_dfs
 
 # -------- Load Data ---------------------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
