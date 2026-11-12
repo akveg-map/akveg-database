@@ -13,12 +13,12 @@ Usage: Python 3.13+
 
 # -------- Load Packages -----------------------------------------------
 import geopandas as gpd
-from pathlib import Path
 import polars as pl
 import polars.selectors as cs
-from user_tools.utils_init import load_system_paths
+
 from user_tools.utils_database import connect_database_postgresql
-from utils.utils import get_template, check_conductivity_values, check_ph_values
+from user_tools.utils_init import load_system_paths
+from utils.utils import check_conductivity_values, check_ph_values, get_template
 
 # -------- Set Up Environment ------------------------------------------
 paths = load_system_paths()
