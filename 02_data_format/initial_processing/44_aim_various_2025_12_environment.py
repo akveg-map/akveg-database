@@ -131,6 +131,7 @@ template = get_template("environment")
 # -------- Prepare Environment Data ------------------------------------
 
 print(environment_original.select("LandscapeType").unique())
+print(environment_original.select("AlaskaEcotypeClassification").unique())
 
 environment_df = (environment_original
                   # Replace whitespaces with nulls
@@ -158,8 +159,14 @@ environment_df = (environment_original
                                 .otherwise(pl.lit("NULL"))
                                 .alias("geomorphology")
                                 )
+                  # Classify physiography
+                  # Re-classification likely misattributes subalpine plots to upland because ecotype does not
+                  # differentiate between upland and subapline
+                  .with_columns(pl.col("AlaskaEcotypeClassification").str.to_lowercase().str.extract(r"(^[a-z]+\b)")
+                                .alias("physiography")
+                                )
+                  .with_columns(pl.col("physiography").str.replace("riverine", "riparian", literal=True))
                   )
-
 
 # -------- Prepare Indicator Data --------------------------------------
 
@@ -171,39 +178,6 @@ indicators_df = indicators_original.with_columns(pl.when(pl.col("Line and Positi
                                            .otherwise(pl.col("Line and Position"))
                                            .alias("Line and Position")
                                            )
-
-
-
-# Format "Line and Position" column for 2021 data
-indicators_df = indicators_df.with_columns(pl.when(pl.col("Line and Position").is_null())
-                                           .then(pl.concat_str([pl.col("Line Number"),
-                                                           pl.col("Line Position (m)")], separator="_"
-                                                               ))
-                                           .otherwise(pl.col("Line and Position"))
-                                           .alias("Line and Position")
-                                           )
-
-
-
-
-
-
-
-# -------- Classify Physiography ---------------------------------------
-# Ecotype does not differentiate between 'upland' and 'subalpine'
-# Re-classification likely misattributes subalpine plots to upland
-environment_table.AlaskaEcotypeClassification.unique()
-
-conditions = [environment_table['geomorphology'] == 'floodplain',
-              environment_table['AlaskaEcotypeClassification'].str.contains('Lowland'),
-              environment_table['PlotDescription'].str.contains('above treeline'),
-              environment_table['PlotDescription'].str.contains('ecotone'),
-              environment_table['AlaskaEcotypeClassification'].str.contains('Upland'),
-              environment_table['AlaskaEcotypeClassification'].str.contains('Alpine'), ]
-choices = ['riverine', 'lowland', 'subalpine', 'subalpine', 'upland', 'alpine']
-environment_table['physiography'] = np.select(conditions, choices, default='NULL')
-
-environment_table.physiography.value_counts()
 
 # -------- Classify Macrotopography ------------------------------------
 environment_table.LandscapeTypeSecondary.value_counts()
