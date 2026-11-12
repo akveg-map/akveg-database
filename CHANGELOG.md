@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 * **Separated database from code versioning**: Moved tracking of database and taxonony changes to a dedicated
   `database_version` table. Changelog entries in the GitHub repository will focus only on tracking changes to the SQL
   scripts and the ETL pipeline.
+* Moved internal `utils` package from `02_data_format/` to the repository root. Local modules can now be imported 
+  without needing to configure Sources Roots in PyCharm.
 
 ### SQL Build & Queries Scripts
 
@@ -42,15 +44,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `03_data_insert/00b_Prepare_Metadata.R`: Processed new missing value fields in `database_schema`.
 - Refactored `03_data_insert/00a_Prepare_Taxonomy.R` and `03_data_insert/00b_Prepare_Metadata.R` to use relative
   file paths instead of absolute paths.
-- `02_data_format/utils/utils.py` (`get_taxonomy()`, `get_abiotic_elements()`):
+- `utils/utils.py` (`get_taxonomy()`, `get_abiotic_elements()`):
     - Refactored functions to accept a database connection as a parameter instead of a credentials file, reducing the
       number of times the database connection is opened when multiple functions within this module are run in the
       same script.
-- `02_data_format/utils/utils.py` (`get_taxonomy()`):
+- `utils/utils.py` (`get_taxonomy()`):
     - Changed field name from `name_accepted` to `name_adjudicated` to
       match field name used in Vegetation Cover table.
     - Added `name_adjudicated` as a returned field when `simple=True`.
-- `02_data_format/utils/utils.py` (`add_missing_elements()`):
+- `utils/utils.py` (`add_missing_elements()`):
     - Added parameters to generalize function beyond only abiotic elements. New version is not back-compatible: site
       visit codes must be a Polars DataFrame, not a list.
     - Refactored function to use Cartesian cross join instead of for loop and if/else logic.
@@ -62,14 +64,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added scripts, utility functions, and config files in `manuscript/` folder to support the creation of a deposit in a
   data repository. These scripts and files are used to create compiled data tables from the AKVEG SQL Database and parse
   them into an EML-compliant XML file.
-- `02_data_format/utils/utils.py` (`max_hits_per_visit()`): Function to calculate the total number of point intercept
+- `utils/utils.py` (`max_hits_per_visit()`): Function to calculate the total number of point intercept
   hits per site visit.
 
 #### Fixed
 
 - Encoded database password in `export_compiled_tables.py` to provide support for passwords that contain certain special
   characters.
-- `02_data_format/utils/utils.py`: Fixed regex pattern in `get_usda_codes()` to match and exclude all author names,
+- `utils/utils.py`: Fixed regex pattern in `get_usda_codes()` to match and exclude all author names,
   including instances where there are multiple authors separated by taxonomic epithets.
 
 ### User Tools
