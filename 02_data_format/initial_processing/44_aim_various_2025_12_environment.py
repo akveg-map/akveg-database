@@ -14,12 +14,14 @@ Usage: Python 3.13+
 # -------- Load Packages -----------------------------------------------
 from collections import defaultdict
 from functools import reduce
+
 import geopandas as gpd
 import polars as pl
 import polars.selectors as cs
-from user_tools.utils_init import load_system_paths
+
 from user_tools.utils_database import connect_database_postgresql
-from utils.utils import get_template, get_valid_values
+from user_tools.utils_init import load_system_paths
+from utils.utils import get_template
 
 # -------- Set Up Environment ------------------------------------------
 paths = load_system_paths()
@@ -138,8 +140,8 @@ environment_df = (environment_original
                   .with_columns(cs.string().str.strip_chars().replace("", None))
                   # Format site code
                   .with_columns(pl.col("EvaluationID")
-                  .str.extract(r"^(.*)_")
-                  .alias("site_code"))
+                                .str.extract(r"^(.*)_")
+                                .alias("site_code"))
                   # Append site visit code using right join to drop any plots not in site visit table
                   .join(visit_original, on="site_code", how="right")
                   # Classify geomorphology
@@ -160,8 +162,8 @@ environment_df = (environment_original
                                 .alias("geomorphology")
                                 )
                   # Classify physiography
-                  # Re-classification likely misattributes subalpine plots to upland because ecotype does not
-                  # differentiate between upland and subapline
+                  # Likely misattributes subalpine plots to upland because ecotype does not differentiate between
+                  # upland and subapline
                   .with_columns(pl.col("AlaskaEcotypeClassification").str.to_lowercase().str.extract(r"(^[a-z]+\b)")
                                 .alias("physiography")
                                 )
@@ -172,12 +174,12 @@ environment_df = (environment_original
 
 # Format "Line and Position" column for 2021 data
 indicators_df = indicators_original.with_columns(pl.when(pl.col("Line and Position").is_null())
-                                           .then(pl.concat_str([pl.col("Line Number"),
-                                                           pl.col("Line Position (m)")], separator="_"
-                                                               ))
-                                           .otherwise(pl.col("Line and Position"))
-                                           .alias("Line and Position")
-                                           )
+                                                 .then(pl.concat_str([pl.col("Line Number"),
+                                                                      pl.col("Line Position (m)")], separator="_"
+                                                                     ))
+                                                 .otherwise(pl.col("Line and Position"))
+                                                 .alias("Line and Position")
+                                                 )
 
 # -------- Classify Macrotopography ------------------------------------
 environment_table.LandscapeTypeSecondary.value_counts()
@@ -421,8 +423,6 @@ environment_final = environment_table.assign(depth_moss_duff_cm=-999,
 
 ## Drop all columns that aren't in the template and reorder them to match data entry template
 environment_final = environment_final[template.columns]
-
-
 
 # -------- Perform Quality Checks --------------------------------------
 
