@@ -146,7 +146,8 @@ environment_df = (environment_original
                   .join(visit_original, on="site_code", how="right")
 
                   # Convert landform columns to lowercase
-                  .with_columns(pl.col(["AlaskaEcotypeClassification", "LandscapeTypeSecondary"]).str.to_lowercase())
+                  .with_columns(pl.col(["AlaskaEcotypeClassification", "LandscapeTypeSecondary",
+                                        "PlotDescription"]).str.to_lowercase())
 
                   # Classify geomorphology
                   .with_columns(pl.when(pl.col("Elevation_m") > 300)
@@ -154,7 +155,9 @@ environment_df = (environment_original
                                 .otherwise(False)
                                 .alias("high_elev")
                                 )
-                  .with_columns(pl.when((pl.col("high_elev")) & (pl.col("LandscapeType") == 'Hill Mountain'))
+                  .with_columns(pl.when(pl.col("PlotDescription").str.contains("coastal plain"))
+                                .then(pl.lit("coastal plain"))
+                                .when((pl.col("high_elev")) & (pl.col("LandscapeType") == 'Hill Mountain'))
                                 .then(pl.lit("mountain"))
                                 .when((~pl.col("high_elev")) & (pl.col("LandscapeType") == 'Hill Mountain'))
                                 .then(pl.lit("hill"))
@@ -162,7 +165,7 @@ environment_df = (environment_original
                                 .then(pl.lit("floodplain"))
                                 .when(pl.col("LandscapeType") == 'Flat Plain')
                                 .then(pl.lit("plain"))
-                                .otherwise(pl.lit("NULL"))
+                                .otherwise(None)
                                 .alias("geomorphology")
                                 )
 
@@ -173,6 +176,11 @@ environment_df = (environment_original
                                 .str.extract(r"(^[a-z]+\b)")
                                 .alias("physiography")
                                 )
+                  .with_columns(
+    pl.when(pl.col("PlotDescription").str.contains(r"(at|near)\streeline|near upland-alpine transition"))
+    .then(pl.lit("subalpine"))
+    .otherwise(pl.col("physiography"))
+    .alias("physiography"))
 
                   # Classify macrotopography
                   .with_columns(pl.col("LandscapeTypeSecondary").replace(["tread", "riser", "backslope"],
@@ -190,6 +198,8 @@ environment_df = (environment_original
                                 .otherwise(pl.col("macrotopography"))
                                 .alias("macrotopography")
                                 )
+                  # Replace nulls with string literal "NULL" for SQL compatibility
+                  .with_columns(cs.string().replace(None, "NULL"))
                   )
 
 # -------- Prepare Indicator Data --------------------------------------
