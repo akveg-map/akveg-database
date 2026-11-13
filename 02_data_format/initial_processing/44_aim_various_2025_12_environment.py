@@ -7,7 +7,7 @@ designated missing value codes, and performs quality control checks before expor
 AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-11
+Last Updated: 2026-11-13
 Usage: Python 3.13+
 """
 
@@ -144,15 +144,19 @@ environment_df = (environment_original
                                 .alias("site_code"))
                   # Append site visit code using right join to drop any plots not in site visit table
                   .join(visit_original, on="site_code", how="right")
+
+                  # Convert landform columns to lowercase
+                  .with_columns(pl.col(["AlaskaEcotypeClassification", "LandscapeTypeSecondary"]).str.to_lowercase())
+
                   # Classify geomorphology
                   .with_columns(pl.when(pl.col("Elevation_m") > 300)
                                 .then(True)
                                 .otherwise(False)
-                                .alias("mountain")
+                                .alias("high_elev")
                                 )
-                  .with_columns(pl.when((pl.col("mountain")) & (pl.col("LandscapeType") == 'Hill Mountain'))
+                  .with_columns(pl.when((pl.col("high_elev")) & (pl.col("LandscapeType") == 'Hill Mountain'))
                                 .then(pl.lit("mountain"))
-                                .when((~pl.col("mountain")) & (pl.col("LandscapeType") == 'Hill Mountain'))
+                                .when((~pl.col("high_elev")) & (pl.col("LandscapeType") == 'Hill Mountain'))
                                 .then(pl.lit("hill"))
                                 .when(pl.col("LandscapeType") == 'Floodplain Basin')
                                 .then(pl.lit("floodplain"))
@@ -161,13 +165,31 @@ environment_df = (environment_original
                                 .otherwise(pl.lit("NULL"))
                                 .alias("geomorphology")
                                 )
+
                   # Classify physiography
                   # Likely misattributes subalpine plots to upland because ecotype does not differentiate between
                   # upland and subapline
-                  .with_columns(pl.col("AlaskaEcotypeClassification").str.to_lowercase().str.extract(r"(^[a-z]+\b)")
+                  .with_columns(pl.col("AlaskaEcotypeClassification").str.replace("riverine", "riparian", literal=True)
+                                .str.extract(r"(^[a-z]+\b)")
                                 .alias("physiography")
                                 )
-                  .with_columns(pl.col("physiography").str.replace("riverine", "riparian", literal=True))
+
+                  # Classify macrotopography
+                  .with_columns(pl.col("LandscapeTypeSecondary").replace(["tread", "riser", "backslope"],
+                                                                         [None, None, "slope"])
+                                .alias("macrotopography"))
+                  .with_columns(pl.col("VerticalSlopeShape").replace(old="linear", new="planar")
+                                .alias("VerticalSlopeShape"))
+                  .with_columns(pl.when(pl.col("macrotopography") == "slope")
+                                .then(pl.concat_str([pl.col("macrotopography"), pl.col("VerticalSlopeShape")],
+                                                    separator=" "))
+                                .when(pl.col("LandscapeType") == "Alluvial Fan")
+                                .then(pl.lit("alluvial fan"))
+                                .when(pl.col("LandscapeType") == "Terrace")
+                                .then(pl.lit("terrace"))
+                                .otherwise(pl.col("macrotopography"))
+                                .alias("macrotopography")
+                                )
                   )
 
 # -------- Prepare Indicator Data --------------------------------------
@@ -180,24 +202,6 @@ indicators_df = indicators_original.with_columns(pl.when(pl.col("Line and Positi
                                                  .otherwise(pl.col("Line and Position"))
                                                  .alias("Line and Position")
                                                  )
-
-# -------- Classify Macrotopography ------------------------------------
-environment_table.LandscapeTypeSecondary.value_counts()
-
-conditions = [environment_table['LandscapeType'] == 'Alluvial Fan',
-              environment_table['LandscapeType'] == 'Terrace',
-              environment_table['LandscapeTypeSecondary'] == 'Shoulder',
-              environment_table['LandscapeTypeSecondary'] == 'Summit',
-              (environment_table['LandscapeTypeSecondary'] == 'Backslope') & (
-                      environment_table['VerticalSlopeShape'] == 'linear'),
-              (environment_table['LandscapeTypeSecondary'] == 'Backslope') & (
-                      environment_table['VerticalSlopeShape'] == 'concave'),
-              (environment_table['LandscapeTypeSecondary'] == 'Backslope') & (
-                      environment_table['VerticalSlopeShape'] == 'convex')]
-choices = ['alluvial fan', 'terrace', 'ridge', 'summit', 'slope planar', 'slope concave', 'slope convex']
-environment_table['macrotopography'] = np.select(conditions, choices, default='NULL')
-
-freq_table = pd.crosstab(environment_table['LandscapeTypeSecondary'], environment_table['macrotopography'])
 
 # -------- Classify Microtopography ------------------------------------
 # Relevant information was interpreted from plot description narrative; likely to be some errors.
