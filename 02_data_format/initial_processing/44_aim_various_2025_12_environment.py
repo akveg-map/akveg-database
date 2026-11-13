@@ -150,16 +150,9 @@ environment_df = (environment_original
                                         "PlotDescription"]).str.to_lowercase())
 
                   # Classify geomorphology
-                  .with_columns(pl.when(pl.col("Elevation_m") > 300)
-                                .then(True)
-                                .otherwise(False)
-                                .alias("high_elev")
-                                )
-                  .with_columns(pl.when(pl.col("PlotDescription").str.contains("coastal plain"))
+                  .with_columns(pl.when(pl.col("PlotDescription").str.contains("coastal plain", literal=True))
                                 .then(pl.lit("coastal plain"))
-                                .when((pl.col("high_elev")) & (pl.col("LandscapeType") == 'Hill Mountain'))
-                                .then(pl.lit("mountain"))
-                                .when((~pl.col("high_elev")) & (pl.col("LandscapeType") == 'Hill Mountain'))
+                                .when((pl.col("Elevation_m") <= 300) & (pl.col("LandscapeType") == 'Hill Mountain'))
                                 .then(pl.lit("hill"))
                                 .when(pl.col("LandscapeType") == 'Floodplain Basin')
                                 .then(pl.lit("floodplain"))
