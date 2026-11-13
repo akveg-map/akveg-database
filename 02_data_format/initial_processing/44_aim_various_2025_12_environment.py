@@ -191,6 +191,11 @@ environment_df = (environment_original
                                 .otherwise(pl.col("macrotopography"))
                                 .alias("macrotopography")
                                 )
+
+                  # Create blank "microtopography" column
+                  # Microtopography data would have to be parsed from notes (PlotDescription column)
+                  .with_columns(pl.lit(None).cast(pl.String).alias("microtopography"))
+
                   # Replace nulls with string literal "NULL" for SQL compatibility
                   .with_columns(cs.string().replace(None, "NULL"))
                   )
@@ -205,43 +210,6 @@ indicators_df = indicators_original.with_columns(pl.when(pl.col("Line and Positi
                                                  .otherwise(pl.col("Line and Position"))
                                                  .alias("Line and Position")
                                                  )
-
-# -------- Classify Microtopography ------------------------------------
-# Relevant information was interpreted from plot description narrative; likely to be some errors.
-
-conditions = [environment_table['site_code'] == 'RW_22098',
-              environment_table['site_code'] == 'WNTR_205',
-              environment_table['site_code'] == 'WNTR_208',
-              environment_table['site_code'] == 'SMR_005',
-              environment_table['site_code'] == 'RW_22473',
-              environment_table['site_code'] == 'WNTR_204',
-              environment_table['site_code'] == 'SMR_001',
-              environment_table['site_code'] == 'WNTR_215',
-              environment_table['site_code'] == 'SMR_008',
-              environment_table['site_code'] == 'SMR_002',
-              environment_table['site_code'] == 'WNTR_213',
-              environment_table['site_code'] == 'RW_22136',
-              environment_table['site_code'] == 'RW_22072',
-              environment_table['site_code'] == 'RW_22477',
-              environment_table['site_code'] == 'West_SMR_010',
-              environment_table['site_code'] == 'SMR_007',
-              environment_table['site_code'] == 'WNTR_212',
-              environment_table['site_code'] == 'West_WNTR_194',
-              environment_table['site_code'] == 'TW_22964',
-              environment_table['site_code'] == 'RW_22484',
-              environment_table['site_code'] == 'RW_22102',
-              environment_table['site_code'] == 'RW_22489',
-              environment_table['site_code'] == 'WNTR_209',
-              environment_table['site_code'] == 'West_SMR_013',
-              environment_table['site_code'] == 'SMR_003']
-
-choices = ['hummocks', 'boulder field', 'talus', 'mounds', 'solifluction lobes', 'ice-cored mounds', 'mounds', 'mounds',
-           'polygonal', 'polygonal', 'talus', 'boulder field', 'channeled', 'channeled', 'tussocks', 'talus',
-           'boulder field', 'boulder field', 'tussocks', 'talus', 'tussocks', 'hummocks', 'water tracks', 'tussocks',
-           'ponds']
-
-environment_table['microtopography'] = np.select(conditions, choices, default='NULL')
-environment_table.microtopography.unique()
 
 # -------- Classify Drainage -------------------------------------------
 conditions = [environment_table['PlotDescription'].str.contains('saturated'),
