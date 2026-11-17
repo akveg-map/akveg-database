@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # utils.py
 # Author: Amanda Droghini
-# Last Updated: 2026-10-21
+# Last Updated: 2026-11-17
 # ---------------------------------------------------------------------------
 
 """
@@ -529,7 +529,8 @@ def get_valid_values(
         field_mapping: dict = None
 ) -> set:
     """
-    Queries the AKVEG Database to retrieve valid values from a reference table.
+    Queries the AKVEG Database to retrieve valid values from a reference table. Because this function triggers a
+    transaction rollback if the query fails, care must be taken if using it when loading data into a database.
 
     Parameters
     ----------
@@ -575,9 +576,14 @@ def get_valid_values(
 
     # Execute query and extract values as a Set
     values_original = query_to_dataframe(db_connection, query_valid_values.as_string(db_connection))
-    values_set = set(pl.from_pandas(values_original)[target_column].unique())
 
-    return values_set
+    if isinstance(values_original, pd.DataFrame):
+        values_set = set(values_original[target_column].dropna().unique())
+        return values_set
+    # If values_original does not return a DataFrame, reset transaction block and raise an error
+    else:
+        db_connection.rollback()
+        raise ValueError('Query result is invalid. Confirm table name and field name exist in the database.')
 
 
 # --- Function 9 ---
