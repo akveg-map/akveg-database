@@ -29,19 +29,21 @@ one that matches the AKVEG schema), creating missing columns and filling them wi
 12. check_ph_values: Identifies impossible or suspicious pH values.
 """
 
+import os
+from pathlib import Path
+from typing import Literal, Tuple, Union
+
 # Import packages
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import plotly.express as px
-import polars as pl
-import os
-from akutils import connect_database_postgresql
-from akutils import query_to_dataframe
-from typing import Union, Literal, List, Tuple
-from pathlib import Path
-from psycopg2 import sql, extensions
 from plotly.graph_objects import Figure
+import polars as pl
+from psycopg2 import extensions, sql
 from pyproj import CRS
+
+from user_tools.utils_database import query_to_dataframe
 
 # Define file path for the map boundary
 BOUNDARY_PATH = os.path.join("C:/", "ACCS_Work", "Projects", "AKVEG_Map", "Data", "region_data",
