@@ -726,9 +726,9 @@ def check_ph_values(soil_metrics_df: Union[pl.DataFrame, pl.LazyFrame],
     """
 
     invalid_records = (soil_metrics_df.with_columns(
-        flag_impossible = (pl.col(ph_col) <= 0) | (pl.col(ph_col) > 14),
-        flag_very_acidic = (pl.col(ph_col) > 0) & (pl.col(ph_col) < 3.5),
-        flag_very_alkaline = (pl.col(ph_col) > 10.0) & (pl.col(ph_col) <= 14)
+        flag_impossible=(pl.col(ph_col) <= 0) | (pl.col(ph_col) > 14),
+        flag_very_acidic=(pl.col(ph_col) > 0) & (pl.col(ph_col) < 3.5),
+        flag_very_alkaline=(pl.col(ph_col) > 10.0) & (pl.col(ph_col) <= 14)
     ).filter(
         pl.any_horizontal([pl.col("flag_impossible"),
                            pl.col("flag_very_acidic"),
