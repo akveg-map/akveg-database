@@ -7,7 +7,7 @@ designated missing value codes, and performs quality control checks before expor
 AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-13
+Last Updated: 2026-11-17
 Usage: Python 3.13+
 """
 
@@ -192,9 +192,10 @@ environment_df = (environment_original
                                 .alias("macrotopography")
                                 )
 
-                  # Create blank "microtopography" column
-                  # Microtopography data would have to be parsed from notes (PlotDescription column)
-                  .with_columns(pl.lit(None).cast(pl.String).alias("microtopography"))
+                  # Create columns for missing data
+                  # Microtopography and drainage would have to be parsed from notes (PlotDescription column)
+                  .with_columns(pl.lit(None).cast(pl.String).alias("microtopography"),
+                                pl.lit(None).cast(pl.String).alias("drainage"))
 
                   # Replace nulls with string literal "NULL" for SQL compatibility
                   .with_columns(cs.string().replace(None, "NULL"))
@@ -210,23 +211,6 @@ indicators_df = indicators_original.with_columns(pl.when(pl.col("Line and Positi
                                                  .otherwise(pl.col("Line and Position"))
                                                  .alias("Line and Position")
                                                  )
-
-# -------- Classify Drainage -------------------------------------------
-conditions = [environment_table['PlotDescription'].str.contains('saturated'),
-              environment_table['PlotDescription'].str.contains('poorly drained'),
-              environment_table['PlotDescription'].str.contains('very well drained'),
-              environment_table['PlotDescription'].str.contains('excessively drained'),
-              (environment_table['PlotDescription'].str.contains('well drained')) &
-              (environment_table['PitSaturated'] == 'No'),
-              (environment_table['PlotDescription'].str.contains('well-drained')) &
-              (environment_table['PitSaturated'] == 'No'),
-              (environment_table['WaterObserved'] == 'No') &
-              (environment_table['PitSaturated'] == 'No')]
-choices = ['poorly drained', 'poorly drained', 'well drained', 'well drained', 'moderately drained',
-           'moderately drained', 'moderately drained']
-environment_table['drainage'] = np.select(conditions, choices, default='NULL')
-
-environment_table.drainage.value_counts()
 
 # -------- Classify Moisture Regime ------------------------------------
 conditions = [environment_table['HydricIndicatorPrimary'].str.contains('^A\d') == True,
