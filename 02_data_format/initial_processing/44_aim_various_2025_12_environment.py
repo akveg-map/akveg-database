@@ -133,7 +133,13 @@ indicators_merged_dfs = [
 ]
 
 # Concatenate joined tables using "diagonal_relaxed" to combine common columns and coerce mismatched types
-indicators_original = pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
+indicators_original = (pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
+                       # Replace string literal <Null> with null
+                       .with_columns(cs.string().replace(old="<Null>", new=None))
+                       # Cast numeric columns to appropriate data type
+                       .with_columns(pl.col("depth_water_cm").cast(pl.Float64)
+                                     .alias("depth_water_cm"))
+                       )
 
 del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged_dfs
 
