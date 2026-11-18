@@ -220,14 +220,33 @@ environment_df = (environment_original
 
 # -------- Prepare Indicator Data --------------------------------------
 
-# Format "Line and Position" column for 2021 data
-indicators_df = indicators_original.with_columns(pl.when(pl.col("Line and Position").is_null())
-                                                 .then(pl.concat_str([pl.col("Line Number"),
-                                                                      pl.col("Line Position (m)")], separator="_"
-                                                                     ))
-                                                 .otherwise(pl.col("Line and Position"))
-                                                 .alias("Line and Position")
-                                                 )
+# Ensure Plot Key and Evaluation ID are mutually exclusive (they should be, because the 2021 data used "Plot Key" as
+# a unique site visit identifier, while the 2025 data used "Evaluation ID")
+print(indicators_original.select(["Plot Key", "Evaluation ID"]).count(),
+      indicators_original.select(["Plot Key", "Evaluation ID"]).null_count())
+
+indicators_df = (indicators_original
+                 # Coalesce Plot Key and Evaluation ID
+                 .with_columns(pl.coalesce(pl.col(["Plot Key", "Evaluation ID"])
+                                           .alias("plot_key")),
+                               # Convert Notes to lowercase
+                               pl.col("Notes").str.to_lowercase().alias("Notes"))
+                 # Convert "unmeasurable" depth values to null to exclude them from mean calculation
+                 .with_columns(pl.when(pl.col("Notes").str.contains(r"greater.*100"))
+                               .then(None)
+                               .otherwise(pl.col("depth_restrictive_layer_cm"))
+                               .alias("depth_restrictive_layer_cm"))
+                 .with_columns(cs.numeric().replace([-999, 999, 9999], None))
+                 .drop(pl.col(["Plot Key", "Evaluation ID", "GlobalID", "Notes"]))
+                 )
+
+# Ensure that only one moisture regime value exists per site visit
+print(indicators_df.group_by("plot_key").agg(pl.col("moisture_regime").n_unique())
+      .filter(pl.col("moisture_regime") > 1))
+
+# Calculate mean depths and grab first moisture regime value
+indicators_df = indicators_df.group_by("plot_key").agg(cs.numeric().mean(),
+                                                       cs.string().first())
 
 # -------- Classify Moisture Regime ------------------------------------
 conditions = [environment_table['HydricIndicatorPrimary'].str.contains('^A\d') == True,
