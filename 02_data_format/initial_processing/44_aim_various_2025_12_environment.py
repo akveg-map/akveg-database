@@ -7,7 +7,7 @@ designated missing value codes, and performs quality control checks before expor
 AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-17
+Last Updated: 2026-11-18
 Usage: Python 3.13+
 """
 
@@ -108,6 +108,9 @@ subsets_by_year = defaultdict(list)
 for sheet, attribute in excel_dict.items():
     year = attribute["year_end"]
     df = excel_sheets[sheet].select(attribute["cols"]).rename(INDICATORS_RENAME_MAP, strict=False)
+    # Drop rows without a Plot Key (2 site visits)
+    if year == "2021":
+        df = df.remove(pl.col("Plot Key") == "<Null>")
     subsets_by_year[year].append(df)
 
 # Join dataframes of the same year
