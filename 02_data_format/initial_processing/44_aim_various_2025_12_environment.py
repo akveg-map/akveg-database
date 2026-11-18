@@ -108,16 +108,24 @@ subsets_by_year = defaultdict(list)
 for sheet, attribute in excel_dict.items():
     year = attribute["year_end"]
     df = excel_sheets[sheet].select(attribute["cols"]).rename(INDICATORS_RENAME_MAP, strict=False)
-    # Drop rows without a Plot Key (2 site visits)
+    # Drop rows without a Plot Key (2 site visits) in 2021 data
     if year == "2021":
         df = df.remove(pl.col("Plot Key") == "<Null>")
+    # Combine multiple moisture regime entries into a single row per site visit (moisture regime was taken at each
+    # line in 2021)
+    if sheet == "MossActiveLayer 2021":
+        df = (df.group_by(pl.col("Plot Key"))
+              .agg(pl.col("moisture_regime").drop_nulls().unique().str.join(delimiter=", ")))
+    # Drop site visits with same Evaluation ID (but different Global ID); measurements cannot be reconciled to unique ID
+    if sheet == "MossActiveLayer 2022-25":
+        df = df.unique(subset=pl.col("Evaluation ID"), keep="none")
     subsets_by_year[year].append(df)
 
 # Join dataframes of the same year
 year_join_keys = {"2021": "Plot Key",
                   "2025": "GlobalID"}
 
-# Test with how="full" first in case some plots are not present in the "metadata" sheets
+# Use left join to drop measurements associated with duplicate Evaluation ID
 indicators_merged_dfs = [
     reduce(lambda left, right: left.join(right, on=year_join_keys[year], how="left"),
            df_list)
