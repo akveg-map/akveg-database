@@ -88,7 +88,7 @@ del gdb_dict, environment_layers
 # -------- Load Excel Sheets -------------------------------------------
 excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key", "Overall Site Moisture Regime"],
                                        "year_end": "2021"},
-              "MossActiveLayer_Details 2021": {"cols": ["Plot Key", "Line Number", "Line Position (m)",
+              "MossActiveLayer_Details 2021": {"cols": ["Plot Key",
                                                         "Moss/Duff Thickness (cm)", "Depth of Water (cm)",
                                                         "Depth Soil to ActiveLayer (cm)", "Notes"],
                                                "year_end": "2021"},
@@ -96,7 +96,7 @@ excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key",
                                           "year_end": "2025"},
               "MossActiveLayer_Details 2023-25": {"cols": ["parentglobalid", "Moss/Duff Thickness (cm)",
                                                            "Depth of Water (cm)", "Depth Soil to ActiveLayer (cm)",
-                                                           "Notes", "Line and Position", "Rock Present"],
+                                                           "Notes"],
                                                   "year_end": "2025"}
               }
 
