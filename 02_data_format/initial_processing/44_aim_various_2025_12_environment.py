@@ -7,7 +7,7 @@ designated missing value codes, and performs quality control checks before expor
 AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-18
+Last Updated: 2026-11-19
 Usage: Python 3.13+
 """
 
@@ -39,6 +39,8 @@ INDICATORS_RENAME_MAP = {"Overall Site Moisture Regime": "moisture_regime",
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 indicators_input = plot_folder / "source" / "AK_Moss_and_Active_Layer_23Jan2026.xlsx"
+moisture_crosswalk_input = (paths.repository / "02_data_format" / "crosswalks" /
+                            "44_aim_various_2025_moisture_regime.csv")
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 credentials_input = paths.cloud_assets.credentials
 
@@ -146,6 +148,7 @@ del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged
 # -------- Load Remaining Data -----------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 template = get_template("environment")
+moisture_lookup = pl.read_csv(moisture_crosswalk_input)
 
 # -------- Prepare Environment Data ------------------------------------
 
@@ -218,7 +221,7 @@ environment_df = (environment_original
                   .with_columns(cs.string().replace(None, "NULL"))
                   )
 
-# -------- Prepare Indicator Data --------------------------------------
+# -------- Prepare Indicator Data (Depths & Moisture) ------------------
 
 # Ensure Plot Key and Evaluation ID are mutually exclusive (they should be, because the 2021 data used "Plot Key" as
 # a unique site visit identifier, while the 2025 data used "Evaluation ID")
@@ -244,15 +247,14 @@ indicators_df = (indicators_original
 print(indicators_df.group_by("plot_key").agg(pl.col("moisture_regime").n_unique())
       .filter(pl.col("moisture_regime") > 1))
 
-# Calculate mean depths and grab first moisture regime value
-indicators_df = indicators_df.group_by("plot_key").agg(cs.numeric().mean(),
-                                                       cs.string().first())
+# Calculate mean depths and grab first moisture regime value (all values at a site visit are the same)
+indicators_df = (indicators_df.group_by("plot_key").agg(cs.numeric().mean(),
+                                                        cs.string().first())
+                 .rename({"moisture_regime": "original_values"})
+                 .join(moisture_lookup, how="left", on="original_values"))
 
-# -------- Classify Moisture Regime ------------------------------------
-conditions = [environment_table['HydricIndicatorPrimary'].str.contains('^A\d') == True,
-              environment_table['site_code'] == 'RW_22104']
-choices = ['hydric', 'hydric']
-environment_table['moisture_regime'] = np.select(conditions, choices, default='NULL')
+# Ensure that original and re-class moisture columns have the same number of nulls
+print(indicators_df.select(["original_values", "moisture_regime"]).null_count())
 
 ## Classify disturbance
 environment_table.Disturbance.value_counts()
