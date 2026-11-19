@@ -1,0 +1,12 @@
+original_values,moisture_regime
+hygric,hygric
+hygric-hydric,hydric-hygric heterogenous
+"mesic-hygric, hygric",hygric-mesic heterogenous
+"hydric, hygric",hydric-hygric heterogenous
+"hygric, mesic-hygric",hygric-mesic heterogenous
+hydric-aquatic,aquatic-hydric heterogenous
+hydric,hydric
+mesic,mesic
+"hygric-hydric, hygric",hydric-hygric heterogenous
+"hygric, mesic",hygric-mesic heterogenous
+mesic-hygric,hygric-mesic heterogenous
