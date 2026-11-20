@@ -7,7 +7,7 @@ designated missing value codes, and performs quality control checks before expor
 AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-19
+Last Updated: 2026-11-20
 Usage: Python 3.13+
 """
 
@@ -34,15 +34,23 @@ INDICATORS_RENAME_MAP = {"Overall Site Moisture Regime": "moisture_regime",
                          "Depth Soil to ActiveLayer (cm)": "depth_restrictive_layer_cm",
                          "parentglobalid": "GlobalID"
                          }
+SEVERITY_MAPPING = {0: None,
+                    1: "low",
+                    2: "moderate",
+                    3: "high",
+                    4: "high"
+                    }
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 indicators_input = plot_folder / "source" / "AK_Moss_and_Active_Layer_23Jan2026.xlsx"
-moisture_crosswalk_input = (paths.repository / "02_data_format" / "crosswalks" /
-                            "44_aim_various_2025_moisture_regime.csv")
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 credentials_input = paths.cloud_assets.credentials
+
+# Define crosswalk inputs
+moisture_input = paths.repository / "02_data_format" / "crosswalks" / "44_aim_various_2025_moisture_regime.csv"
+disturbance_input = paths.repository / "02_data_format" / "crosswalks" / "44_aim_various_2025_disturbance.csv"
 
 # Define output
 envr_output = plot_folder / '12_environment_aimvarious2025.csv'
@@ -64,8 +72,8 @@ gdb_dict = {
     # Disturbance metadata
     "AIM_Wetland__F_NaturalandHumanDisturbances": ['EvaluationID', 'DisturbancesObserved'],
     # Disturbance data
-    "AIM_Wetland__F_DisturbancesDetail": ['EvaluationID', 'Disturbance', 'OtherDisturbance', 'MonitoringPlotScope',
-                                          'MonitoringPlotDegree', 'DisturbanceComment'],
+    "AIM_Wetland__F_DisturbancesDetail": ['EvaluationID', 'Disturbance', 'OtherDisturbance',
+                                          'MonitoringPlotScope', 'MonitoringPlotDegree', 'DisturbanceComment'],
     # Hydrology data
     "AIM_Wetland__F_Hydrology": ['EvaluationID', 'PermafrostInfluence', 'DepthActiveLayer', 'SurfaceWaterPresent',
                                  'SurfaceWaterDepth']
@@ -148,7 +156,8 @@ del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged
 # -------- Load Remaining Data -----------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
 template = get_template("environment")
-moisture_lookup = pl.read_csv(moisture_crosswalk_input)
+moisture_crosswalk = pl.read_csv(moisture_input)
+disturbance_crosswalk = pl.read_csv(disturbance_input)
 
 # -------- Prepare Environment Data ------------------------------------
 
@@ -158,25 +167,98 @@ print(environment_original.select("AlaskaEcotypeClassification").unique())
 environment_df = (environment_original
                   # Replace whitespaces with nulls
                   .with_columns(cs.string().str.strip_chars().replace("", None))
+                  # Convert string columns to lowercase (except for Evaluation ID
+                  .with_columns(cs.string().exclude("EvaluationID").str.to_lowercase())
                   # Format site code
                   .with_columns(pl.col("EvaluationID")
                                 .str.extract(r"^(.*)_")
                                 .alias("site_code"))
                   # Append site visit code using right join to drop any plots not in site visit table
-                  .join(visit_original, on="site_code", how="right")
+                  .join(visit_original, on="site_code", how="right"))
 
-                  # Convert landform columns to lowercase
-                  .with_columns(pl.col(["AlaskaEcotypeClassification", "LandscapeTypeSecondary",
-                                        "PlotDescription"]).str.to_lowercase())
+# -------- Classify Disturbance ------------------------------------
 
+# Begin with disturbance because the disturbance table introduces duplicates in the merged environment table (can
+# have >1 disturbance entry per site visit)
+
+# Examine Scope values to ensure that 5_Present is absent
+print(environment_df.select("MonitoringPlotScope").unique())
+
+temp = (environment_df
+        # Extract numeric part of the severity scale
+        .with_columns(pl.col("MonitoringPlotScope", "MonitoringPlotDegree").str.extract(r"(^\d)")
+                      .cast(pl.Int64)
+                      )
+        # Calculate total disturbance score (scope + degree)
+        .with_columns(pl.when(pl.all_horizontal(pl.col("MonitoringPlotScope", "MonitoringPlotDegree").is_null()))
+                      .then(None)
+                      .otherwise(pl.sum_horizontal("MonitoringPlotScope", "MonitoringPlotDegree"))
+                      .alias("total_severity")
+                      )
+        # Keep the entry associated with the largest total severity (highest score)
+        .sort(by=["site_visit_code", "total_severity"], descending=[False, True], nulls_last=True)
+        .unique(subset=["site_visit_code"], keep="first")
+        # Classify severity
+        .with_columns(pl.col("MonitoringPlotDegree").replace_strict(SEVERITY_MAPPING).alias("disturbance_severity"))
+        # Combine Disturbance and OtherDisturbance values into a single column
+        .with_columns(pl.col("Disturbance").replace(old="other", new=None).alias("Disturbance")
+                      )
+        .with_columns(pl.coalesce("Disturbance", "OtherDisturbance").str.strip_suffix(".")
+                      .alias("original_disturbance"))
+        # Join with disturbance crosswalk to map original disturbance values onto AKVEG Database Dictionary
+        .join(disturbance_crosswalk, how="left", on="original_disturbance")
+        # Fill in ambiguous values
+        .with_columns(pl.when(pl.col("DisturbanceComment").str.contains("historical winter trail"))
+                      .then(pl.lit("historic anthropogenic"))
+                      .when((pl.col("Disturbance") == "recreation") &
+                            (pl.col("DisturbanceComment").str.contains("apparent winter trail|hiking trail")))
+                      .then(pl.lit("trail"))
+                      .when((pl.col("Disturbance") == "recreation") &
+                            (pl.col("DisturbanceComment").str.contains("atv trail")))
+                      .then(pl.lit("ATV use"))
+                      .when(pl.col("original_disturbance") == "snow/ice road/pad disturbance")
+                      .then(pl.lit("ATV use"))  # Based on DisturbanceComment
+                      # Re-classify "soil disturbance animals"
+                      .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                            (pl.col("DisturbanceComment").str.contains("trail")))
+                      .then(pl.lit("wildlife trails"))
+                      .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                            (pl.col("DisturbanceComment").str.contains("burrow|digging")))
+                      .then(pl.lit("wildlife digging"))
+                      .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                            (pl.col("DisturbanceComment").str.contains(r"caribou|forage")))
+                      .then(pl.lit("wildlife foraging"))
+                      .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                            (pl.col("DisturbanceComment").str.contains(r"trample|moose tracks and disturbed soil")))
+                      .then(pl.lit("wildlife trampling"))
+                      .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                            (pl.col("total_severity") <= 2))
+                      .then(pl.lit("none"))
+                      .otherwise(pl.col("disturbance"))
+                      .alias("disturbance")
+                      )
+        # Assign "none" when no disturbance was observed or when total severity is 0 (disturbances were outside plot)
+        .with_columns(pl.when((pl.col("total_severity") == 0) | (pl.col("DisturbancesObserved") == "no"))
+                      .then(pl.lit("none"))
+                      .otherwise(pl.col("disturbance"))
+                      .alias("disturbance")
+                      )
+        )
+
+# Explore any remaining null values
+print(environment_df.select("disturbance").null_count())
+
+# -------- Classify Landforms ------------------------------------
+
+environment_df = (environment_df
                   # Classify geomorphology
                   .with_columns(pl.when(pl.col("PlotDescription").str.contains("coastal plain", literal=True))
                                 .then(pl.lit("coastal plain"))
-                                .when((pl.col("Elevation_m") <= 300) & (pl.col("LandscapeType") == 'Hill Mountain'))
+                                .when((pl.col("Elevation_m") <= 300) & (pl.col("LandscapeType") == 'hill mountain'))
                                 .then(pl.lit("hill"))
-                                .when(pl.col("LandscapeType") == 'Floodplain Basin')
+                                .when(pl.col("LandscapeType") == 'floodplain basin')
                                 .then(pl.lit("floodplain"))
-                                .when(pl.col("LandscapeType") == 'Flat Plain')
+                                .when((pl.col("LandscapeType") == 'flat plain') & (pl.col("Slope") <= 8))
                                 .then(pl.lit("plain"))
                                 .otherwise(None)
                                 .alias("geomorphology")
@@ -195,7 +277,7 @@ environment_df = (environment_original
     .otherwise(pl.col("physiography"))
     .alias("physiography"))
 
-                  # Classify macrotopography
+                  # Classify macrotopography (no changes made to alluvial fan or terrace)
                   .with_columns(pl.col("LandscapeTypeSecondary").replace(["tread", "riser", "backslope"],
                                                                          [None, None, "slope"])
                                 .alias("macrotopography"))
@@ -204,19 +286,17 @@ environment_df = (environment_original
                   .with_columns(pl.when(pl.col("macrotopography") == "slope")
                                 .then(pl.concat_str([pl.col("macrotopography"), pl.col("VerticalSlopeShape")],
                                                     separator=" "))
-                                .when(pl.col("LandscapeType") == "Alluvial Fan")
-                                .then(pl.lit("alluvial fan"))
-                                .when(pl.col("LandscapeType") == "Terrace")
-                                .then(pl.lit("terrace"))
                                 .otherwise(pl.col("macrotopography"))
                                 .alias("macrotopography")
                                 )
 
+                  # Classify disturbance
+
                   # Create columns for missing data
                   # Microtopography and drainage would have to be parsed from notes (PlotDescription column)
                   .with_columns(pl.lit(None).cast(pl.String).alias("microtopography"),
-                                pl.lit(None).cast(pl.String).alias("drainage"))
-
+                                pl.lit(None).cast(pl.String).alias("drainage"),
+                                pl.lit("-999").cast(pl.Int16).alias("disturbance_time_y"))
                   # Replace nulls with string literal "NULL" for SQL compatibility
                   .with_columns(cs.string().replace(None, "NULL"))
                   )
@@ -251,57 +331,10 @@ print(indicators_df.group_by("plot_key").agg(pl.col("moisture_regime").n_unique(
 indicators_df = (indicators_df.group_by("plot_key").agg(cs.numeric().mean(),
                                                         cs.string().first())
                  .rename({"moisture_regime": "original_values"})
-                 .join(moisture_lookup, how="left", on="original_values"))
+                 .join(moisture_crosswalk, how="left", on="original_values"))
 
 # Ensure that original and re-class moisture columns have the same number of nulls
 print(indicators_df.select(["original_values", "moisture_regime"]).null_count())
-
-## Classify disturbance
-environment_table.Disturbance.value_counts()
-
-conditions = [environment_table['DisturbancesObserved'] == 'No',
-              environment_table['site_code'] == 'RW_22481',
-              environment_table['Disturbance'] == 'Recent Fire',
-              environment_table['Disturbance'] == 'Grazing',
-              environment_table['Disturbance'] == 'Erosion',
-              environment_table['Disturbance'] == 'Recent Flood',
-              environment_table['site_code'] == 'SMR_004',
-              environment_table['site_code'] == 'RW_22136',
-              environment_table['Disturbance'] == 'Soil Disturbance Animals',
-              environment_table['OtherDisturbance'].str.contains('thermokarst|frost|cryoturbation') == True,
-              environment_table['OtherDisturbance'].str.contains('colluvium') == True,
-              environment_table['site_code'] == 'West_WNTR_194',
-              environment_table['OtherDisturbance'].str.contains('burrow|warren') == True]
-choices = ['none', 'none', 'fire', 'wildlife foraging', 'aeolian process', 'riparian', 'none',
-           'wildlife trails', 'wildlife trampling', 'permafrost dynamics', 'geomorphic process', 'wildlife digging',
-           'wildlife digging']
-environment_table['disturbance'] = np.select(conditions, choices, default='NULL')
-
-# 25 sites should have 'none' listed; no null values
-environment_table['disturbance'].value_counts()
-freq_table = pd.crosstab(environment_table['Disturbance'], environment_table['disturbance'])
-
-## Classify disturbance severity
-environment_table.MonitoringPlotDegree.value_counts()
-environment_table.MonitoringPlotDegree.isna().sum()
-conditions = [environment_table['MonitoringPlotDegree'] == '4_Extreme',
-              environment_table['MonitoringPlotDegree'] == '3_Serious',
-              environment_table['MonitoringPlotDegree'] == '2_Moderate',
-              environment_table['MonitoringPlotDegree'] == '1_Slight',
-              environment_table['site_code'] == 'West_WNTR_194',
-              environment_table['MonitoringPlotDegree'] == '0_Absent']
-choices = ['high', 'high', 'moderate', 'low', 'low', 'NULL']
-environment_table['disturbance_severity'] = np.select(conditions, choices, default='NULL')
-
-# 25 sites should have a null value (no disturbance observed)
-environment_table['disturbance_severity'].value_counts()
-
-## Classify time since disturbance
-# Fire and flooding sites indicated as 'recent', consider all other disturbances as recent
-environment_table['disturbance_time_y'] = np.where(environment_table['disturbance'] == 'none', -999, 0)
-
-# 25 sites should have a value of -999 (no disturbance observed)
-environment_table['disturbance_time_y'].value_counts()
 
 ## Format surface water
 environment_table['surface_water'] = np.where(environment_table['SurfaceWaterPresent'] == 'Yes', 'TRUE',
