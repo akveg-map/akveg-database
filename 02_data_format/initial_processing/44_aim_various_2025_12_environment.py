@@ -407,7 +407,7 @@ indicators = (indicators_original
                                .otherwise(pl.col("depth_restrictive_layer_cm"))
                                .alias("depth_restrictive_layer_cm"))
                  .with_columns(cs.numeric().replace([-999, 999, 9999], None))
-                 .drop(pl.col(["Plot Key", "Evaluation ID", "GlobalID", "Notes"]))
+                 .drop(["Plot Key", "Evaluation ID", "GlobalID", "Notes"])
                  )
 
 # Ensure that only one moisture regime value exists per site visit
