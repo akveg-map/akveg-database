@@ -474,10 +474,6 @@ environment_table = pd.merge(environment_table, texture_40cm, 'left', on='site_v
 # Replace NaN with appropriate null value
 environment_table.dominant_texture_40_cm.fillna(value='NULL', inplace=True)
 
-## Populate remaining columns with appropriate null values
-environment_final = environment_table.assign(depth_moss_duff_cm=-999,
-                                             soil_class='NULL')
-
 ## Drop all columns that aren't in the template and reorder them to match data entry template
 environment_final = environment_final[template.columns]
 
