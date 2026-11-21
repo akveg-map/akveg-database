@@ -19,7 +19,6 @@ import geopandas as gpd
 import polars as pl
 import polars.selectors as cs
 
-from user_tools.utils_database import connect_database_postgresql
 from user_tools.utils_init import load_system_paths
 from utils.utils import get_template
 
@@ -82,17 +81,12 @@ plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 indicators_input = plot_folder / "source" / "AK_Moss_and_Active_Layer_23Jan2026.xlsx"
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
-credentials_input = paths.cloud_assets.credentials
-
 # Define crosswalk inputs
 moisture_input = paths.repository / "02_data_format" / "crosswalks" / "44_aim_various_2025_moisture_regime.csv"
 disturbance_input = paths.repository / "02_data_format" / "crosswalks" / "44_aim_various_2025_disturbance.csv"
 
 # Define output
 envr_output = plot_folder / '12_environment_aimvarious2025.csv'
-
-# Connect to AKVEG Database
-db_conn = connect_database_postgresql(credentials_input)
 
 # -------- Load CSV Files -----------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
@@ -513,6 +507,3 @@ environment_table.site_visit_code.isna().sum()
 
 # -------- Export Data -------------------------------------------------
 environment_final.to_csv(environment_table_output, index=False, encoding='UTF-8')
-
-# -------- Close Database Connection -----------------------------------
-db_conn.close()
