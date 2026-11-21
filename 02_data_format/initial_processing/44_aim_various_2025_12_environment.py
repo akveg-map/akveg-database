@@ -7,7 +7,7 @@ designated missing value codes, and performs quality control checks before expor
 AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-20
+Last Updated: 2026-11-21
 Usage: Python 3.13+
 """
 
@@ -60,40 +60,54 @@ db_conn = connect_database_postgresql(credentials_input)
 
 # -------- Load Shapefiles ---------------------------------------------
 
-# Define dictionary (key: layer name, values: column names) for shapefiles in GeoDatabase
+# Define nested dictionary (key: layer name, values: column names) for shapefiles in GeoDatabase
+# Separate source data tables by theme and by relational type e.g., DisturbancesDetail has >1 entry for each
+# EvaluationID; combining it with a one-to-one table like PlotCharacterization makes it harder to handle duplicates
 gdb_dict = {
-    # Site metadata
-    "AIM_Wetland__F_PlotCharacterization": ['EvaluationID', 'Elevation_m', 'Slope', 'AlaskaEcotypeClassification',
-                                            'LandscapeType', 'LandscapeTypeSecondary', 'VerticalSlopeShape',
-                                            'PlotDescription'],
+    # Site & hdrology data
+    "site_hydrology": {
+        "AIM_Wetland__F_PlotCharacterization": ['EvaluationID', 'Elevation_m', 'Slope', 'AlaskaEcotypeClassification',
+                                                'LandscapeType', 'LandscapeTypeSecondary', 'VerticalSlopeShape',
+                                                'PlotDescription'],
+
+        "AIM_Wetland__F_Hydrology": ['EvaluationID', 'PermafrostInfluence', 'DepthActiveLayer', 'SurfaceWaterPresent',
+                                     'SurfaceWaterDepth']
+    },
     # Soil horizons
-    "AIM_Wetland__F_Soils": ['EvaluationID', 'PitImpenetrable', 'ImpenetrableDescrip', 'WaterObserved', 'WaterDepth',
-                             'PitSaturated', 'DepthToSatSoil', 'HydricIndicatorPrimary', 'HydricIndicatorSecondary'],
-    # Disturbance metadata
-    "AIM_Wetland__F_NaturalandHumanDisturbances": ['EvaluationID', 'DisturbancesObserved'],
+    "soil_horizons": {
+        "AIM_Wetland__F_Soils": ['EvaluationID', 'PitImpenetrable', 'ImpenetrableDescrip', 'WaterObserved',
+                                 'WaterDepth',
+                                 'PitSaturated', 'DepthToSatSoil', 'HydricIndicatorPrimary', 'HydricIndicatorSecondary']
+    },
     # Disturbance data
-    "AIM_Wetland__F_DisturbancesDetail": ['EvaluationID', 'Disturbance', 'OtherDisturbance',
-                                          'MonitoringPlotScope', 'MonitoringPlotDegree', 'DisturbanceComment'],
-    # Hydrology data
-    "AIM_Wetland__F_Hydrology": ['EvaluationID', 'PermafrostInfluence', 'DepthActiveLayer', 'SurfaceWaterPresent',
-                                 'SurfaceWaterDepth']
+    "disturbance": {
+        "AIM_Wetland__F_NaturalandHumanDisturbances": ['EvaluationID', 'DisturbancesObserved'],
+        "AIM_Wetland__F_DisturbancesDetail": ['EvaluationID', 'Disturbance', 'OtherDisturbance',
+                                              'MonitoringPlotScope', 'MonitoringPlotDegree', 'DisturbanceComment']
+    }
 }
 
 # Use dictionary comprehension to iteratively load shapefiles as DataFrames
 environment_layers = {
-    layer_name: pl.from_pandas(gpd.read_file(gdb_input, layer=layer_name, columns=cols, ignore_geometry=True))
-    for layer_name, cols in gdb_dict.items()
+    group: {
+        layer_name: pl.from_pandas(gpd.read_file(gdb_input, layer=layer_name, columns=cols, ignore_geometry=True))
+        for layer_name, cols in layers.items()
+    }
+    for group, layers in gdb_dict.items()
 }
 
 # Use reduce to sequentially join DataFrames across the list
-# AIM_Wetland__F_PlotCharacterization must be the first DataFrame in the list for left join to work (otherwise a full
-# join is needed)
-environment_original = reduce(
-    lambda left, right: left.join(right, on="EvaluationID", how="left"),
-    list(environment_layers.values())
-)
+# Ensure appropriate order (metadata first, data second) for left join to work (otherwise use full join)
+environment_original = {
+    group: reduce(lambda left, right: left.join(right, on="EvaluationID", how="left"),
+                  layers.values())
+    for group, layers in environment_layers.items()
+}
 
-del gdb_dict, environment_layers
+# Unpack dictionary into three DataFrames
+hydrology_original, horizons_original, disturbance_original = environment_original.values()
+
+del gdb_dict, environment_layers, environment_original
 
 # -------- Load Excel Sheets -------------------------------------------
 excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key", "Overall Site Moisture Regime"],
@@ -195,7 +209,7 @@ environment_df = (environment_df
     .then(None)
     .otherwise(pl.sum_horizontal("MonitoringPlotScope", "MonitoringPlotDegree"))
     .alias("total_severity")
-    )
+)
                   # Keep the entry associated with the largest total severity (highest score)
                   .sort(by=["site_visit_code", "total_severity"], descending=[False, True], nulls_last=True)
                   .unique(subset=["site_visit_code"], keep="first")
