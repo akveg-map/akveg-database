@@ -417,8 +417,10 @@ print(indicators.group_by("plot_key").agg(pl.col("moisture_regime").n_unique())
 # Calculate mean depths and grab first moisture regime value (all values at a site visit are the same)
 indicators = (indicators.group_by("plot_key").agg(cs.numeric().mean().cast(pl.Decimal(4,1)),
                                                         cs.string().first())
-                 .rename({"moisture_regime": "original_values"})
-                 .join(moisture_crosswalk, how="left", on="original_values"))
+                 .rename({"moisture_regime": "original_values"}))
+
+# Join with moisture crosswalk to map old moisture values onto AKVEG Database Dictionary values
+indicators = indicators.join(moisture_crosswalk, how="left", on="original_values")
 
 # Ensure that original and re-class moisture columns have the same number of nulls
 print(indicators.select(["original_values", "moisture_regime"]).null_count())
