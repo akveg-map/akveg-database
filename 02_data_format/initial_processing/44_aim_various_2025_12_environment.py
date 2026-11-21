@@ -343,23 +343,25 @@ hydrology = hydrology.with_columns(pl.col("SurfaceWaterPresent")
                                    .alias("surface_water")
                                    )
 
-## Format water depth
-# If surface water is present, note surface water depth. Take average of range listed on page 50 of the BLM's Wetland
-# Field Protocols.
-# Otherwise, note groundwater depth
-# -999 for null values
-environment_table['WaterDepth'].describe()
-environment_table['SurfaceWaterDepth'].unique()
+# Classify water depth
+# For plots with surface water, take midpoint of range
+print(hydrology_original.select("SurfaceWaterDepth").unique())
+print(hydrology.filter(pl.col("surface_water") == "FALSE").select("SurfaceWaterDepth").unique())  # Ensure only null
 
-conditions = [environment_table['SurfaceWaterDepth'] == '2_10',
-              environment_table['SurfaceWaterDepth'] == '10_20',
-              environment_table['SurfaceWaterDepth'] == '0_1',
-              environment_table['SurfaceWaterDepth'] == '20_30',
-              (pd.isna(environment_table['SurfaceWaterDepth']) == True) &
-              (pd.isna(environment_table['WaterDepth']) == True)]
-choices = [6, 15, 1, 25, -999]
-environment_table['depth_water_cm'] = np.select(conditions, choices,
-                                                default=environment_table['WaterDepth'])
+hydrology = (hydrology.with_columns(pl.col("SurfaceWaterDepth")
+                                   .str.split_exact("_", 1)
+                                   .struct.rename_fields(["lower_range", "upper_range"])
+                                   .cast(pl.Int64)
+                                   .alias("fields")
+                                   )
+             .unnest("fields")
+             .with_columns(pl.when(pl.all_horizontal(pl.col("lower_range",
+                                                            "upper_range").is_null()))
+                           .then(pl.lit(-999))
+                           .otherwise(pl.mean_horizontal("lower_range", "upper_range"))
+                           .alias("depth_water_cm")
+                           )
+             )
 
 # Create columns for missing data; microtopo and drainage would have to be parsed from PlotDescription
 hydrology = hydrology.with_columns(pl.lit(None).cast(pl.String).alias("microtopography"),
