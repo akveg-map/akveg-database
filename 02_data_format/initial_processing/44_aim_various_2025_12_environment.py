@@ -192,14 +192,14 @@ year_join_keys = {"2021": "Plot Key",
                   "2025": "GlobalID"}
 
 # Use left join to drop measurements associated with duplicate Evaluation ID
-indicators_merged_dfs = [
+indicators_merged = [
     reduce(lambda left, right: left.join(right, on=year_join_keys[year], how="left"),
            df_list)
     for year, df_list in subsets_by_year.items()
 ]
 
 # Concatenate joined tables using "diagonal_relaxed" to combine common columns and coerce mismatched types
-indicators_original = (pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
+indicators_original = (pl.concat(indicators_merged, how="diagonal_relaxed")
                        # Replace string literal <Null> with null
                        .with_columns(cs.string().replace(old="<Null>", new=None))
                        # Cast numeric columns to appropriate data type
@@ -207,7 +207,7 @@ indicators_original = (pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
                                      .alias("depth_water_cm"))
                        )
 
-del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged_dfs
+del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged
 
 # -------- Classify Disturbance ------------------------------------
 
@@ -374,7 +374,7 @@ hydrology = hydrology.with_columns(pl.lit(None).cast(pl.String).alias("microtopo
 print(indicators_original.select(["Plot Key", "Evaluation ID"]).count(),
       indicators_original.select(["Plot Key", "Evaluation ID"]).null_count())
 
-indicators_df = (indicators_original
+indicators = (indicators_original
                  # Coalesce Plot Key and Evaluation ID
                  .with_columns(pl.coalesce(pl.col(["Plot Key", "Evaluation ID"])
                                            .alias("plot_key")),
@@ -390,17 +390,17 @@ indicators_df = (indicators_original
                  )
 
 # Ensure that only one moisture regime value exists per site visit
-print(indicators_df.group_by("plot_key").agg(pl.col("moisture_regime").n_unique())
+print(indicators.group_by("plot_key").agg(pl.col("moisture_regime").n_unique())
       .filter(pl.col("moisture_regime") > 1))
 
 # Calculate mean depths and grab first moisture regime value (all values at a site visit are the same)
-indicators_df = (indicators_df.group_by("plot_key").agg(cs.numeric().mean(),
+indicators = (indicators.group_by("plot_key").agg(cs.numeric().mean(),
                                                         cs.string().first())
                  .rename({"moisture_regime": "original_values"})
                  .join(moisture_crosswalk, how="left", on="original_values"))
 
 # Ensure that original and re-class moisture columns have the same number of nulls
-print(indicators_df.select(["original_values", "moisture_regime"]).null_count())
+print(indicators.select(["original_values", "moisture_regime"]).null_count())
 
 # --- Combine Data ----
 # Replace nulls with string literal "NULL" for SQL compatibility
