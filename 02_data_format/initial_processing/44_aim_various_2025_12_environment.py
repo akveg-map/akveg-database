@@ -41,6 +41,42 @@ SEVERITY_MAPPING = {0: None,
                     4: "high"
                     }
 
+
+# Define basic cleaning function
+def clean_data_table(
+        original_df: pl.DataFrame,
+        site_visit_table: pl.DataFrame,
+        unique_id: str = "EvaluationID") -> pl.DataFrame:
+    """
+    Clean strings, format site visit codes, and join with site visit table.
+
+    Replaces whitespace-only strings with nulls, converts string columns to lowercase (excluding the unique
+    identifier), formats the unique visit identifier as sitecode_yyyymmdd, and joins with
+    the processed Site Visit table to retain only valid site visits.
+
+    :param original_df: Original Polars DataFrame.
+    :param site_visit_table: Processed Site Visit table with valid site visit IDs.
+    :param unique_id: Name of the unique visit identifier column.
+    :return: Cleaned Polars DataFrame with only valid site visit codes.
+    """
+    cleaned_df = (original_df
+                  .with_columns(cs.string().str.strip_chars().replace("", None))
+                  .with_columns(cs.string().exclude(unique_id).str.to_lowercase())
+                  # Create site visit code from EvaluationID
+                  .with_columns(pl.col(unique_id).str.split_exact("_", 1)
+                                .struct.rename_fields(["site_code", "date_string"])
+                                .alias("fields")
+                                )
+                  .unnest("fields")
+                  .with_columns(pl.col("date_string").str.replace_all(pattern="-", value="").alias("date_string"))
+                  .with_columns((pl.col("site_code") + "_" + pl.col("date_string")).alias("site_visit_code"))
+                  .drop(["site_code", "date_string"])
+                  )
+    # Join with Site Visit Table to retain only valid plots
+    cleaned_df = cleaned_df.join(site_visit_table, on="site_visit_code", how="semi")
+    return cleaned_df
+
+
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
@@ -57,6 +93,12 @@ envr_output = plot_folder / '12_environment_aimvarious2025.csv'
 
 # Connect to AKVEG Database
 db_conn = connect_database_postgresql(credentials_input)
+
+# -------- Load CSV Files -----------------------------------------
+visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
+template = get_template("environment")
+moisture_crosswalk = pl.read_csv(moisture_input)
+disturbance_crosswalk = pl.read_csv(disturbance_input)
 
 # -------- Load Shapefiles ---------------------------------------------
 
@@ -96,18 +138,18 @@ environment_layers = {
     for group, layers in gdb_dict.items()
 }
 
-# Use reduce to sequentially join DataFrames across the list
-# Ensure appropriate order (metadata first, data second) for left join to work (otherwise use full join)
-environment_original = {
-    group: reduce(lambda left, right: left.join(right, on="EvaluationID", how="left"),
-                  layers.values())
+# Lightly clean tables & sequentially join DataFrames in each dict group (using reduce)
+# Ensure appropriate order (metadata first, data second) for left join to return expected results
+environment_cleaned = {
+    group: clean_data_table(reduce(lambda left, right: left.join(right, on="EvaluationID", how="left"),
+                                   layers.values()), site_visit_table=visit_original)
     for group, layers in environment_layers.items()
 }
 
 # Unpack dictionary into three DataFrames
-hydrology_original, horizons_original, disturbance_original = environment_original.values()
+hydrology_original, horizons_original, disturbance_original = environment_cleaned.values()
 
-del gdb_dict, environment_layers, environment_original
+del gdb_dict, environment_layers, environment_cleaned
 
 # -------- Load Excel Sheets -------------------------------------------
 excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key", "Overall Site Moisture Regime"],
@@ -167,28 +209,10 @@ indicators_original = (pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
 
 del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged_dfs
 
-# -------- Load Remaining Data -----------------------------------------
-visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
-template = get_template("environment")
-moisture_crosswalk = pl.read_csv(moisture_input)
-disturbance_crosswalk = pl.read_csv(disturbance_input)
-
 # -------- Prepare Environment Data ------------------------------------
 
 print(environment_original.select("LandscapeType").unique())
 print(environment_original.select("AlaskaEcotypeClassification").unique())
-
-environment_df = (environment_original
-                  # Replace whitespaces with nulls
-                  .with_columns(cs.string().str.strip_chars().replace("", None))
-                  # Convert string columns to lowercase (except for Evaluation ID
-                  .with_columns(cs.string().exclude("EvaluationID").str.to_lowercase())
-                  # Format site code
-                  .with_columns(pl.col("EvaluationID")
-                                .str.extract(r"^(.*)_")
-                                .alias("site_code"))
-                  # Append site visit code using right join to drop any plots not in site visit table
-                  .join(visit_original, on="site_code", how="right"))
 
 # -------- Classify Disturbance ------------------------------------
 
