@@ -287,6 +287,17 @@ disturbance = (disturbance.with_columns(pl.col("Disturbance").replace(old="other
                              )
                )
 
+# Create cryoturbation column using OtherDisturbance
+# Use disturbance_original to evaluate all entries, then join to processed (1:1) disturbance table
+cryoturbation = (disturbance_original.with_columns(pl.when(pl.col("OtherDisturbance").str.contains("cryoturbation"))
+                                   .then(pl.lit("TRUE"))
+                                   .alias("cryoturbation"))
+                 .filter(pl.col("cryoturbation") == "TRUE")
+                 .select(["site_visit_code", "cryoturbation"])
+                 )
+
+disturbance = disturbance.join(cryoturbation, how="left", on="site_visit_code")
+
 # Ensure there are no null values
 print(disturbance.select("disturbance").null_count())
 
@@ -343,11 +354,10 @@ hydrology = hydrology.with_columns(pl.col("SurfaceWaterPresent")
                                    .alias("surface_water")
                                    )
 
-# Classify water depth
-# For plots with surface water, take midpoint of range
-print(hydrology_original.select("SurfaceWaterDepth").unique())
 print(hydrology.filter(pl.col("surface_water") == "FALSE").select("SurfaceWaterDepth").unique())  # Ensure only null
 
+# Classify water depth
+# For plots with surface water, take midpoint of range
 hydrology = (hydrology.with_columns(pl.col("SurfaceWaterDepth")
                                    .str.split_exact("_", 1)
                                    .struct.rename_fields(["lower_range", "upper_range"])
@@ -359,13 +369,15 @@ hydrology = (hydrology.with_columns(pl.col("SurfaceWaterDepth")
                                                             "upper_range").is_null()))
                            .then(pl.lit(-999))
                            .otherwise(pl.mean_horizontal("lower_range", "upper_range"))
-                           .alias("depth_water_cm")
+                           .alias("depth_water_cm")  # Currently redundant with indicator data; needs QC
                            )
              )
 
 # Create columns for missing data; microtopo and drainage would have to be parsed from PlotDescription
 hydrology = hydrology.with_columns(pl.lit(None).cast(pl.String).alias("microtopography"),
-                                   pl.lit(None).cast(pl.String).alias("drainage"))
+                                   pl.lit(None).cast(pl.String).alias("drainage"),
+                                   pl.lit(-999).cast(pl.Decimal(4,1)).alias("microrelief_cm")
+                                   )
 
 # -------- Prepare Indicator Data (Depths & Moisture) ------------------
 
@@ -391,10 +403,10 @@ indicators = (indicators_original
 
 # Ensure that only one moisture regime value exists per site visit
 print(indicators.group_by("plot_key").agg(pl.col("moisture_regime").n_unique())
-      .filter(pl.col("moisture_regime") > 1))
+      .filter(pl.col("moisture_regime") > 1))  # Should be empty
 
 # Calculate mean depths and grab first moisture regime value (all values at a site visit are the same)
-indicators = (indicators.group_by("plot_key").agg(cs.numeric().mean(),
+indicators = (indicators.group_by("plot_key").agg(cs.numeric().mean().cast(pl.Decimal(4,1)),
                                                         cs.string().first())
                  .rename({"moisture_regime": "original_values"})
                  .join(moisture_crosswalk, how="left", on="original_values"))
@@ -443,17 +455,6 @@ depth_active_layer.drop(columns=['DepthActiveLayer', 'depth_upper', 'depth_lower
 
 # Merge back into environment_table
 environment_table = pd.merge(environment_table, depth_active_layer, how='left', on='site_visit_code')
-
-## Format microrelief
-# No information except for one site (mentioned in plot description)
-environment_table['microrelief_cm'] = np.where(environment_table['site_code'] == 'SMR_006', 50, -999)
-environment_table['microrelief_cm'].describe()
-
-## Format cryoturbation
-environment_table['cryoturbation'] = np.where(environment_table['OtherDisturbance'] == 'cryoturbation', 'TRUE', 'NULL')
-
-# Should only be one site that is not null
-environment_table['cryoturbation'].value_counts()
 
 ## Format depth at 15% coarse fragments
 # Use information from soil horizons table
