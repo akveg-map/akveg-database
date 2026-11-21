@@ -209,88 +209,91 @@ indicators_original = (pl.concat(indicators_merged_dfs, how="diagonal_relaxed")
 
 del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged_dfs
 
-# -------- Prepare Environment Data ------------------------------------
+# -------- Classify Disturbance ------------------------------------
+
+# The DisturbanceDetails table is many-to-one: It can store >1 entry per site visit. It also evaluates disturbances
+# at both the plot scale and the broader, landscape scale. In contrast, the AKVEG Database stores only one
+# disturbance per site visit: the *primary* disturbance in the plot. We process the original disturbance data by
+# considering only plot-level disturbances, calculating the total severity (scope + degree), and choosing the
+# highest-ranked disturbance at a plot.
+
+# Examine Scope values; ensure 5_Present is absent (re-classification relies on a true ordinal scale from low to high)
+print(disturbance_original.select("MonitoringPlotScope").unique())
+
+disturbance = (disturbance_original
+               # Extract numeric part of the severity scale and cast as Integer
+               .with_columns(pl.col("MonitoringPlotScope", "MonitoringPlotDegree")
+                             .str.extract(r"(^\d)")
+                             .cast(pl.Int64)
+                             )
+               # Calculate total disturbance score (scope + degree); assign None if both scope and degree are null
+               .with_columns(pl.when(pl.all_horizontal(pl.col("MonitoringPlotScope",
+                                                              "MonitoringPlotDegree").is_null()))
+                             .then(None)
+                             .otherwise(pl.sum_horizontal("MonitoringPlotScope", "MonitoringPlotDegree"))
+                             .alias("total_severity")
+                             )
+               # Keep the entry associated with the largest total severity (highest score)
+               .sort(by=["site_visit_code", "total_severity"], descending=[False, True], nulls_last=True)
+               .unique(subset=["site_visit_code"], keep="first")
+               )
+
+# Classify disturbance severity and create time since disturbance column (not recorded, fill with missing value code)
+disturbance = disturbance.with_columns(pl.col("MonitoringPlotDegree").replace_strict(SEVERITY_MAPPING)
+                             .alias("disturbance_severity"),
+                             pl.lit("-999").cast(pl.Int16).alias("disturbance_time_y"))
+
+# Classify disturbance type Combine Disturbance and OtherDisturbance values into a single column
+disturbance = (disturbance.with_columns(pl.col("Disturbance").replace(old="other", new=None)
+                                        .alias("Disturbance"))
+               .with_columns(pl.coalesce("Disturbance", "OtherDisturbance").str.strip_suffix(".")
+                             .alias("original_disturbance"))
+               .join(disturbance_crosswalk, how="left", on="original_disturbance")
+               # Manually resolve ambiguous values
+               .with_columns(pl.when(pl.col("DisturbanceComment").str.contains("historical winter trail"))
+                             .then(pl.lit("historic anthropogenic"))
+                             .when((pl.col("Disturbance") == "recreation") &
+                                   (pl.col("DisturbanceComment").str.contains("apparent winter trail|hiking trail")))
+                             .then(pl.lit("trail"))
+                             .when((pl.col("Disturbance") == "recreation") &
+                                   (pl.col("DisturbanceComment").str.contains("atv trail")))
+                             .then(pl.lit("ATV use"))
+                             .when(pl.col("original_disturbance") == "snow/ice road/pad disturbance")
+                             .then(pl.lit("ATV use"))  # Based on DisturbanceComment
+                             .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                                   (pl.col("DisturbanceComment").str.contains("trail")))
+                             .then(pl.lit("wildlife trails"))
+                             .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                                   (pl.col("DisturbanceComment").str.contains("burrow|digging")))
+                             .then(pl.lit("wildlife digging"))
+                             .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                                   (pl.col("DisturbanceComment").str.contains(r"caribou|forage")))
+                             .then(pl.lit("wildlife foraging"))
+                             .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                                   (pl.col("DisturbanceComment").str.contains(
+                                       r"trample|moose tracks and disturbed soil")))
+                             .then(pl.lit("wildlife trampling"))
+                             .when((pl.col("original_disturbance") == "soil disturbance animals") &
+                                   (pl.col("total_severity") <= 2))  # Comments only mention tracks
+                             .then(pl.lit("none"))
+                             .otherwise(pl.col("disturbance"))
+                             .alias("disturbance")
+                             )
+               # Assign "none" when no disturbance was observed
+               .with_columns(pl.when((pl.col("DisturbancesObserved") == "no") | (pl.col("total_severity") == 0))
+                             .then(pl.lit("none"))
+                             .otherwise(pl.col("disturbance"))
+                             .alias("disturbance")
+                             )
+               )
+
+# Ensure there are no null values
+print(disturbance.select("disturbance").null_count())
+
+# -------- Classify Landforms ------------------------------------
 
 print(environment_original.select("LandscapeType").unique())
 print(environment_original.select("AlaskaEcotypeClassification").unique())
-
-# -------- Classify Disturbance ------------------------------------
-
-# Begin with disturbance because the disturbance table introduces duplicates in the merged environment table (can
-# have >1 disturbance entry per site visit)
-
-# Examine Scope values to ensure that 5_Present is absent
-print(environment_df.select("MonitoringPlotScope").unique())
-
-environment_df = (environment_df
-                  # Extract numeric part of the severity scale
-                  .with_columns(pl.col("MonitoringPlotScope", "MonitoringPlotDegree").str.extract(r"(^\d)")
-                                .cast(pl.Int64)
-                                )
-                  # Calculate total disturbance score (scope + degree)
-                  .with_columns(
-    pl.when(pl.all_horizontal(pl.col("MonitoringPlotScope", "MonitoringPlotDegree").is_null()))
-    .then(None)
-    .otherwise(pl.sum_horizontal("MonitoringPlotScope", "MonitoringPlotDegree"))
-    .alias("total_severity")
-)
-                  # Keep the entry associated with the largest total severity (highest score)
-                  .sort(by=["site_visit_code", "total_severity"], descending=[False, True], nulls_last=True)
-                  .unique(subset=["site_visit_code"], keep="first")
-                  # Classify severity
-                  .with_columns(
-    pl.col("MonitoringPlotDegree").replace_strict(SEVERITY_MAPPING).alias("disturbance_severity"))
-                  # Combine Disturbance and OtherDisturbance values into a single column
-                  .with_columns(pl.col("Disturbance").replace(old="other", new=None).alias("Disturbance")
-                                )
-                  .with_columns(pl.coalesce("Disturbance", "OtherDisturbance").str.strip_suffix(".")
-                                .alias("original_disturbance"))
-                  # Join with disturbance crosswalk to map original disturbance values onto AKVEG Database Dictionary
-                  .join(disturbance_crosswalk, how="left", on="original_disturbance")
-                  # Fill in ambiguous values
-                  .with_columns(pl.when(pl.col("DisturbanceComment").str.contains("historical winter trail"))
-                                .then(pl.lit("historic anthropogenic"))
-                                .when((pl.col("Disturbance") == "recreation") &
-                                      (pl.col("DisturbanceComment").str.contains("apparent winter trail|hiking trail")))
-                                .then(pl.lit("trail"))
-                                .when((pl.col("Disturbance") == "recreation") &
-                                      (pl.col("DisturbanceComment").str.contains("atv trail")))
-                                .then(pl.lit("ATV use"))
-                                .when(pl.col("original_disturbance") == "snow/ice road/pad disturbance")
-                                .then(pl.lit("ATV use"))  # Based on DisturbanceComment
-                                # Re-classify "soil disturbance animals"
-                                .when((pl.col("original_disturbance") == "soil disturbance animals") &
-                                      (pl.col("DisturbanceComment").str.contains("trail")))
-                                .then(pl.lit("wildlife trails"))
-                                .when((pl.col("original_disturbance") == "soil disturbance animals") &
-                                      (pl.col("DisturbanceComment").str.contains("burrow|digging")))
-                                .then(pl.lit("wildlife digging"))
-                                .when((pl.col("original_disturbance") == "soil disturbance animals") &
-                                      (pl.col("DisturbanceComment").str.contains(r"caribou|forage")))
-                                .then(pl.lit("wildlife foraging"))
-                                .when((pl.col("original_disturbance") == "soil disturbance animals") &
-                                      (pl.col("DisturbanceComment").str.contains(
-                                          r"trample|moose tracks and disturbed soil")))
-                                .then(pl.lit("wildlife trampling"))
-                                .when((pl.col("original_disturbance") == "soil disturbance animals") &
-                                      (pl.col("total_severity") <= 2))
-                                .then(pl.lit("none"))
-                                .otherwise(pl.col("disturbance"))
-                                .alias("disturbance")
-                                )
-                  # Assign "none" when no disturbance was observed or when total severity is 0 (disturbances were
-                  # outside plot)
-                  .with_columns(pl.when((pl.col("total_severity") == 0) | (pl.col("DisturbancesObserved") == "no"))
-                                .then(pl.lit("none"))
-                                .otherwise(pl.col("disturbance"))
-                                .alias("disturbance")
-                                )
-                  )
-
-# Explore any remaining null values
-print(environment_df.select("disturbance").null_count())
-
-# -------- Classify Landforms ------------------------------------
 
 environment_df = (environment_df
                   # Classify geomorphology
@@ -332,13 +335,10 @@ environment_df = (environment_df
                                 .alias("macrotopography")
                                 )
 
-                  # Classify disturbance
-
                   # Create columns for missing data
                   # Microtopography and drainage would have to be parsed from notes (PlotDescription column)
                   .with_columns(pl.lit(None).cast(pl.String).alias("microtopography"),
-                                pl.lit(None).cast(pl.String).alias("drainage"),
-                                pl.lit("-999").cast(pl.Int16).alias("disturbance_time_y"))
+                                pl.lit(None).cast(pl.String).alias("drainage")
                   # Replace nulls with string literal "NULL" for SQL compatibility
                   .with_columns(cs.string().replace(None, "NULL"))
                   )
