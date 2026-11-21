@@ -290,14 +290,14 @@ disturbance = (disturbance.with_columns(pl.col("Disturbance").replace(old="other
 # Ensure there are no null values
 print(disturbance.select("disturbance").null_count())
 
-# -------- Classify Landforms ------------------------------------
+# -------- Classify Landforms & Hydrology ------------------------------
 
-print(environment_original.select("LandscapeType").unique())
-print(environment_original.select("AlaskaEcotypeClassification").unique())
+print(hydrology_original.select("LandscapeType").unique())
+print(hydrology_original.select("AlaskaEcotypeClassification").unique())
 
-environment_df = (environment_df
-                  # Classify geomorphology
-                  .with_columns(pl.when(pl.col("PlotDescription").str.contains("coastal plain", literal=True))
+# Classify geomorphology
+hydrology = (hydrology_original
+             .with_columns(pl.when(pl.col("PlotDescription").str.contains("coastal plain", literal=True))
                                 .then(pl.lit("coastal plain"))
                                 .when((pl.col("Elevation_m") <= 300) & (pl.col("LandscapeType") == 'hill mountain'))
                                 .then(pl.lit("hill"))
@@ -308,40 +308,62 @@ environment_df = (environment_df
                                 .otherwise(None)
                                 .alias("geomorphology")
                                 )
+             )
 
-                  # Classify physiography
-                  # Likely misattributes subalpine plots to upland because ecotype does not differentiate between
-                  # upland and subapline
-                  .with_columns(pl.col("AlaskaEcotypeClassification").str.replace("riverine", "riparian", literal=True)
-                                .str.extract(r"(^[a-z]+\b)")
-                                .alias("physiography")
-                                )
-                  .with_columns(
-    pl.when(pl.col("PlotDescription").str.contains(r"(at|near)\streeline|near upland-alpine transition"))
-    .then(pl.lit("subalpine"))
-    .otherwise(pl.col("physiography"))
-    .alias("physiography"))
+# Classify physiography
+# Likely misattributes subalpine plots to upland because ecotype does not differentiate between the two
+hydrology = (hydrology.with_columns(pl.col("AlaskaEcotypeClassification")
+                                   .str.replace("riverine", "riparian", literal=True)
+                                   .str.extract(r"(^[a-z]+\b)")
+                                   .alias("physiography"))
+             .with_columns(pl.when(pl.col("PlotDescription")
+                                   .str.contains(r"(at|near)\streeline|near upland-alpine transition"))
+                           .then(pl.lit("subalpine"))
+                           .otherwise(pl.col("physiography"))
+                           .alias("physiography")))
 
-                  # Classify macrotopography (no changes made to alluvial fan or terrace)
-                  .with_columns(pl.col("LandscapeTypeSecondary").replace(["tread", "riser", "backslope"],
+# Classify macrotopography (no changes made to alluvial fan or terrace)
+hydrology = (hydrology.with_columns(pl.col("LandscapeTypeSecondary").replace(["tread", "riser", "backslope"],
                                                                          [None, None, "slope"])
-                                .alias("macrotopography"))
-                  .with_columns(pl.col("VerticalSlopeShape").replace(old="linear", new="planar")
-                                .alias("VerticalSlopeShape"))
-                  .with_columns(pl.when(pl.col("macrotopography") == "slope")
-                                .then(pl.concat_str([pl.col("macrotopography"), pl.col("VerticalSlopeShape")],
-                                                    separator=" "))
-                                .otherwise(pl.col("macrotopography"))
-                                .alias("macrotopography")
-                                )
+                                   .alias("macrotopography"))
+             .with_columns(pl.col("VerticalSlopeShape").replace(old="linear", new="planar")
+                           .alias("VerticalSlopeShape"))
+             .with_columns(pl.when(pl.col("macrotopography") == "slope")
+                           .then(pl.concat_str([pl.col("macrotopography"), pl.col("VerticalSlopeShape")],
+                                               separator=" "))
+                           .otherwise(pl.col("macrotopography"))
+                           .alias("macrotopography")
+                           ))
 
-                  # Create columns for missing data
-                  # Microtopography and drainage would have to be parsed from notes (PlotDescription column)
-                  .with_columns(pl.lit(None).cast(pl.String).alias("microtopography"),
-                                pl.lit(None).cast(pl.String).alias("drainage")
-                  # Replace nulls with string literal "NULL" for SQL compatibility
-                  .with_columns(cs.string().replace(None, "NULL"))
-                  )
+# Convert surface water to TRUE/FALSE
+print(hydrology_original.select("SurfaceWaterPresent").unique())
+
+hydrology = hydrology.with_columns(pl.col("SurfaceWaterPresent")
+                                   .replace_strict(["yes", "no"], ["TRUE", "FALSE"])
+                                   .alias("surface_water")
+                                   )
+
+## Format water depth
+# If surface water is present, note surface water depth. Take average of range listed on page 50 of the BLM's Wetland
+# Field Protocols.
+# Otherwise, note groundwater depth
+# -999 for null values
+environment_table['WaterDepth'].describe()
+environment_table['SurfaceWaterDepth'].unique()
+
+conditions = [environment_table['SurfaceWaterDepth'] == '2_10',
+              environment_table['SurfaceWaterDepth'] == '10_20',
+              environment_table['SurfaceWaterDepth'] == '0_1',
+              environment_table['SurfaceWaterDepth'] == '20_30',
+              (pd.isna(environment_table['SurfaceWaterDepth']) == True) &
+              (pd.isna(environment_table['WaterDepth']) == True)]
+choices = [6, 15, 1, 25, -999]
+environment_table['depth_water_cm'] = np.select(conditions, choices,
+                                                default=environment_table['WaterDepth'])
+
+# Create columns for missing data; microtopo and drainage would have to be parsed from PlotDescription
+hydrology = hydrology.with_columns(pl.lit(None).cast(pl.String).alias("microtopography"),
+                                   pl.lit(None).cast(pl.String).alias("drainage"))
 
 # -------- Prepare Indicator Data (Depths & Moisture) ------------------
 
@@ -378,27 +400,12 @@ indicators_df = (indicators_df.group_by("plot_key").agg(cs.numeric().mean(),
 # Ensure that original and re-class moisture columns have the same number of nulls
 print(indicators_df.select(["original_values", "moisture_regime"]).null_count())
 
-## Format surface water
-environment_table['surface_water'] = np.where(environment_table['SurfaceWaterPresent'] == 'Yes', 'TRUE',
-                                              'FALSE')
+# --- Combine Data ----
+# Replace nulls with string literal "NULL" for SQL compatibility
+.with_columns(cs.string().replace(None, "NULL"))
+)
 
-## Format water depth
-# If surface water is present, note surface water depth. Take average of range listed on page 50 of the BLM's Wetland
-# Field Protocols.
-# Otherwise, note groundwater depth
-# -999 for null values
-environment_table['WaterDepth'].describe()
-environment_table['SurfaceWaterDepth'].unique()
 
-conditions = [environment_table['SurfaceWaterDepth'] == '2_10',
-              environment_table['SurfaceWaterDepth'] == '10_20',
-              environment_table['SurfaceWaterDepth'] == '0_1',
-              environment_table['SurfaceWaterDepth'] == '20_30',
-              (pd.isna(environment_table['SurfaceWaterDepth']) == True) &
-              (pd.isna(environment_table['WaterDepth']) == True)]
-choices = [6, 15, 1, 25, -999]
-environment_table['depth_water_cm'] = np.select(conditions, choices,
-                                                default=environment_table['WaterDepth'])
 
 ## Format restrictive type
 environment_table['ImpenetrableDescrip'].value_counts()
