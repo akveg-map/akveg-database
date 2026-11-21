@@ -111,9 +111,7 @@ gdb_dict = {
     },
     # Soil horizons
     "soil_horizons": {
-        "AIM_Wetland__F_Soils": ['EvaluationID', 'PitImpenetrable', 'ImpenetrableDescrip', 'WaterObserved',
-                                 'WaterDepth',
-                                 'PitSaturated', 'DepthToSatSoil', 'HydricIndicatorPrimary', 'HydricIndicatorSecondary']
+        "AIM_Wetland__F_Soils": ['EvaluationID', 'ImpenetrableDescrip']
     },
     # Disturbance data
     "disturbance": {
@@ -370,8 +368,25 @@ hydrology = (hydrology.with_columns(pl.col("SurfaceWaterDepth")
 # Create columns for missing data; microtopo and drainage would have to be parsed from PlotDescription
 hydrology = hydrology.with_columns(pl.lit(None).cast(pl.String).alias("microtopography"),
                                    pl.lit(None).cast(pl.String).alias("drainage"),
+                                   pl.lit(None).cast(pl.String).alias("soil_class"),
                                    pl.lit(-999).cast(pl.Decimal(4,1)).alias("microrelief_cm")
                                    )
+
+# -------- Classify Soils Data -----------------------------------------
+
+# Classify restrictive type
+print(horizons_original["ImpenetrableDescrip"].value_counts())
+
+horizons = horizons_original.with_columns(pl.col("ImpenetrableDescrip").replace(old=["large boulders",
+                                                                                     "cemented layer",
+                                                                                     "other"],
+                                                                                new=["rock unconsolidated",
+                                                                                     "unknown",
+                                                                                     "unknown"])
+                                          .alias("restrictive_type"))
+
+# Ensure frequency matches expectation from original ImpenetrableDescrip column
+print(horizons["restrictive_type"].value_counts())
 
 # -------- Prepare Indicator Data (Depths & Moisture) ------------------
 
@@ -413,42 +428,6 @@ print(indicators.select(["original_values", "moisture_regime"]).null_count())
 .with_columns(cs.string().replace(None, "NULL"))
 )
 
-
-
-## Format restrictive type
-environment_table['ImpenetrableDescrip'].value_counts()
-
-conditions = [environment_table['ImpenetrableDescrip'] == 'Permafrost',
-              environment_table['ImpenetrableDescrip'] == 'Bedrock',
-              (environment_table['PermafrostInfluence'] == 'Yes') &
-              (pd.isna(environment_table['DepthActiveLayer']) == False)]
-choices = ['permafrost', 'bedrock', 'permafrost']
-environment_table['restrictive_type'] = np.select(conditions, choices, default='NULL')
-
-environment_table['restrictive_type'].value_counts()
-
-## Format depth restrictive layer
-# 'DepthActiveLayer' column from BLM database lists upper depth of restrictive horizon, but it seems to me that we
-# would want lower (maximum) depth instead.
-depth_active_layer = environment_table[['site_visit_code', 'DepthActiveLayer']]
-horizon_depths = soil_horizons[['site_visit_code', 'depth_upper', 'depth_lower']]
-depth_active_layer = pd.merge(depth_active_layer, horizon_depths, 'left',
-                              left_on=['site_visit_code', 'DepthActiveLayer'],
-                              right_on=['site_visit_code', 'depth_upper'])
-
-# Replace restrictive depth with lower horizon depth value if it's available
-depth_active_layer['depth_restrictive_layer_cm'] = np.where(
-    depth_active_layer['depth_lower'] > depth_active_layer['DepthActiveLayer'], depth_active_layer['depth_lower'],
-    depth_active_layer['DepthActiveLayer'])
-
-# Replace null values with -999
-depth_active_layer.depth_restrictive_layer_cm.fillna(value=-999, inplace=True)
-
-# Drop superfluous columns
-depth_active_layer.drop(columns=['DepthActiveLayer', 'depth_upper', 'depth_lower'], inplace=True)
-
-# Merge back into environment_table
-environment_table = pd.merge(environment_table, depth_active_layer, how='left', on='site_visit_code')
 
 ## Format depth at 15% coarse fragments
 # Use information from soil horizons table
