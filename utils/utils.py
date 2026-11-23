@@ -100,7 +100,21 @@ SCHEMA_OVERRIDES = {
                     "surface_water": pl.Boolean,
                     "cryoturbation": pl.Boolean,
                     "depth_15_percent_coarse_fragments_cm": pl.Decimal(precision=4, scale=1)
-                    }
+                    },
+    "soil_horizons": {"horizon_order": pl.Int16,
+                      "thickness_cm": pl.Decimal(precision=4, scale=1),
+                      "depth_upper_cm": pl.Decimal(precision=4, scale=1),
+                      "depth_lower_cm": pl.Decimal(precision=4, scale=1),
+                      "clay_percent": pl.Decimal(precision=4, scale=1),
+                      "total_coarse_fragment_percent": pl.Decimal(precision=4, scale=1),
+                      "gravel_percent": pl.Decimal(precision=4, scale=1),
+                      "cobble_percent": pl.Decimal(precision=4, scale=1),
+                      "stone_percent": pl.Decimal(precision=4, scale=1),
+                      "boulder_percent": pl.Decimal(precision=4, scale=1),
+                      "matrix_value": pl.Decimal(precision=3, scale=1),
+                      "matrix_chroma": pl.Int16,
+                      "nonmatrix_value": pl.Decimal(precision=3, scale=1),
+                      "nonmatrix_chroma": pl.Int16}
 }
 
 # Define mapping dictionary that links column names in data tables (keys) to field names in database dictionary (values)
