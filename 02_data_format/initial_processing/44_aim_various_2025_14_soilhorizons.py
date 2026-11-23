@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
-# ---------------------------------------------------------------------------
-# Format soil horizons data for BLM AIM Wetlands data
-# Author: Amanda Droghini, Alaska Center for Conservation
-# Last Updated: 2024-10-26
-# Usage: Must be executed in an ArcGIS Pro Python 3.9+ distribution.
-# Description: "Format soil horizons data for BLM AIM Wetlands data" merges a soil horizons ArcGIS table with feature
-# classes to obtain plot IDs, restrict to sites that are in Alaska, and obtain information on soil restrictive layer.
-# The script then standardizes formatting to match requirements of the AKVEG database, including adding appropriate
-# null values, populating required fields, and ensuring all values match constrained values. The output is a CSV file
-# that is ready to be ingested in the AKVEG database.
-# ---------------------------------------------------------------------------
+"""Process Soil Horizozons Table for BLM AIM 2022–2025 data
+
+Combines data from tables in the BLM Riparian AIM GeoDatabase. Appends unique site identifiers, re-classifies
+categorical values, converts missing values to designated missing value codes, and performs quality control checks
+before exporting to CSV for ingestion into the AKVEG Database.
+
+Author: Amanda Droghini, Alaska Center for Conservation
+Last Updated: 2026-11-23
+Usage: Python 3.13+
+"""
 
 # Import packges
 import os.path
-import arcpy
+
 from akutils import *
+import arcpy
 import numpy as np
 import pandas as pd
 
