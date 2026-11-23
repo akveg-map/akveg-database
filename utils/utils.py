@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
-# ---------------------------------------------------------------------------
-# utils.py
-# Author: Amanda Droghini
-# Last Updated: 2026-11-17
-# ---------------------------------------------------------------------------
+"""Utility Functions for Processing AKVEG Datasets
 
-"""
 This module provides utility functions for processing and ingestion of datasets into the
 AKVEG Database.
 
@@ -27,19 +22,28 @@ one that matches the AKVEG schema), creating missing columns and filling them wi
 10. max_hits_per_visit: Calculates the total number of point intercept hits per site visit.
 11. check_conductivity_values: Identifies soil and water conductivity values that violate hard physical boundaries.
 12. check_ph_values: Identifies impossible or suspicious pH values.
+13. clean_aim_tables: Lightly cleans a source table from BLM AIM and joins it with a processed Site Visit Table to
+obtain site visit codes.
+
+Author: Amanda Droghini, Alaska Center for Conservation Science
+Last Updated: 2026-11-23
+Usage: Python 3.13+
 """
 
+# Import packages
+
+from collections.abc import Sequence
 import os
 from pathlib import Path
 from typing import Literal, Tuple, Union
 
-# Import packages
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import plotly.express as px
 from plotly.graph_objects import Figure
 import polars as pl
+import polars.selectors as cs
 from psycopg2 import extensions, sql
 from pyproj import CRS
 
@@ -735,3 +739,51 @@ def check_ph_values(soil_metrics_df: Union[pl.DataFrame, pl.LazyFrame],
                            pl.col("flag_very_alkaline")])))
 
     return invalid_records
+
+
+# --- Function 13 ---
+def clean_aim_table(
+        original_df: pl.DataFrame,
+        site_visit_table: pl.DataFrame,
+        unique_id: str = "EvaluationID",
+        exclude_cols: Sequence[str] = ()) -> pl.DataFrame:
+    """
+    Clean strings, format site visit codes, and retain only valid site visit codes from BLM AIM original source data.
+
+    Replaces whitespace-only strings with nulls, converts string columns to lowercase (excluding the unique
+    identifier and any other column passed to the exclude_cols parameter), formats the unique visit identifier as
+    sitecode_yyyymmdd, and joins with the processed Site Visit table to retain only valid site visits.
+
+    Parameters
+    ----------
+    original_df: pl.DataFrame
+        Original source table of BLM AIM data.
+    site_visit_table: pl.DataFrame
+        Processed Site Visit table with valid site visit IDs.
+    unique_id: str, default "EvaluationID"
+        Column name of the unique visit identifier column.
+    exclude_cols:
+        Columns to exclude from conversion to lowercase. Accepts a list of column names.
+
+    Returns
+    -------
+    pl.DataFrame
+        Cleaned Polars DataFrame with only valid site visit codes.
+    """
+
+    cleaned_df = (original_df
+                  .with_columns(cs.string().str.strip_chars().replace("", None))
+                  .with_columns(cs.string().exclude(unique_id, *exclude_cols).str.to_lowercase())
+                  # Create site visit code from EvaluationID
+                  .with_columns(pl.col(unique_id).str.split_exact("_", 1)
+                                .struct.rename_fields(["site_code", "date_string"])
+                                .alias("fields")
+                                )
+                  .unnest("fields")
+                  .with_columns(pl.col("date_string").str.replace_all(pattern="-", value="").alias("date_string"))
+                  .with_columns((pl.col("site_code") + "_" + pl.col("date_string")).alias("site_visit_code"))
+                  .drop(["site_code", "date_string"])
+                  )
+    # Join with Site Visit Table to retain only valid plots
+    cleaned_df = cleaned_df.join(site_visit_table, on="site_visit_code", how="semi")
+    return cleaned_df
