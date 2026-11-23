@@ -50,7 +50,8 @@ template = get_template("soil_horizons")
 gdb_dict = {
     "AIM_Wetland__F_SoilPitHorizons": ["EvaluationID", "horizon", "HorizonDepthUpper", "HorizonDepthLower",
                                        "MatrixHue", "MatrixValue", "MatrixChroma", "Texture", "GravelFragVolPct",
-                                       "CobblesFragVolPct2", "StonesFragVolPct3", "HorizonComments"]
+                                       "CobblesFragVolPct2", "StonesFragVolPct3", "HorizonComments"],
+    "AIM_Wetland__F_Soils": ["EvaluationID", "PitImpenetrable"]
 }
 
 gdb_tables = {
@@ -59,7 +60,9 @@ gdb_tables = {
     for layer_name, cols in gdb_dict.items()
 }
 
-horizons_original = gdb_tables["AIM_Wetland__F_SoilPitHorizons"]
+# Join tables using "left" join to keep only entries with horizons data
+horizons_original = reduce(lambda left, right: left.join(right, on="EvaluationID", how="left"),
+                           gdb_tables.values())
 
 # Lightly clean table & append site visit code
 horizons = clean_aim_table(horizons_original, site_visit_table=visit_original,
