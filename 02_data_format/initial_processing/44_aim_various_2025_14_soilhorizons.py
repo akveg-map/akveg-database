@@ -17,6 +17,7 @@ import polars as pl
 import polars.selectors as cs
 from pyogrio import read_dataframe
 
+from user_tools.utils_database import connect_database_postgresql, query_to_dataframe
 from user_tools.utils_init import load_system_paths
 from utils.utils import clean_aim_table, get_template
 
@@ -28,7 +29,7 @@ FOLDER_ID = "44_aim_various_2025"
 COLUMNS_RENAME_MAP = {"horizon": "horizon_order",
                       "HorizonDepthUpper": "depth_upper",
                       "HorizonDepthLower": "depth_lower",
-                      "Texture": "texture",
+                      "Texture": "soil_texture_code",
                       "MatrixHue": "matrix_hue",
                       "MatrixValue": "matrix_value",
                       "MatrixChroma": "matrix_chroma",
@@ -44,6 +45,9 @@ visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 
 # Define output
 horizons_output = plot_folder / '14_soilhorizons_aimvarious2025.csv'
+
+# Connect to AKVEG Database
+db_conn = connect_database_postgresql(paths.cloud_assets.credentials)
 
 # -------- Load CSV Files -----------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
@@ -95,19 +99,14 @@ horizons = horizons.with_columns(pl.when(pl.col("depth_extend") == "FALSE")
                                  .otherwise(pl.lit(-999))
                                  .alias("thickness_cm"))
 
-## Format soil texture
-# Replace values that aren't present in the data dictionary (FO, HO, and SO) with NULL
-# Replace texture codes with values
-horizons_table.Texture.value_counts()
+# Re-classify texture
+soil_texture = pl.from_pandas(query_to_dataframe(db_conn, """SELECT * FROM soil_texture"""))
+horizons = (horizons.join(soil_texture, on="soil_texture_code", how="left")
+            .rename({"soil_texture": "texture"}))
 
-conditions = [horizons_table['Texture'] == 'SIL',
-              horizons_table['Texture'] == 'SL',
-              horizons_table['Texture'] == 'LS',
-              horizons_table['Texture'] == 'SICL',
-              horizons_table['Texture'] == 'SCL',
-              horizons_table['Texture'] == 'S']
-choices = ['silt loam', 'sandy loam', 'loamy sand', 'silty clay loam', 'sandy clay loam', 'sand']
-horizons_table['texture'] = np.select(conditions, choices, default='NULL')
+# Ensure all null values make sense
+# FO, HO, and SO are organic horizons; in AKVEG, these horizons cannot have a texture
+print(horizons.filter(pl.col("texture").is_null()).select("soil_texture_code").unique())
 
 # Format rock fragments
 
@@ -138,6 +137,8 @@ horizons_table[["matrix_value", "matrix_chroma"]] = horizons_table[["MatrixValue
 
 ## Rename matrix hue column
 horizons_table.rename(columns={'MatrixHue': 'matrix_hue'}, inplace=True)
+
+# Replace null with NULL
 
 # Populate values for missing columns
 horizons_final = horizons_table.assign(horizon_primary='NULL', horizon_suffix_1='NULL', horizon_suffix_2='NULL',
@@ -171,3 +172,6 @@ horizons_final.matrix_hue.unique()
 
 # -------- Export Data -------------------------------------------------
 horizons_final.to_csv(horizons_table_output, index=False, encoding='UTF-8')
+
+# -------- Close Database Connection -----------------------------------
+db_conn.close()
