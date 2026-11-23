@@ -50,7 +50,7 @@ template = get_template("soil_horizons")
 gdb_dict = {
     "AIM_Wetland__F_SoilPitHorizons": ["EvaluationID", "horizon", "HorizonDepthUpper", "HorizonDepthLower",
                                        "MatrixHue", "MatrixValue", "MatrixChroma", "Texture", "GravelFragVolPct",
-                                       "CobblesFragVolPct3", "StonesFragVolPct4", "HorizonComments"]
+                                       "CobblesFragVolPct2", "StonesFragVolPct3", "HorizonComments"]
 }
 
 gdb_tables = {
