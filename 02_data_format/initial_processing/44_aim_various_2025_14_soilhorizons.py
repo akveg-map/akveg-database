@@ -15,16 +15,16 @@ import polars as pl
 from pyogrio import read_dataframe
 
 from user_tools.utils_init import load_system_paths
-from utils.utils import get_template
+from utils.utils import clean_aim_table, get_template
 
 # -------- Set Up Environment ------------------------------------------
 paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
-plot_folder = paths.cloud_assets.plots / FOLDER_ID
 
-# Define input files
+# Define inputs
+plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 
@@ -50,21 +50,10 @@ gdb_tables = {
 
 horizons_original = gdb_tables["AIM_Wetland__F_SoilPitHorizons"]
 
+# Lightly clean table & append site visit code
+horizons = clean_aim_table(horizons_original, site_visit_table=visit_original, exclude_cols=["MatrixHue"])
+
 # -------- Prepare Input Data ------------------------------------------
-# Format PlotID to match site code
-# Remove 'AK-', 'CYFO-', and 'EIFO-'; convert dashes to underscores
-horizons_table['site_code'] = horizons_table['PlotID']
-horizons_table['site_code'].replace('AK-|CYFO-|EIFO-', '', inplace=True, regex=True)
-horizons_table['site_code'].replace('-', '_', inplace=True, regex=True)
-
-# Join with site_visit_table to obtain site_visit_code
-site_visit_table = site_visit_table[['site_code', 'site_visit_code']]
-horizons_table = horizons_table.set_index('site_code').join(site_visit_table.set_index('site_code'),
-                                                            how='left', validate='many_to_one')
-horizons_table.reset_index(inplace=True)
-horizons_table.site_visit_code.isnull().sum()  # Ensure there are no null values
-
-# -------- Format Data -------------------------------------------------
 # Format horizon order
 horizons_table.horizon.value_counts()
 horizons_table.horizon.isnull().sum()  # Ensure there are no null values
@@ -152,9 +141,15 @@ horizons_final = horizons_table.assign(horizon_primary='NULL', horizon_suffix_1=
 
 # Final formatting
 ## Drop all columns that aren't in the template and reorder them to match data entry template
-horizons_final = horizons_final[template.columns]
+horizons = horizons[template.columns]
 
 # -------- Perform Quality Checks --------------------------------------
+
+# Identify visit codes that are missing from the Soil Horizons table
+set_horizons = set(horizons.get_column("site_visit_code").unique().to_list())
+set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
+print(set_visit - set_horizons)
+
 temp = horizons_final.describe(include='all')
 
 ## Ensure that categorical variables match constrained values in database dictionary
