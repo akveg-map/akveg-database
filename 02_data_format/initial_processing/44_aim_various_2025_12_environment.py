@@ -7,7 +7,7 @@ designated missing value codes, and performs quality control checks before expor
 AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-21
+Last Updated: 2026-11-23
 Usage: Python 3.13+
 """
 
@@ -19,7 +19,7 @@ import polars as pl
 import polars.selectors as cs
 
 from user_tools.utils_init import load_system_paths
-from utils.utils import get_template
+from utils.utils import get_template, clean_aim_table
 
 # -------- Set Up Environment ------------------------------------------
 paths = load_system_paths()
@@ -38,42 +38,6 @@ SEVERITY_MAPPING = {0: None,
                     3: "high",
                     4: "high"
                     }
-
-
-# Define basic cleaning function
-def clean_data_table(
-        original_df: pl.DataFrame,
-        site_visit_table: pl.DataFrame,
-        unique_id: str = "EvaluationID") -> pl.DataFrame:
-    """
-    Clean strings, format site visit codes, and join with site visit table.
-
-    Replaces whitespace-only strings with nulls, converts string columns to lowercase (excluding the unique
-    identifier), formats the unique visit identifier as sitecode_yyyymmdd, and joins with
-    the processed Site Visit table to retain only valid site visits.
-
-    :param original_df: Original Polars DataFrame.
-    :param site_visit_table: Processed Site Visit table with valid site visit IDs.
-    :param unique_id: Name of the unique visit identifier column.
-    :return: Cleaned Polars DataFrame with only valid site visit codes.
-    """
-    cleaned_df = (original_df
-                  .with_columns(cs.string().str.strip_chars().replace("", None))
-                  .with_columns(cs.string().exclude(unique_id).str.to_lowercase())
-                  # Create site visit code from EvaluationID
-                  .with_columns(pl.col(unique_id).str.split_exact("_", 1)
-                                .struct.rename_fields(["site_code", "date_string"])
-                                .alias("fields")
-                                )
-                  .unnest("fields")
-                  .with_columns(pl.col("date_string").str.replace_all(pattern="-", value="").alias("date_string"))
-                  .with_columns((pl.col("site_code") + "_" + pl.col("date_string")).alias("site_visit_code"))
-                  .drop(["site_code", "date_string"])
-                  )
-    # Join with Site Visit Table to retain only valid plots
-    cleaned_df = cleaned_df.join(site_visit_table, on="site_visit_code", how="semi")
-    return cleaned_df
-
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -133,7 +97,7 @@ environment_layers = {
 # Lightly clean tables & sequentially join DataFrames in each dict group (using reduce)
 # Ensure appropriate order (metadata first, data second) for left join to return expected results
 environment_cleaned = {
-    group: clean_data_table(reduce(lambda left, right: left.join(right, on="EvaluationID", how="left"),
+    group: clean_aim_table(reduce(lambda left, right: left.join(right, on="EvaluationID", how="left"),
                                    layers.values()), site_visit_table=visit_original)
     for group, layers in environment_layers.items()
 }
