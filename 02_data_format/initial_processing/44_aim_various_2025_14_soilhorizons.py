@@ -108,35 +108,8 @@ horizons = (horizons.join(soil_texture, on="soil_texture_code", how="left")
 # FO, HO, and SO are organic horizons; in AKVEG, these horizons cannot have a texture
 print(horizons.filter(pl.col("texture").is_null()).select("soil_texture_code").unique())
 
-# Format rock fragments
-
-## Rename columns
-horizons_table.rename(columns={"GravelFragVolPct": "gravel_percent", "CobblesFragVolPct2": "cobble_percent",
-                               'RockFragments': 'total_coarse_fragment_percent', 'StonesFragVolPct3': 'stone_percent'},
-                      inplace=True)
-
-## Verify that range of values are reasonable i.e., bounded between 0-100
-horizons_table.gravel_percent.describe()
-horizons_table.cobble_percent.describe()
-horizons_table.stone_percent.describe()
-horizons_table.total_coarse_fragment_percent.describe()
-
-## Replace null values with -999
-horizons_table.update(horizons_table[['gravel_percent', 'cobble_percent', 'total_coarse_fragment_percent',
-                                      'stone_percent']].fillna(-999))
-
-# Format matrix characteristics
-## No reclassification needed. Chroma: integer between 0 and 8, Value: between 0 and 10
-horizons_table.MatrixHue.unique()
-horizons_table.MatrixChroma.unique()
-horizons_table.MatrixValue.unique()
-horizons_table[['MatrixHue', 'MatrixChroma', 'MatrixValue']].isnull().sum()
-
-## Convert chroma and value to appropriate data type
+# Convert matrix value and matrix chroma to numeric
 horizons_table[["matrix_value", "matrix_chroma"]] = horizons_table[["MatrixValue", "MatrixChroma"]].apply(pd.to_numeric)
-
-## Rename matrix hue column
-horizons_table.rename(columns={'MatrixHue': 'matrix_hue'}, inplace=True)
 
 # Replace null with NULL
 
@@ -162,13 +135,28 @@ print(set_visit - set_horizons)
 
 # Ensure no null values
 print(horizons.select(cs.numeric()).null_count())
-
-temp = horizons_final.describe(include='all')
+print(horizons.select(cs.numeric()).describe())
 
 ## Ensure that categorical variables match constrained values in database dictionary
 horizons_final.texture.unique()
 horizons_final.structure.unique()
 horizons_final.matrix_hue.unique()
+
+## Verify that range of values are reasonable i.e., bounded between 0-100
+horizons_table.gravel_percent.describe()
+horizons_table.cobble_percent.describe()
+horizons_table.stone_percent.describe()
+horizons_table.total_coarse_fragment_percent.describe()
+
+# Check matrix
+horizons_table.MatrixHue.unique()
+horizons_table.MatrixChroma.unique()
+horizons_table.MatrixValue.unique()
+horizons_table[['MatrixHue', 'MatrixChroma', 'MatrixValue']].isnull().sum()
+
+## Replace null values with -999
+horizons_table.update(horizons_table[['gravel_percent', 'cobble_percent', 'total_coarse_fragment_percent',
+                                      'stone_percent']].fillna(-999))
 
 # -------- Export Data -------------------------------------------------
 horizons_final.to_csv(horizons_table_output, index=False, encoding='UTF-8')
