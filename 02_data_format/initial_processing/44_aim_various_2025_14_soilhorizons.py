@@ -39,7 +39,7 @@ arcpy.env.workspace = workspace_geodatabase
 
 ## Define inputs
 source_geodatabase = os.path.join(source_folder, 'AIMWetlandPub6-22-23_clean.gdb')
-sites_input = os.path.join(workspace_geodatabase, 'AIM_Wetlands_SiteEval') # From previous script
+sites_input = os.path.join(workspace_geodatabase, 'AIM_Wetlands_SiteEval')  # From previous script
 soil_horizons_input = os.path.join(source_geodatabase, 'F_SoilPitHorizons')
 soils_input = os.path.join(source_geodatabase, 'F_Soils')
 template_input = os.path.join(project_folder, 'Data', 'Data_Entry', '14_soil_horizons.xlsx')
@@ -56,8 +56,8 @@ horizons_table_output = os.path.join(plot_folder, '14_soilhorizons_aimvarious202
 
 # Set environment options
 arcpy.env.overwriteOutput = True
-arcpy.env.outputCoordinateSystem = arcpy.SpatialReference(4269) # NAD 83
-arcpy.env.qualifiedFieldNames = False # Do not include table name in join field names
+arcpy.env.outputCoordinateSystem = arcpy.SpatialReference(4269)  # NAD 83
+arcpy.env.qualifiedFieldNames = False  # Do not include table name in join field names
 
 # Read inputs
 template = pd.read_excel(template_input)
@@ -120,7 +120,7 @@ horizons_table.dropna(how='all', axis=1, inplace=True)
 horizons_table = horizons_table.drop(columns=['EvaluationID', 'EvaluationID_1', 'EvaluationID_12', 'AdminState',
                                               'AdminState_1', 'OBJECTID', 'OBJECTID_1', 'OBJECTID_12', 'PitKey',
                                               'last_edited_user', 'last_edited_date', 'GlobalID', 'PlotID_1',
-                                              'PrimaryRedoxFeatures', 'PrimaryRedoxHue','PrimaryRedoxValue',
+                                              'PrimaryRedoxFeatures', 'PrimaryRedoxHue', 'PrimaryRedoxValue',
                                               'PrimaryRedoxChroma', 'PrimaryRedoxPercent', 'SecondaryRedoxFeatures',
                                               'SecondaryRedoxHue', 'SecondaryRedoxValue', 'SecondaryRedoxChroma',
                                               'SecondaryRedoxPercent', 'pH'])
@@ -135,18 +135,18 @@ horizons_table['site_code'].replace('-', '_', inplace=True, regex=True)
 # Join with site_visit_table to obtain site_visit_code
 site_visit_table = site_visit_table[['site_code', 'site_visit_code']]
 horizons_table = horizons_table.set_index('site_code').join(site_visit_table.set_index('site_code'),
-                                           how='left', validate='many_to_one')
+                                                            how='left', validate='many_to_one')
 horizons_table.reset_index(inplace=True)
-horizons_table.site_visit_code.isnull().sum() # Ensure there are no null values
+horizons_table.site_visit_code.isnull().sum()  # Ensure there are no null values
 
 # Format horizon order
 horizons_table.horizon.value_counts()
-horizons_table.horizon.isnull().sum() # Ensure there are no null values
+horizons_table.horizon.isnull().sum()  # Ensure there are no null values
 horizons_table.rename(columns={'horizon': 'horizon_order'}, inplace=True)
 
 # Format upper and lower depth
 horizons_table[['HorizonDepthUpper', 'HorizonDepthLower']].describe()
-horizons_table[['HorizonDepthUpper', 'HorizonDepthLower']].isnull().sum() # Ensure there are no null values
+horizons_table[['HorizonDepthUpper', 'HorizonDepthLower']].isnull().sum()  # Ensure there are no null values
 horizons_table.rename(columns={'HorizonDepthUpper': 'depth_upper',
                                'HorizonDepthLower': 'depth_lower'},
                       inplace=True)
@@ -207,7 +207,7 @@ horizons_table.update(horizons_table[['gravel_percent', 'cobble_percent', 'total
 horizons_table.MatrixHue.unique()
 horizons_table.MatrixChroma.unique()
 horizons_table.MatrixValue.unique()
-horizons_table[['MatrixHue','MatrixChroma', 'MatrixValue']].isnull().sum()
+horizons_table[['MatrixHue', 'MatrixChroma', 'MatrixValue']].isnull().sum()
 
 ## Convert chroma and value to appropriate data type
 horizons_table[["matrix_value", "matrix_chroma"]] = horizons_table[["MatrixValue", "MatrixChroma"]].apply(pd.to_numeric)
@@ -219,9 +219,9 @@ horizons_table.rename(columns={'MatrixHue': 'matrix_hue'}, inplace=True)
 horizons_final = horizons_table.assign(horizon_primary='NULL', horizon_suffix_1='NULL', horizon_suffix_2='NULL',
                                        horizon_secondary='NULL', horizon_suffix_3='NULL', horizon_suffix_4='NULL',
                                        structure='NULL',
-                                       clay_percent = -999,
+                                       clay_percent=-999,
                                        boulder_percent=-999,
-                                       nonmatrix_feature ='NULL',
+                                       nonmatrix_feature='NULL',
                                        nonmatrix_hue='NULL', nonmatrix_value=-999, nonmatrix_chroma=-999)
 
 # Final formatting
