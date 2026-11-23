@@ -94,9 +94,9 @@ template = get_template("environment")
 moisture_crosswalk = pl.read_csv(moisture_input)
 disturbance_crosswalk = pl.read_csv(disturbance_input)
 
-# -------- Load Shapefiles ---------------------------------------------
+# -------- Load GeoDatabase Tables -------------------------------------
 
-# Define nested dictionary (key: layer name, values: column names) for shapefiles in GeoDatabase
+# Define nested dictionary (key: layer name, values: column names) for tables in GeoDatabase
 # Separate source data tables by theme and by relational type e.g., DisturbancesDetail has >1 entry for each
 # EvaluationID; combining it with a one-to-one table like PlotCharacterization makes it harder to handle duplicates
 gdb_dict = {
