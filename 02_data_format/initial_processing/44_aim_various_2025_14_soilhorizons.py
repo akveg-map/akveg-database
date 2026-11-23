@@ -11,7 +11,10 @@ Usage: Python 3.13+
 """
 
 # -------- Load Packages -----------------------------------------------
+from functools import reduce
+
 import polars as pl
+import polars.selectors as cs
 from pyogrio import read_dataframe
 
 from user_tools.utils_init import load_system_paths
@@ -70,25 +73,19 @@ horizons = clean_aim_table(horizons_original, site_visit_table=visit_original,
 
 # -------- Prepare Input Data ------------------------------------------
 
-# Format upper and lower depth
-horizons_table[['HorizonDepthUpper', 'HorizonDepthLower']].describe()
-horizons_table[['HorizonDepthUpper', 'HorizonDepthLower']].isnull().sum()  # Ensure there are no null values
-horizons_table.rename(columns={'HorizonDepthUpper': 'depth_upper',
-                               'HorizonDepthLower': 'depth_lower'},
-                      inplace=True)
+# Explore range of numeric values
+horizons.select(cs.numeric()).describe()
 
-# Calculate depth extend
-## Find max horizon order for each plot
-horizons_table['max_horizon'] = horizons_table.groupby('PlotID')['horizon_order'].transform('max')
-
-## Set depth_extend as TRUE is 'PitImpenetrable' is Yes
-## The value can only be TRUE for the lowest measured horizon; all other horizons are FALSE.
-horizons_table['depth_extend'] = 'FALSE'
-horizons_table['depth_extend'] = np.where(
-    (horizons_table['horizon_order'] == horizons_table['max_horizon'])
-    & (horizons_table['PitImpenetrable'] == 'Yes'),
-    'TRUE',
-    horizons_table['depth_extend'])
+# Evaluate depth extend
+# depth_extend is True if 'PitImpenetrable' is Yes
+# Can only be True for the deepest horizon (highest number); all other horizons are False
+horizons = (horizons.with_columns(pl.col("horizon_order").max().over("site_visit_code").alias("max_horizon"))
+            .with_columns(pl.when((pl.col("PitImpenetrable") == "yes") &
+                                  (pl.col("horizon_order") == pl.col("max_horizon")))
+                          .then(pl.lit("TRUE"))
+                          .otherwise(pl.lit("FALSE"))
+                          .alias("depth_extend")
+                          ))
 
 # Calculate horizon thickness
 ## Thickness is -999 is depth_extend is TRUE (measurement hindered by presence of restrictive layer)
@@ -160,6 +157,9 @@ horizons = horizons[template.columns]
 set_horizons = set(horizons.get_column("site_visit_code").unique().to_list())
 set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
 print(set_visit - set_horizons)
+
+# Ensure no null values
+print(horizons.select(cs.numeric()).null_count())
 
 temp = horizons_final.describe(include='all')
 
