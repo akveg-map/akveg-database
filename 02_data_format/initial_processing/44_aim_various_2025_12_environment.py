@@ -483,4 +483,4 @@ environment_final = environment_final[template.columns]
 environment_table.site_visit_code.isna().sum()
 
 # -------- Export Data -------------------------------------------------
-environment_final.to_csv(environment_table_output, index=False, encoding='UTF-8')
+environment_final.write_csv(envr_output)
