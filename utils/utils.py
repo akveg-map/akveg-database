@@ -22,7 +22,7 @@ one that matches the AKVEG schema), creating missing columns and filling them wi
 10. max_hits_per_visit: Calculates the total number of point intercept hits per site visit.
 11. check_conductivity_values: Identifies soil and water conductivity values that violate hard physical boundaries.
 12. check_ph_values: Identifies impossible or suspicious pH values.
-13. clean_aim_tables: Lightly cleans a source table from BLM AIM and joins it with a processed Site Visit Table to
+13. clean_aim_table: Lightly cleans a source table from BLM AIM and joins it with a processed Site Visit Table to
 obtain site visit codes.
 
 Author: Amanda Droghini, Alaska Center for Conservation Science
