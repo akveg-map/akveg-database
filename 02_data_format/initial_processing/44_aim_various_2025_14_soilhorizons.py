@@ -11,53 +11,21 @@ Usage: Python 3.13+
 """
 
 # -------- Load Packages -----------------------------------------------
-import os.path
-
-from akutils import *
-import arcpy
-import numpy as np
-import pandas as pd
+from user_tools.utils_init import load_system_paths
 
 # -------- Set Up Environment ------------------------------------------
+paths = load_system_paths()
 
-## Define root directories
-drive = 'C:/'
-root_folder = 'ACCS_Work'
+# Define constants
+FOLDER_ID = "44_aim_various_2025"
+plot_folder = paths.cloud_assets.plot / FOLDER_ID
 
-## Define folder structure
-project_folder = os.path.join(drive, root_folder,
-                              'OneDrive - University of Alaska/ACCS_Teams/Vegetation/AKVEG_Database')
-plot_folder = os.path.join(project_folder, 'Data', 'Data_Plots', '44_aim_various_2022')
-source_folder = os.path.join(plot_folder, 'source')
-workspace_folder = os.path.join(plot_folder, 'working')
+# Define input files
+gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
+visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 
-# Set workspace
-workspace_geodatabase = os.path.join(drive, root_folder, 'Projects', 'AKVEG_Map', 'Data', 'AKVEG_Workspace.gdb')
-arcpy.env.workspace = workspace_geodatabase
-
-# Define files
-
-## Define inputs
-source_geodatabase = os.path.join(source_folder, 'AIMWetlandPub6-22-23_clean.gdb')
-sites_input = os.path.join(workspace_geodatabase, 'AIM_Wetlands_SiteEval')  # From previous script
-soil_horizons_input = os.path.join(source_geodatabase, 'F_SoilPitHorizons')
-soils_input = os.path.join(source_geodatabase, 'F_Soils')
-template_input = os.path.join(project_folder, 'Data', 'Data_Entry', '14_soil_horizons.xlsx')
-site_visit_input = os.path.join(plot_folder, '03_sitevisit_aimvarious2022.csv')
-
-## Define intermediate datasets
-soil_horizons_copy = os.path.join(workspace_geodatabase, 'AIM_Wetlands_SoilHorizons_Original')
-soils_copy = os.path.join(workspace_geodatabase, 'AIM_Wetlands_Soils_Alaska')
-sites_minimal = os.path.join(workspace_geodatabase, 'AIM_Wetlands_Sites_Minimal')
-
-## Define output
-horizons_feature_output = os.path.join(workspace_geodatabase, 'AIM_Wetlands_SoilHorizons_Alaska')
-horizons_table_output = os.path.join(plot_folder, '14_soilhorizons_aimvarious2022.csv')
-
-# Set environment options
-arcpy.env.overwriteOutput = True
-arcpy.env.outputCoordinateSystem = arcpy.SpatialReference(4269)  # NAD 83
-arcpy.env.qualifiedFieldNames = False  # Do not include table name in join field names
+# Define output
+horizons_output = plot_folder / '14_soilhorizons_aimvarious2025.csv'
 
 # -------- Load Data ---------------------------------------------------
 template = pd.read_excel(template_input)
