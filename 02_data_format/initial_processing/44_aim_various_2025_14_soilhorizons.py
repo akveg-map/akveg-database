@@ -79,6 +79,7 @@ horizons.select(cs.numeric()).describe()
 # Evaluate depth extend
 # depth_extend is True if 'PitImpenetrable' is Yes
 # Can only be True for the deepest horizon (highest number); all other horizons are False
+print(horizons.select("PitImpenetrable").unique())  # Ensure no null values
 horizons = (horizons.with_columns(pl.col("horizon_order").max().over("site_visit_code").alias("max_horizon"))
             .with_columns(pl.when((pl.col("PitImpenetrable") == "yes") &
                                   (pl.col("horizon_order") == pl.col("max_horizon")))
@@ -88,11 +89,11 @@ horizons = (horizons.with_columns(pl.col("horizon_order").max().over("site_visit
                           ))
 
 # Calculate horizon thickness
-## Thickness is -999 is depth_extend is TRUE (measurement hindered by presence of restrictive layer)
-horizons_table['thickness_cm'] = horizons_table['depth_lower'] - horizons_table['depth_upper']
-horizons_table['thickness_cm'] = np.where(
-    (horizons_table['depth_extend'] == 'TRUE'), -999,
-    horizons_table['thickness_cm'])
+# Thickness is -999 is depth_extend is TRUE (measurement hindered by presence of restrictive layer)
+horizons = horizons.with_columns(pl.when(pl.col("depth_extend") == "FALSE")
+                                 .then((pl.col("depth_lower") - pl.col("depth_upper")))
+                                 .otherwise(pl.lit(-999))
+                                 .alias("thickness_cm"))
 
 ## Format soil texture
 # Replace values that aren't present in the data dictionary (FO, HO, and SO) with NULL
