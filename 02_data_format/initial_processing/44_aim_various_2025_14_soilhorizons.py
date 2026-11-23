@@ -11,14 +11,18 @@ Usage: Python 3.13+
 """
 
 # -------- Load Packages -----------------------------------------------
+import polars as pl
+from pyogrio import read_dataframe
+
 from user_tools.utils_init import load_system_paths
+from utils.utils import get_template
 
 # -------- Set Up Environment ------------------------------------------
 paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
-plot_folder = paths.cloud_assets.plot / FOLDER_ID
+plot_folder = paths.cloud_assets.plots / FOLDER_ID
 
 # Define input files
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
@@ -27,71 +31,24 @@ visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
 # Define output
 horizons_output = plot_folder / '14_soilhorizons_aimvarious2025.csv'
 
-# -------- Load Data ---------------------------------------------------
-template = pd.read_excel(template_input)
-site_visit_table = pd.read_csv(site_visit_input)
+# -------- Load CSV Files -----------------------------------------
+visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
+template = get_template("soil_horizons")
 
-# Clean up input files: Drop unnecessary or redundant columns
+# -------- Load GeoDatabase Tables -------------------------------------
+gdb_dict = {
+    "AIM_Wetland__F_SoilPitHorizons": ["EvaluationID", "horizon", "HorizonDepthUpper", "HorizonDepthLower",
+                                       "MatrixHue", "MatrixValue", "MatrixChroma", "Texture", "GravelFragVolPct",
+                                       "CobblesFragVolPct3", "StonesFragVolPct4", "HorizonComments"]
+}
 
-## Create FieldMappings object to manage output fields
-field_map_sites = arcpy.FieldMappings()
-field_map_soils = arcpy.FieldMappings()
+gdb_tables = {
+    layer_name: pl.DataFrame(read_dataframe(gdb_input, layer=layer_name, columns=cols,
+                                            read_geometry=False, use_arrow=True))
+    for layer_name, cols in gdb_dict.items()
+}
 
-## Add all fields to field map objects
-field_map_sites.addTable(sites_input)
-field_map_soils.addTable(soils_input)
-
-## Specify desired output columns
-columns_sites = ["EvaluationID", "PlotID", "AdminState"]
-columns_soils = ["EvaluationID", "PlotID", "AdminState", 'PitImpenetrable', 'ImpenetrableDescrip', 'WaterObserved',
-                 'WaterDepth', 'PitSaturated', 'DepthToSatSoil', 'Comments']
-
-## Remove extraneous columns in field map objects
-for field in field_map_sites.fields:
-    if field.name not in columns_sites:
-        field_map_sites.removeFieldMap(field_map_sites.findFieldMapIndex(field.name))
-
-for field in field_map_soils.fields:
-    if field.name not in columns_soils:
-        field_map_soils.removeFieldMap(field_map_soils.findFieldMapIndex(field.name))
-
-## Create new feature classes with fewer columns
-arcpy.conversion.ExportFeatures(sites_input, sites_minimal, field_mapping=field_map_sites)
-
-## Copy soil horizons to environment geodatabase
-arcpy.conversion.ExportTable(soil_horizons_input, soil_horizons_copy)
-arcpy.conversion.ExportFeatures(soils_input, soils_copy, where_clause="AdminState='AK'", field_mapping=field_map_soils)
-
-# Join soil horizons table with site features
-# 'Keep common' ensures only sites in Alaska are kept
-horizons_sites_join = arcpy.management.AddJoin(in_layer_or_view=sites_minimal, in_field='EvaluationID',
-                                               join_table=soil_horizons_copy, join_field='EvaluationID',
-                                               join_type='KEEP_COMMON', join_operation='JOIN_ONE_TO_MANY',
-                                               rebuild_index='TRUE')
-
-horizons_soils_join = arcpy.management.AddJoin(in_layer_or_view=horizons_sites_join, in_field='EvaluationID',
-                                               join_table=soils_copy, join_field='EvaluationID',
-                                               join_type='KEEP_COMMON')
-
-## Copy layer to a new feature class
-arcpy.management.CopyFeatures(horizons_soils_join, horizons_feature_output)
-
-## Convert to dataframe
-horizons_table = geodatabase_to_dataframe(horizons_feature_output)
-
-## Drop superfluous columns
-
-# Replace empty values with na and drop columns for which all values are null
-horizons_table.replace(["", "<NULL>"], np.nan, inplace=True)
-horizons_table.dropna(how='all', axis=1, inplace=True)
-
-horizons_table = horizons_table.drop(columns=['EvaluationID', 'EvaluationID_1', 'EvaluationID_12', 'AdminState',
-                                              'AdminState_1', 'OBJECTID', 'OBJECTID_1', 'OBJECTID_12', 'PitKey',
-                                              'last_edited_user', 'last_edited_date', 'GlobalID', 'PlotID_1',
-                                              'PrimaryRedoxFeatures', 'PrimaryRedoxHue', 'PrimaryRedoxValue',
-                                              'PrimaryRedoxChroma', 'PrimaryRedoxPercent', 'SecondaryRedoxFeatures',
-                                              'SecondaryRedoxHue', 'SecondaryRedoxValue', 'SecondaryRedoxChroma',
-                                              'SecondaryRedoxPercent', 'pH'])
+horizons_original = gdb_tables["AIM_Wetland__F_SoilPitHorizons"]
 
 # -------- Prepare Input Data ------------------------------------------
 # Format PlotID to match site code
