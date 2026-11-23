@@ -27,8 +27,8 @@ paths = load_system_paths()
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
 COLUMNS_RENAME_MAP = {"horizon": "horizon_order",
-                      "HorizonDepthUpper": "depth_upper",
-                      "HorizonDepthLower": "depth_lower",
+                      "HorizonDepthUpper": "depth_upper_cm",
+                      "HorizonDepthLower": "depth_lower_cm",
                       "Texture": "soil_texture_code",
                       "MatrixHue": "matrix_hue",
                       "MatrixValue": "matrix_value",
@@ -95,7 +95,7 @@ horizons = (horizons.with_columns(pl.col("horizon_order").max().over("site_visit
 # Calculate horizon thickness
 # Thickness is -999 is depth_extend is TRUE (measurement hindered by presence of restrictive layer)
 horizons = horizons.with_columns(pl.when(pl.col("depth_extend") == "FALSE")
-                                 .then((pl.col("depth_lower") - pl.col("depth_upper")))
+                                 .then((pl.col("depth_lower_cm") - pl.col("depth_upper_cm")))
                                  .otherwise(pl.lit(-999))
                                  .alias("thickness_cm"))
 
@@ -109,22 +109,31 @@ horizons = (horizons.join(soil_texture, on="soil_texture_code", how="left")
 print(horizons.filter(pl.col("texture").is_null()).select("soil_texture_code").unique())
 
 # Convert matrix value and matrix chroma to numeric
-horizons_table[["matrix_value", "matrix_chroma"]] = horizons_table[["MatrixValue", "MatrixChroma"]].apply(pd.to_numeric)
+horizons = horizons.with_columns(pl.col("matrix_value").cast(pl.Decimal(3, 1)),
+                                 pl.col("matrix_chroma").cast(pl.Int16))
 
-# Replace null with NULL
+# -------- Add Missing Columns & Value Codes ---------------------------
 
-# Populate values for missing columns
-horizons_final = horizons_table.assign(horizon_primary='NULL', horizon_suffix_1='NULL', horizon_suffix_2='NULL',
-                                       horizon_secondary='NULL', horizon_suffix_3='NULL', horizon_suffix_4='NULL',
-                                       structure='NULL',
-                                       clay_percent=-999,
-                                       boulder_percent=-999,
-                                       nonmatrix_feature='NULL',
-                                       nonmatrix_hue='NULL', nonmatrix_value=-999, nonmatrix_chroma=-999)
-
-# Final formatting
-## Drop all columns that aren't in the template and reorder them to match data entry template
-horizons = horizons[template.columns]
+horizons = (horizons.with_columns(horizon_primary=pl.lit("NULL"),
+                                  horizon_suffix_1=pl.lit("NULL"),
+                                  horizon_suffix_2=pl.lit("NULL"),
+                                  horizon_secondary=pl.lit("NULL"),
+                                  horizon_suffix_3=pl.lit("NULL"),
+                                  horizon_suffix_4=pl.lit("NULL"),
+                                  structure=pl.lit("NULL"),
+                                  clay_percent=pl.lit(-999),
+                                  boulder_percent=pl.lit(-999),
+                                  total_coarse_fragment_percent=pl.lit(-999),
+                                  nonmatrix_feature=pl.lit("NULL"),
+                                  nonmatrix_hue=pl.lit("NULL"),
+                                  nonmatrix_value=pl.lit(-999),
+                                  nonmatrix_chroma=pl.lit(-999)
+                                  )
+            .select(template.columns)
+            # Replace nulls with appropriate missing value codes
+            .with_columns(cs.string().fill_null(value="NULL"),
+                          cs.numeric().fill_null(value=-999))
+            )
 
 # -------- Perform Quality Checks --------------------------------------
 
