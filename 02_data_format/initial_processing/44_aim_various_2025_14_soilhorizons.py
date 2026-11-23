@@ -22,6 +22,17 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
+COLUMNS_RENAME_MAP = {"horizon": "horizon_order",
+                      "HorizonDepthUpper": "depth_upper",
+                      "HorizonDepthLower": "depth_lower",
+                      "Texture": "texture",
+                      "MatrixHue": "matrix_hue",
+                      "MatrixValue": "matrix_value",
+                      "MatrixChroma": "matrix_chroma",
+                      "GravelFragVolPct": "gravel_percent",
+                      "CobblesFragVolPct2": "cobble_percent",
+                      "StonesFragVolPct3": "stone_percent"
+                      }
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -51,13 +62,10 @@ gdb_tables = {
 horizons_original = gdb_tables["AIM_Wetland__F_SoilPitHorizons"]
 
 # Lightly clean table & append site visit code
-horizons = clean_aim_table(horizons_original, site_visit_table=visit_original, exclude_cols=["MatrixHue"])
+horizons = clean_aim_table(horizons_original, site_visit_table=visit_original,
+                           exclude_cols=["MatrixHue"]).rename(COLUMNS_RENAME_MAP, strict=False)
 
 # -------- Prepare Input Data ------------------------------------------
-# Format horizon order
-horizons_table.horizon.value_counts()
-horizons_table.horizon.isnull().sum()  # Ensure there are no null values
-horizons_table.rename(columns={'horizon': 'horizon_order'}, inplace=True)
 
 # Format upper and lower depth
 horizons_table[['HorizonDepthUpper', 'HorizonDepthLower']].describe()
