@@ -14,8 +14,7 @@ Usage: Python 3.13+
 # -------- Load Packages -----------------------------------------------
 from collections import defaultdict
 from functools import reduce
-
-import geopandas as gpd
+from pyogrio import read_dataframe
 import polars as pl
 import polars.selectors as cs
 
@@ -124,7 +123,8 @@ gdb_dict = {
 # Use dictionary comprehension to iteratively load shapefiles as DataFrames
 environment_layers = {
     group: {
-        layer_name: pl.from_pandas(gpd.read_file(gdb_input, layer=layer_name, columns=cols, ignore_geometry=True))
+        layer_name: pl.DataFrame(read_dataframe(gdb_input, layer=layer_name, columns=cols, read_geometry=False,
+                                                use_arrow=True))
         for layer_name, cols in layers.items()
     }
     for group, layers in gdb_dict.items()
