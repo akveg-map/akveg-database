@@ -10,7 +10,7 @@ Last Updated: 2026-11-23
 Usage: Python 3.13+
 """
 
-# Import packges
+# -------- Load Packages -----------------------------------------------
 import os.path
 
 from akutils import *
@@ -18,7 +18,7 @@ import arcpy
 import numpy as np
 import pandas as pd
 
-# Define directories
+# -------- Set Up Environment ------------------------------------------
 
 ## Define root directories
 drive = 'C:/'
@@ -59,7 +59,7 @@ arcpy.env.overwriteOutput = True
 arcpy.env.outputCoordinateSystem = arcpy.SpatialReference(4269)  # NAD 83
 arcpy.env.qualifiedFieldNames = False  # Do not include table name in join field names
 
-# Read inputs
+# -------- Load Data ---------------------------------------------------
 template = pd.read_excel(template_input)
 site_visit_table = pd.read_csv(site_visit_input)
 
@@ -125,7 +125,7 @@ horizons_table = horizons_table.drop(columns=['EvaluationID', 'EvaluationID_1', 
                                               'SecondaryRedoxHue', 'SecondaryRedoxValue', 'SecondaryRedoxChroma',
                                               'SecondaryRedoxPercent', 'pH'])
 
-## Obtain site visit code
+# -------- Prepare Input Data ------------------------------------------
 # Format PlotID to match site code
 # Remove 'AK-', 'CYFO-', and 'EIFO-'; convert dashes to underscores
 horizons_table['site_code'] = horizons_table['PlotID']
@@ -139,6 +139,7 @@ horizons_table = horizons_table.set_index('site_code').join(site_visit_table.set
 horizons_table.reset_index(inplace=True)
 horizons_table.site_visit_code.isnull().sum()  # Ensure there are no null values
 
+# -------- Format Data -------------------------------------------------
 # Format horizon order
 horizons_table.horizon.value_counts()
 horizons_table.horizon.isnull().sum()  # Ensure there are no null values
@@ -228,7 +229,7 @@ horizons_final = horizons_table.assign(horizon_primary='NULL', horizon_suffix_1=
 ## Drop all columns that aren't in the template and reorder them to match data entry template
 horizons_final = horizons_final[template.columns]
 
-# QA/QC
+# -------- Perform Quality Checks --------------------------------------
 temp = horizons_final.describe(include='all')
 
 ## Ensure that categorical variables match constrained values in database dictionary
@@ -236,5 +237,5 @@ horizons_final.texture.unique()
 horizons_final.structure.unique()
 horizons_final.matrix_hue.unique()
 
-# Export dataframe
+# -------- Export Data -------------------------------------------------
 horizons_final.to_csv(horizons_table_output, index=False, encoding='UTF-8')
