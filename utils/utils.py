@@ -26,7 +26,7 @@ one that matches the AKVEG schema), creating missing columns and filling them wi
 obtain site visit codes.
 
 Author: Amanda Droghini, Alaska Center for Conservation Science
-Last Updated: 2026-11-23
+Last Updated: 2026-11-25
 Usage: Python 3.13+
 """
 
@@ -111,9 +111,9 @@ SCHEMA_OVERRIDES = {
                       "cobble_percent": pl.Decimal(precision=4, scale=1),
                       "stone_percent": pl.Decimal(precision=4, scale=1),
                       "boulder_percent": pl.Decimal(precision=4, scale=1),
-                      "matrix_value": pl.Decimal(precision=3, scale=1),
+                      "matrix_value": pl.Decimal(precision=4, scale=1),
                       "matrix_chroma": pl.Int16,
-                      "nonmatrix_value": pl.Decimal(precision=3, scale=1),
+                      "nonmatrix_value": pl.Decimal(precision=4, scale=1),
                       "nonmatrix_chroma": pl.Int16}
 }
 
