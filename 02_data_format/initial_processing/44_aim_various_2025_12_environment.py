@@ -73,7 +73,8 @@ disturbance_crosswalk = pl.read_csv(disturbance_input)
 gdb_dict = {
     # Site & hdrology data
     "site_hydrology": {
-        "AIM_Wetland__F_PlotCharacterization": ['EvaluationID', 'Elevation_m', 'Slope', 'AlaskaEcotypeClassification',
+        "AIM_Wetland__F_PlotCharacterization": ['EvaluationID', 'PlotID', 'Elevation_m', 'Slope',
+                                                'AlaskaEcotypeClassification',
                                                 'LandscapeType', 'LandscapeTypeSecondary', 'VerticalSlopeShape',
                                                 'PlotDescription'],
 
@@ -81,7 +82,7 @@ gdb_dict = {
                                      'SurfaceWaterDepth']
     },
     # Soil horizons
-    "soil_horizons": {
+    "restrictive_layer": {
         "AIM_Wetland__F_Soils": ['EvaluationID', 'ImpenetrableDescrip']
     },
     # Disturbance data
