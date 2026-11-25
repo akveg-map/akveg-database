@@ -4,7 +4,7 @@
 Combines data from the BLM Riparian AIM GeoDatabase and from individual CSVs of "supplemental indicators" provided
 by BLM Alaska. Appends unique site identifiers, re-classifies categorical values, converts missing values to
 designated missing value codes, and performs quality control checks before exporting to CSV for ingestion into the
-AKVEG Database.
+AKVEG Database. Requires output from 44_aim_various_2025_14_soilhorizons.py.
 
 Author: Amanda Droghini, Alaska Center for Conservation
 Last Updated: 2026-11-25
