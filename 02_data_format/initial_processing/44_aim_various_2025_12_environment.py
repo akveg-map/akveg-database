@@ -26,6 +26,11 @@ paths = load_system_paths()
 
 # Define constants
 FOLDER_ID = "44_aim_various_2025"
+INDICATORS_COLS = {"MossActiveLayer 2022-25": ["Evaluation ID", "GlobalID"],
+                   "MossActiveLayer_Details 2023-25": ["parentglobalid", "Moss/Duff Thickness (cm)",
+                                                       "Depth of Water (cm)", "Depth Soil to ActiveLayer (cm)",
+                                                       "Notes"]
+                   }
 INDICATORS_RENAME_MAP = {"Overall Site Moisture Regime": "moisture_regime",
                          "Depth of Water (cm)": "depth_water_cm",
                          "Moss/Duff Thickness (cm)": "depth_moss_duff_cm",
@@ -103,67 +108,30 @@ environment_cleaned = {
 }
 
 # Unpack dictionary into three DataFrames
-hydrology_original, horizons_original, disturbance_original = environment_cleaned.values()
+hydrology_original, restrictive_original, disturbance_original = environment_cleaned.values()
 
 del gdb_dict, environment_layers, environment_cleaned
 
 # -------- Load Excel Sheets -------------------------------------------
-excel_dict = {"MossActiveLayer 2021": {"cols": ["Office", "Plot ID", "Plot Key", "Overall Site Moisture Regime"],
-                                       "year_end": "2021"},
-              "MossActiveLayer_Details 2021": {"cols": ["Plot Key",
-                                                        "Moss/Duff Thickness (cm)", "Depth of Water (cm)",
-                                                        "Depth Soil to ActiveLayer (cm)", "Notes"],
-                                               "year_end": "2021"},
-              "MossActiveLayer 2022-25": {"cols": ["Plot ID", "Evaluation ID", "GlobalID"],
-                                          "year_end": "2025"},
-              "MossActiveLayer_Details 2023-25": {"cols": ["parentglobalid", "Moss/Duff Thickness (cm)",
-                                                           "Depth of Water (cm)", "Depth Soil to ActiveLayer (cm)",
-                                                           "Notes"],
-                                                  "year_end": "2025"}
-              }
+indicators_raw = pl.read_excel(source=indicators_input, sheet_name=list(INDICATORS_COLS.keys()))
 
-# Read Excel sheets
-excel_sheets = pl.read_excel(source=indicators_input, sheet_name=list(excel_dict.keys()))
+# Select and rename columns
+indicators_cleaned = {sheet: indicators_raw[sheet].select(cols).rename(INDICATORS_RENAME_MAP, strict=False)
+                      for sheet, cols in INDICATORS_COLS.items()}
 
-# Select & rename columns, group sheets by year
-subsets_by_year = defaultdict(list)
-for sheet, attribute in excel_dict.items():
-    year = attribute["year_end"]
-    df = excel_sheets[sheet].select(attribute["cols"]).rename(INDICATORS_RENAME_MAP, strict=False)
-    # Drop rows without a Plot Key (2 site visits) in 2021 data
-    if year == "2021":
-        df = df.remove(pl.col("Plot Key") == "<Null>")
-    # Combine multiple moisture regime entries into a single row per site visit (moisture regime was taken at each
-    # line in 2021)
-    if sheet == "MossActiveLayer 2021":
-        df = (df.group_by(pl.col("Plot Key"))
-              .agg(pl.col("moisture_regime").drop_nulls().unique().str.join(delimiter=", ")))
-    # Drop site visits with same Evaluation ID (but different Global ID); measurements cannot be reconciled to unique ID
-    if sheet == "MossActiveLayer 2022-25":
-        df = df.unique(subset=pl.col("Evaluation ID"), keep="none")
-    subsets_by_year[year].append(df)
-
-# Join dataframes of the same year
-year_join_keys = {"2021": "Plot Key",
-                  "2025": "GlobalID"}
+# Drop duplicate visits (identical measurements)
+indicators_cleaned["MossActiveLayer 2022-25"] = (
+    indicators_cleaned["MossActiveLayer 2022-25"]
+    .unique(subset=["Evaluation ID"], keep="first")
+)
 
 # Use left join to drop measurements associated with duplicate Evaluation ID
-indicators_merged = [
-    reduce(lambda left, right: left.join(right, on=year_join_keys[year], how="left"),
-           df_list)
-    for year, df_list in subsets_by_year.items()
-]
-
-# Concatenate joined tables using "diagonal_relaxed" to combine common columns and coerce mismatched types
-indicators_original = (pl.concat(indicators_merged, how="diagonal_relaxed")
-                       # Replace string literal <Null> with null
-                       .with_columns(cs.string().replace(old="<Null>", new=None))
-                       # Cast numeric columns to appropriate data type
-                       .with_columns(pl.col("depth_water_cm").cast(pl.Float64)
-                                     .alias("depth_water_cm"))
-                       )
-
-del excel_dict, excel_sheets, subsets_by_year, year_join_keys, indicators_merged
+indicators_merged = (reduce(lambda left, right: left.join(right, on="GlobalID", how="left"),
+                            indicators_cleaned.values())
+                     .with_columns(cs.string().replace(old="<Null>", new=None),
+                                   pl.col("depth_water_cm").cast(pl.Float64).alias("depth_water_cm"))
+                     .drop("GlobalID")
+                     )
 
 # -------- Classify Disturbance ------------------------------------
 
@@ -336,67 +304,42 @@ hydrology = hydrology.with_columns(pl.lit(None).cast(pl.String).alias("microtopo
                                    pl.lit(-999).cast(pl.Decimal(4,1)).alias("microrelief_cm")
                                    )
 
-# -------- Classify Soils Data -----------------------------------------
+# -------- Classify Restrictive Type -----------------------------------
 
 # Classify restrictive type
-print(horizons_original["ImpenetrableDescrip"].value_counts())
+print(restrictive_original["ImpenetrableDescrip"].value_counts())
 
-horizons = horizons_original.with_columns(pl.col("ImpenetrableDescrip").replace(old=["large boulders",
-                                                                                     "cemented layer",
-                                                                                     "other"],
-                                                                                new=["rock unconsolidated",
-                                                                                     "unknown",
-                                                                                     "unknown"])
-                                          .alias("restrictive_type"))
+# Drop duplicate rows (some visits had multiple soil pits, but the restrictive type was the same)
+restrictive = (restrictive_original.unique(keep="any")
+               .with_columns(pl.col("ImpenetrableDescrip")
+                             .replace(old=["large boulders", "cemented layer", "other"],
+                                      new=["rock unconsolidated", "unknown", "unknown"])
+                             .alias("restrictive_type")))
 
 # Ensure frequency matches expectation from original ImpenetrableDescrip column
-print(horizons["restrictive_type"].value_counts())
+print(restrictive["restrictive_type"].value_counts())
 
 # -------- Prepare Indicator Data (Depths & Moisture) ------------------
 
-# Ensure Plot Key and Evaluation ID are mutually exclusive (they should be, because the 2021 data used "Plot Key" as
-# a unique site visit identifier, while the 2025 data used "Evaluation ID")
-print(indicators_original.select(["Plot Key", "Evaluation ID"]).count(),
-      indicators_original.select(["Plot Key", "Evaluation ID"]).null_count())
-
-indicators = (indicators_original
-                 # Coalesce Plot Key and Evaluation ID
-                 .with_columns(pl.coalesce(pl.col(["Plot Key", "Evaluation ID"])
-                                           .alias("plot_key")),
-                               # Convert Notes to lowercase
-                               pl.col("Notes").str.to_lowercase().alias("Notes"))
-                 # Convert "unmeasurable" depth values to null to exclude them from mean calculation
-                 .with_columns(pl.when(pl.col("Notes").str.contains(r"greater.*100"))
+indicators = (indicators_merged.with_columns(pl.col("Notes").str.to_lowercase().alias("Notes"))
+              # Convert "unmeasurable" depth values to null to exclude them from mean calculation
+              .with_columns(pl.when(pl.col("Notes").str.contains(r"greater.*100"))
                                .then(None)
                                .otherwise(pl.col("depth_restrictive_layer_cm"))
                                .alias("depth_restrictive_layer_cm"))
                  .with_columns(cs.numeric().replace([-999, 999, 9999], None))
-                 .drop(["Plot Key", "Evaluation ID", "GlobalID", "Notes"])
-                 )
+              # Calculate mean depths
+              .group_by("Evaluation ID").agg(cs.numeric().mean().cast(pl.Decimal(4,1)))
+              # Drop rows for which all depths are null
+              .remove(pl.all_horizontal(cs.numeric()).is_null())
+              )
 
-# Ensure that only one moisture regime value exists per site visit
-print(indicators.group_by("plot_key").agg(pl.col("moisture_regime").n_unique())
-      .filter(pl.col("moisture_regime") > 1))  # Should be empty
+# Format Evaluation ID and join with Site Visit to obtain site visit code
+indicators = clean_aim_table(indicators, unique_id="Evaluation ID", site_visit_table=visit_original)
 
-# Calculate mean depths and grab first moisture regime value (all values at a site visit are the same)
-indicators = (indicators.group_by("plot_key").agg(cs.numeric().mean().cast(pl.Decimal(4,1)),
-                                                        cs.string().first())
-                 .rename({"moisture_regime": "original_values"}))
+# -------- Prepare Texture at 40cm ------------------
+# Requires Soil Horizons table
 
-# Join with moisture crosswalk to map old moisture values onto AKVEG Database Dictionary values
-indicators = indicators.join(moisture_crosswalk, how="left", on="original_values")
-
-# Ensure that original and re-class moisture columns have the same number of nulls
-print(indicators.select(["original_values", "moisture_regime"]).null_count())
-
-# --- Combine Data & Add Missing Columns -------------------------------
-# Replace nulls with string literal "NULL" for SQL compatibility
-.with_columns(cs.string().replace(None, "NULL"),
-              pl.lit(-999).alias("depth_15_percent_coarse_fragments_cm")
-)
-
-## Format dominant texture at 40 cm
-# Use information from soil horizons table
 texture_40cm = soil_horizons[soil_horizons['depth_lower'] >= 40].copy()
 texture_40cm['min_horizon'] = texture_40cm.groupby('site_visit_code')['horizon_order'].transform('min')
 texture_40cm['max_horizon'] = texture_40cm.groupby('site_visit_code')['horizon_order'].transform('max')
