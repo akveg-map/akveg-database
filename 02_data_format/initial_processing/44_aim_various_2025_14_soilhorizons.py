@@ -37,6 +37,7 @@ COLUMNS_RENAME_MAP = {"horizon": "horizon_order",
                       "CobblesFragVolPct2": "cobble_percent",
                       "StonesFragVolPct3": "stone_percent"
                       }
+REQUIRED_COLS = ["site_visit_code", "horizon_order", "thickness_cm", "depth_upper_cm", "depth_lower_cm", "depth_extend"]
 
 # Define inputs
 plot_folder = paths.cloud_assets.plots / FOLDER_ID
@@ -148,33 +149,21 @@ set_horizons = set(horizons.get_column("site_visit_code").unique().to_list())
 set_visit = set(visit_original.get_column("site_visit_code").unique().to_list())
 print(set_visit - set_horizons)
 
-# Ensure no null values
-print(horizons.select(cs.numeric()).null_count())
-print(horizons.select(cs.numeric()).describe())
+# Ensure no null values for required columns
+print(horizons.select(REQUIRED_COLS).null_count())
 
-## Ensure that categorical variables match constrained values in database dictionary
-horizons_final.texture.unique()
-horizons_final.structure.unique()
-horizons_final.matrix_hue.unique()
+# Ensure percent columns are between 0-100% (exclude -999 missing value code)
+print(horizons.select(cs.ends_with("percent"))
+      .with_columns(cs.ends_with("percent").replace(-999, None))
+      .describe())
 
-## Verify that range of values are reasonable i.e., bounded between 0-100
-horizons_table.gravel_percent.describe()
-horizons_table.cobble_percent.describe()
-horizons_table.stone_percent.describe()
-horizons_table.total_coarse_fragment_percent.describe()
+# -------- Replace Null Values -----------------------------------------
 
-# Check matrix
-horizons_table.MatrixHue.unique()
-horizons_table.MatrixChroma.unique()
-horizons_table.MatrixValue.unique()
-horizons_table[['MatrixHue', 'MatrixChroma', 'MatrixValue']].isnull().sum()
-
-## Replace null values with -999
-horizons_table.update(horizons_table[['gravel_percent', 'cobble_percent', 'total_coarse_fragment_percent',
-                                      'stone_percent']].fillna(-999))
+horizons_final = horizons.with_columns(cs.string().fill_null(value="NULL"),
+                                       cs.numeric().fill_null(value=-999))
 
 # -------- Export Data -------------------------------------------------
-horizons_final.to_csv(horizons_table_output, index=False, encoding='UTF-8')
+horizons_final.write_csv(horizons_output)
 
 # -------- Close Database Connection -----------------------------------
 db_conn.close()
