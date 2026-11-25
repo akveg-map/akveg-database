@@ -6,7 +6,7 @@ categorical values, converts missing values to designated missing value codes, a
 before exporting to CSV for ingestion into the AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-23
+Last Updated: 2026-11-25
 Usage: Python 3.13+
 """
 
@@ -19,7 +19,7 @@ from pyogrio import read_dataframe
 
 from user_tools.utils_database import connect_database_postgresql, query_to_dataframe
 from user_tools.utils_init import load_system_paths
-from utils.utils import clean_aim_table, get_template
+from utils.utils import clean_aim_table, get_template, get_valid_values
 
 # -------- Set Up Environment ------------------------------------------
 paths = load_system_paths()
@@ -112,7 +112,13 @@ print(horizons.filter(pl.col("texture").is_null()).select("soil_texture_code").u
 horizons = horizons.with_columns(pl.col("matrix_value").cast(pl.Decimal(3, 1)),
                                  pl.col("matrix_chroma").cast(pl.Int16))
 
-# -------- Add Missing Columns & Value Codes ---------------------------
+# Ensure all matrix hue values exist in the AKVEG Database Dictionary
+valid_hue_values = get_valid_values(db_conn, "soil_hue", "soil_hue")
+dataset_hue_values = set(horizons.get_column("matrix_hue").unique().to_list())
+invalid_hue_values = dataset_hue_values - valid_hue_values
+print(invalid_hue_values)
+
+# -------- Add Missing Columns -----------------------------------------
 
 horizons = (horizons.with_columns(horizon_primary=pl.lit("NULL"),
                                   horizon_suffix_1=pl.lit("NULL"),
