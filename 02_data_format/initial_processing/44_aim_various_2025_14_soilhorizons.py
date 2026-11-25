@@ -94,7 +94,7 @@ horizons = (horizons.with_columns(pl.col("horizon_order").max().over("site_visit
                           ))
 
 # Calculate horizon thickness
-# Thickness is -999 is depth_extend is TRUE (measurement hindered by presence of restrictive layer)
+# Thickness is -999 if depth_extend is TRUE (measurement hindered by presence of restrictive layer)
 horizons = horizons.with_columns(pl.when(pl.col("depth_extend") == "FALSE")
                                  .then((pl.col("depth_lower_cm") - pl.col("depth_upper_cm")))
                                  .otherwise(pl.lit(-999))
