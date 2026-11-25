@@ -357,12 +357,11 @@ texture_40cm['keep_row'] = np.select(conditions, choices, default=False)
 
 texture_40cm = texture_40cm[texture_40cm['keep_row'] == True]
 
-# Join with environment table
-texture_40cm.drop(columns=['horizon_order', 'depth_upper', 'depth_lower',
-                           'total_coarse_fragment_percent', 'min_horizon', 'keep_row'],
-                  inplace=True)
-texture_40cm.rename(columns={'texture': 'dominant_texture_40_cm'}, inplace=True)
-environment_table = pd.merge(environment_table, texture_40cm, 'left', on='site_visit_code')
+# --- Combine Data & Add Missing Columns -------------------------------
+# Replace nulls with string literal "NULL" for SQL compatibility
+.with_columns(cs.string().replace(None, "NULL"),
+              pl.lit(-999).alias("depth_15_percent_coarse_fragments_cm")
+)
 
 # Replace NaN with appropriate null value
 environment_table.dominant_texture_40_cm.fillna(value='NULL', inplace=True)
