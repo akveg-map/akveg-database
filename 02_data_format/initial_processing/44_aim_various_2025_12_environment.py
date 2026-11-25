@@ -7,7 +7,7 @@ designated missing value codes, and performs quality control checks before expor
 AKVEG Database.
 
 Author: Amanda Droghini, Alaska Center for Conservation
-Last Updated: 2026-11-23
+Last Updated: 2026-11-25
 Usage: Python 3.13+
 """
 
@@ -389,29 +389,11 @@ indicators = indicators.join(moisture_crosswalk, how="left", on="original_values
 # Ensure that original and re-class moisture columns have the same number of nulls
 print(indicators.select(["original_values", "moisture_regime"]).null_count())
 
-# --- Combine Data ----
+# --- Combine Data & Add Missing Columns -------------------------------
 # Replace nulls with string literal "NULL" for SQL compatibility
-.with_columns(cs.string().replace(None, "NULL"))
+.with_columns(cs.string().replace(None, "NULL"),
+              pl.lit(-999).alias("depth_15_percent_coarse_fragments_cm")
 )
-
-
-## Format depth at 15% coarse fragments
-# Use information from soil horizons table
-
-# For each site, find the first instance where total_coarse_fragments = 15
-coarse_fragments_15 = soil_horizons[soil_horizons['total_coarse_fragment_percent'] >= 15].copy()
-coarse_fragments_15['min_horizon'] = coarse_fragments_15.groupby('site_visit_code')['horizon_order'].transform('min')
-coarse_fragments_15['keep_row'] = coarse_fragments_15['horizon_order'].eq(coarse_fragments_15['min_horizon'])
-coarse_fragments_15 = coarse_fragments_15[coarse_fragments_15['keep_row'] == True]
-coarse_fragments_15.drop(columns=['horizon_order', 'depth_lower', 'texture',
-                                  'total_coarse_fragment_percent', 'min_horizon', 'keep_row'],
-                         inplace=True)
-coarse_fragments_15.rename(columns={'depth_upper': 'depth_15_percent_coarse_fragments_cm'}, inplace=True)
-
-environment_table = pd.merge(environment_table, coarse_fragments_15, 'left', on='site_visit_code')
-
-# Replace NaN with appropriate null value
-environment_table.depth_15_percent_coarse_fragments_cm.fillna(value=-999, inplace=True)
 
 ## Format dominant texture at 40 cm
 # Use information from soil horizons table
