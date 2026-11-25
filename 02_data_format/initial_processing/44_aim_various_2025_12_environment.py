@@ -49,6 +49,7 @@ plot_folder = paths.cloud_assets.plots / FOLDER_ID
 gdb_input = plot_folder / "source" / "BLM_Natl_AIM_RiparianWetland_Export_20260422.gdb"
 indicators_input = plot_folder / "source" / "AK_Moss_and_Active_Layer_23Jan2026.xlsx"
 visit_input = plot_folder / '03_sitevisit_aimvarious2025.csv'
+horizons_input = plot_folder / '14_soilhorizons_aimvarious2025.csv'
 # Define crosswalk inputs
 moisture_input = paths.repository / "02_data_format" / "crosswalks" / "44_aim_various_2025_moisture_regime.csv"
 disturbance_input = paths.repository / "02_data_format" / "crosswalks" / "44_aim_various_2025_disturbance.csv"
@@ -58,6 +59,8 @@ envr_output = plot_folder / '12_environment_aimvarious2025.csv'
 
 # -------- Load CSV Files -----------------------------------------
 visit_original = pl.read_csv(visit_input, columns=["site_code", "site_visit_code"])
+horizons_original = pl.read_csv(horizons_input, columns=["site_visit_code", "horizon_order", "depth_upper_cm",
+                                                         "depth_lower_cm", "texture"])
 template = get_template("environment")
 moisture_crosswalk = pl.read_csv(moisture_input)
 disturbance_crosswalk = pl.read_csv(disturbance_input)
