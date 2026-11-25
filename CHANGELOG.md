@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 * **Separated database from code versioning**: Moved tracking of database and taxonony changes to a dedicated
   `database_version` table. Changelog entries in the GitHub repository will focus only on tracking changes to the SQL
   scripts and the ETL pipeline.
-* **Moved internal `utils` package to repository root**. Local modules can now be imported without needing to configure 
+* **Moved internal `utils` package to repository root**. Local modules can now be imported without needing to configure
   `02_data_format/` as Sources Roots in PyCharm.
 
 ### SQL Build & Queries Scripts
@@ -65,24 +65,27 @@ Unless noted, all changes apply to functions in the `utils.py` module.
 ### Added
 
 - `max_hits_per_visit()`: Calculates the total number of point intercept hits per site visit.
-- `check_conducitivity_values()`, `check_ph_values()`: Identifies physically impossible or suspicious electrical 
+- `check_conducitivity_values()`, `check_ph_values()`: Identifies physically impossible or suspicious electrical
   conducitivity and pH values, respectively.
+- `clean_aim_table()`: Lightly clean source tables from BLM AIM data and join with processed Site Visit table to retain
+  only valid records.
 
 #### Updated
 
 - `get_taxonomy()`, `get_abiotic_elements()`:
-    - **BREAKING**: Refactored to use a database connection as a parameter instead of a credentials file, 
-      reducing the number of times the database connection is opened when multiple functions within this module are 
+    - **BREAKING**: Refactored to use a database connection as a parameter instead of a credentials file,
+      reducing the number of times the database connection is opened when multiple functions within this module are
       run in the same script.
 - `get_taxonomy()`:
     - Changed field name from `name_accepted` to `name_adjudicated` to match field name used in Vegetation Cover table.
     - Added `name_adjudicated` as a returned field when `simple=True`.
 - `add_missing_elements()`:
-    - **BREAKING:** Added parameters to generalize function beyond only abiotic elements. New version is not 
+    - **BREAKING:** Added parameters to generalize function beyond only abiotic elements. New version is not
       back-compatible: site visit codes must be a Polars DataFrame, not a list.
     - Refactored to use Cartesian cross join instead of for loop and if/else logic.
-- `get_usda_codes()`: Fixed regex pattern to match and exclude all author names, including instances where there are 
+- `get_usda_codes()`: Fixed regex pattern to match and exclude all author names, including instances where there are
   multiple authors separated by taxonomic epithets.
+- Schema overrides for columns in the Soil Horizons table (used with `get_template()`).
 
 ### User Tools
 
