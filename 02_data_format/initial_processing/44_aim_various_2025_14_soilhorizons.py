@@ -137,9 +137,9 @@ horizons = (horizons.with_columns(horizon_primary=pl.lit("NULL"),
                                   nonmatrix_chroma=pl.lit(-999)
                                   )
             .select(template.columns)
-            # Replace nulls with appropriate missing value codes
-            .with_columns(cs.string().fill_null(value="NULL"),
-                          cs.numeric().fill_null(value=-999))
+            .cast(template.schema, strict=True)
+            # Sort DataFrame
+            .sort(by=["site_visit_code", "horizon_order"])
             )
 
 # -------- Perform Quality Checks --------------------------------------
